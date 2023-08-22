@@ -1,0 +1,41 @@
+{
+  "FileVersion": 3,
+  "Version": 0,
+  "VersionName": "1.0",
+  "FriendlyName": "Redwood MMO Framework",
+  "Description": "All of the necessary support for the Redwood MMO framework",
+  "Category": "Code Plugins",
+  "CreatedBy": "Incanta Games",
+  "CreatedByURL": "https://redwoodmmo.com",
+  "DocsURL": "https://docs.redwoodmmo.com",
+  "SupportURL": "https://forums.redwoodmmo.com",
+  "EngineVersion": "5.2.0",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "Redwood",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault",
+      "WhitelistPlatforms": [ "Win64", "Mac", "Linux", "LinuxArm64", "Android", "IOS" ]
+    },
+    {
+      "Name": "RedwoodEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": [ "Win64", "Mac", "Linux" ]
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "SocketIOClient",
+      "Enabled": true
+    },
+    {
+      "Name": "GameplayMessageRouter",
+      "Enabled": true
+    }
+  ]
+}
