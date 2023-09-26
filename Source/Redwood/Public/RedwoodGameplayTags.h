@@ -14,7 +14,7 @@ USTRUCT(BlueprintType)
 struct REDWOOD_API FRedwoodReason {
   GENERATED_BODY()
 
-  UPROPERTY(BlueprintReadWrite)
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Reason;
 };
 
@@ -23,9 +23,9 @@ USTRUCT(BlueprintType)
 struct REDWOOD_API FRedwoodPlayerJoined {
   GENERATED_BODY()
 
-  UPROPERTY(BlueprintReadWrite)
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   APlayerState* PlayerState;
 
-  UPROPERTY(BlueprintReadWrite)
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject* CharacterData;
 };
