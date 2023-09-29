@@ -36,6 +36,10 @@
     {
       "Name": "GameplayMessageRouter",
       "Enabled": true
+    },
+    {
+      "Name": "LatencyChecker",
+      "Enabled": true
     }
   ]
 }

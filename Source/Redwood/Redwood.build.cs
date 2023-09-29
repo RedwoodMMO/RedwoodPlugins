@@ -36,6 +36,7 @@ public class Redwood : ModuleRules {
       new string[] {
         "CoreUObject",
         "Engine",
+        "LatencyChecker",
       }
     );
 
