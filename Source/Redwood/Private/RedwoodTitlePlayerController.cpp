@@ -59,15 +59,6 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
   );
 
   DirectorSocketIOComponent->OnNativeEvent(
-    TEXT("realm:characters:update:response"),
-    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
-      HandleUpdateCharacterResponse(Event, Message);
-    },
-    TEXT("/"),
-    ESIOThreadOverrideOption::USE_GAME_THREAD
-  );
-
-  DirectorSocketIOComponent->OnNativeEvent(
     TEXT("realm:lobby:update"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       FString UpdateMessage =
@@ -226,14 +217,6 @@ void ARedwoodTitlePlayerController::HandlePingResult(
 
   // we've received pings from all datacenters, ping again
   InitiatePings();
-}
-
-void ARedwoodTitlePlayerController::HandleUpdateCharacterResponse(
-  const FString &Event, const TSharedPtr<FJsonValue> &Message
-) {
-  UE_LOG(
-    LogRedwood, Log, TEXT("Received: %s"), *USIOJConvert::ToJsonString(Message)
-  );
 }
 
 void ARedwoodTitlePlayerController::Register(

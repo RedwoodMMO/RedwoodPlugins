@@ -125,10 +125,6 @@ private:
   void InitiatePings();
   void HandlePingResult(FString TargetAddress, float RTT);
 
-  void HandleUpdateCharacterResponse(
-    const FString &Event, const TSharedPtr<FJsonValue> &Message
-  );
-
   UPROPERTY()
   USocketIOClientComponent *DirectorSocketIOComponent;
 
