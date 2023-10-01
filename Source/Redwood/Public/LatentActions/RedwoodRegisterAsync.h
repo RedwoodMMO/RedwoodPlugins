@@ -6,11 +6,10 @@
 
 #include "RedwoodAuthCommon.h"
 
-#include "RedwoodRegisterUsernameAsync.generated.h"
+#include "RedwoodRegisterAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodRegisterUsernameAsync
-  : public UBlueprintAsyncActionBase {
+class REDWOOD_API URedwoodRegisterAsync : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
@@ -23,7 +22,7 @@ public:
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodRegisterUsernameAsync *RegisterUsername(
+  static URedwoodRegisterAsync *Register(
     UObject *WorldContextObject,
     ARedwoodTitlePlayerController *PlayerController,
     const FString &Username,

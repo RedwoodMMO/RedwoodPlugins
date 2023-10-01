@@ -3,11 +3,14 @@
 #include "LatentActions/RedwoodGetCharacterDataAsync.h"
 
 URedwoodGetCharacterDataAsync *URedwoodGetCharacterDataAsync::GetCharacterData(
-  UObject *WorldContextObject, ARedwoodTitlePlayerController *PlayerController
+  UObject *WorldContextObject,
+  ARedwoodTitlePlayerController *PlayerController,
+  FString CharacterId
 ) {
   URedwoodGetCharacterDataAsync *Action =
     NewObject<URedwoodGetCharacterDataAsync>();
   Action->PlayerController = PlayerController;
+  Action->CharacterId = CharacterId;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
@@ -16,11 +19,11 @@ URedwoodGetCharacterDataAsync *URedwoodGetCharacterDataAsync::GetCharacterData(
 void URedwoodGetCharacterDataAsync::Activate() {
   FRedwoodCharacterResponse Delegate;
   Delegate.AddDynamic(this, &URedwoodGetCharacterDataAsync::HandleResponse);
-  PlayerController->GetCharacterData(Delegate);
+  PlayerController->GetCharacterData(CharacterId, Delegate);
 }
 
 void URedwoodGetCharacterDataAsync::HandleResponse(
-  FString Error, USIOJsonObject *CharacterData
+  FString Error, FRedwoodPlayerCharacter Character
 ) {
-  OnResponse.Broadcast(Error, CharacterData);
+  OnResponse.Broadcast(Error, Character);
 }

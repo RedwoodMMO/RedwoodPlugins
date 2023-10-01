@@ -4,16 +4,18 @@
 
 #include "CoreMinimal.h"
 
+#include "SIOJsonObject.h"
+
 #include "RedwoodTypes.generated.h"
 
 USTRUCT(BlueprintType)
 struct FRegion {
   GENERATED_BODY()
 
-  UPROPERTY()
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Name;
 
-  UPROPERTY()
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Ping;
 };
 
@@ -21,7 +23,7 @@ USTRUCT(BlueprintType)
 struct FRegionsChanged {
   GENERATED_BODY()
 
-  UPROPERTY()
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<FRegion> Regions;
 };
 
@@ -29,8 +31,13 @@ USTRUCT(BlueprintType)
 struct FDataCenterLatency {
   GENERATED_BODY()
 
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Id;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Url;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<float> RTTs;
 };
 
@@ -38,7 +45,10 @@ USTRUCT(BlueprintType)
 struct FDataCenterLatencySort {
   GENERATED_BODY()
 
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Id;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   float RTT;
 };
 
@@ -51,4 +61,15 @@ enum class ERedwoodLobbyUpdateType : uint8 {
   Update,
   Ready,
   TicketStale
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodPlayerCharacter {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Id;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *Data;
 };

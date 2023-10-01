@@ -28,6 +28,7 @@ public:
   static URedwoodSetCharacterDataAsync *SetCharacterData(
     UObject *WorldContextObject,
     ARedwoodTitlePlayerController *PlayerController,
+    FString CharacterId,
     USIOJsonObject *Data
   );
 
@@ -36,8 +37,10 @@ public:
 
   ARedwoodTitlePlayerController *PlayerController;
 
+  FString CharacterId;
+
   UPROPERTY()
   USIOJsonObject *Data;
 
-  void HandleResponse(FString Error, USIOJsonObject *CharacterData);
+  void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
 };

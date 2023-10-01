@@ -30,7 +30,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-  FRedwoodCharacterResponse, FString, Error, USIOJsonObject *, CharacterData
+  FRedwoodCharactersResponse,
+  FString,
+  Error,
+  TArray<FRedwoodPlayerCharacter>,
+  Characters
+);
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+  FRedwoodCharacterResponse, FString, Error, FRedwoodPlayerCharacter, Character
 );
 
 UDELEGATE()
@@ -68,38 +77,41 @@ public:
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   bool bUseWebsocketRegionPings = true;
 
-  void RegisterEmail(
-    const FString &Email,
-    const FString &DisplayName,
-    const FString &Password,
-    FRedwoodAuthUpdate OnUpdated
-  );
-
-  void RegisterUsername(
+  void Register(
     const FString &Username,
     const FString &Password,
     FRedwoodAuthUpdate OnUpdated
   );
 
   void Login(
-    const FString &EmailOrUsername,
+    const FString &Username,
     const FString &PasswordOrToken,
     FRedwoodAuthUpdate OnUpdated
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
-  void CancelWaitingForEmailVerification();
+  void CancelWaitingForAccountVerification();
 
-  void GetCharacterData(FRedwoodCharacterResponse OnResponse);
+  void ListCharacters(FRedwoodCharactersResponse OnResponse);
+
+  void CreateCharacter(
+    TSharedPtr<FJsonObject> Data, FRedwoodCharacterResponse OnResponse
+  );
+
+  void GetCharacterData(
+    FString CharacterId, FRedwoodCharacterResponse OnResponse
+  );
 
   void SetCharacterData(
-    TSharedPtr<FJsonObject> Data, FRedwoodCharacterResponse OnResponse
+    FString CharacterId,
+    TSharedPtr<FJsonObject> Data,
+    FRedwoodCharacterResponse OnResponse
   );
 
   void JoinLobby(FRedwoodLobbyUpdate OnUpdate);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
-  FString GetMatchConnectionString();
+  FString GetMatchConnectionString(FString CharacterId);
 
 private:
   void HandleDirectorConnected(
@@ -131,8 +143,7 @@ private:
 
   FString LobbyToken;
 
-  FRedwoodAuthUpdate OnEmailVerified;
+  FRedwoodAuthUpdate OnAccountVerified;
   FString PlayerId;
   FString AuthToken;
-  FString CharacterId;
 };

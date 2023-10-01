@@ -26,7 +26,9 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodGetCharacterDataAsync *GetCharacterData(
-    UObject *WorldContextObject, ARedwoodTitlePlayerController *PlayerController
+    UObject *WorldContextObject,
+    ARedwoodTitlePlayerController *PlayerController,
+    FString CharacterId
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -34,5 +36,7 @@ public:
 
   ARedwoodTitlePlayerController *PlayerController;
 
-  void HandleResponse(FString Error, USIOJsonObject *CharacterData);
+  FString CharacterId;
+
+  void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
 };

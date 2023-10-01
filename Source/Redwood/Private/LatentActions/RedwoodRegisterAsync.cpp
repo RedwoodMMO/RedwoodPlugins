@@ -1,15 +1,14 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "LatentActions/RedwoodRegisterUsernameAsync.h"
+#include "LatentActions/RedwoodRegisterAsync.h"
 
-URedwoodRegisterUsernameAsync *URedwoodRegisterUsernameAsync::RegisterUsername(
+URedwoodRegisterAsync *URedwoodRegisterAsync::Register(
   UObject *WorldContextObject,
   ARedwoodTitlePlayerController *PlayerController,
   const FString &Username,
   const FString &Password
 ) {
-  URedwoodRegisterUsernameAsync *Action =
-    NewObject<URedwoodRegisterUsernameAsync>();
+  URedwoodRegisterAsync *Action = NewObject<URedwoodRegisterAsync>();
   Action->PlayerController = PlayerController;
   Action->Username = Username;
   Action->Password = Password;
@@ -18,13 +17,13 @@ URedwoodRegisterUsernameAsync *URedwoodRegisterUsernameAsync::RegisterUsername(
   return Action;
 }
 
-void URedwoodRegisterUsernameAsync::Activate() {
+void URedwoodRegisterAsync::Activate() {
   FRedwoodAuthUpdate Delegate;
-  Delegate.AddDynamic(this, &URedwoodRegisterUsernameAsync::HandleUpdated);
-  PlayerController->RegisterUsername(Username, Password, Delegate);
+  Delegate.AddDynamic(this, &URedwoodRegisterAsync::HandleUpdated);
+  PlayerController->Register(Username, Password, Delegate);
 }
 
-void URedwoodRegisterUsernameAsync::HandleUpdated(
+void URedwoodRegisterAsync::HandleUpdated(
   ERedwoodAuthUpdateType Type, FString Message
 ) {
   Updated.Broadcast(Type, Message);

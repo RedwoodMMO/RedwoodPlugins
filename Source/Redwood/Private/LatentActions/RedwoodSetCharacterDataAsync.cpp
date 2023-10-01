@@ -5,11 +5,13 @@
 URedwoodSetCharacterDataAsync *URedwoodSetCharacterDataAsync::SetCharacterData(
   UObject *WorldContextObject,
   ARedwoodTitlePlayerController *PlayerController,
+  FString CharacterId,
   USIOJsonObject *Data
 ) {
   URedwoodSetCharacterDataAsync *Action =
     NewObject<URedwoodSetCharacterDataAsync>();
   Action->PlayerController = PlayerController;
+  Action->CharacterId = CharacterId;
   Action->Data = Data;
   Action->RegisterWithGameInstance(WorldContextObject);
 
@@ -19,11 +21,13 @@ URedwoodSetCharacterDataAsync *URedwoodSetCharacterDataAsync::SetCharacterData(
 void URedwoodSetCharacterDataAsync::Activate() {
   FRedwoodCharacterResponse Delegate;
   Delegate.AddDynamic(this, &URedwoodSetCharacterDataAsync::HandleResponse);
-  PlayerController->SetCharacterData(Data->GetRootObject(), Delegate);
+  PlayerController->SetCharacterData(
+    CharacterId, Data->GetRootObject(), Delegate
+  );
 }
 
 void URedwoodSetCharacterDataAsync::HandleResponse(
-  FString Error, USIOJsonObject *CharacterData
+  FString Error, FRedwoodPlayerCharacter Character
 ) {
-  OnResponse.Broadcast(Error, CharacterData);
+  OnResponse.Broadcast(Error, Character);
 }

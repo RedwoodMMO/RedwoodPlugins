@@ -45,13 +45,13 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
   );
 
   DirectorSocketIOComponent->OnNativeEvent(
-    TEXT("player:email-verified"),
+    TEXT("player:account-verified"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
       FString InPlayerId = MessageObject->GetStringField(TEXT("playerId"));
 
       if (InPlayerId == PlayerId) {
-        OnEmailVerified.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
+        OnAccountVerified.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
       }
     },
     TEXT("/"),
@@ -236,40 +236,7 @@ void ARedwoodTitlePlayerController::HandleUpdateCharacterResponse(
   );
 }
 
-void ARedwoodTitlePlayerController::RegisterEmail(
-  const FString &Email,
-  const FString &Password,
-  const FString &DisplayName,
-  FRedwoodAuthUpdate OnUpdated
-) {
-  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-  Payload->SetStringField(TEXT("email"), Email);
-  Payload->SetStringField(TEXT("password"), Password);
-  Payload->SetStringField(TEXT("displayName"), DisplayName);
-
-  DirectorSocketIOComponent->EmitNative(
-    TEXT("player:register:email"),
-    Payload,
-    [this, OnUpdated](auto Response) {
-      TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
-      PlayerId = MessageStruct->GetStringField(TEXT("playerId"));
-      FString Error = MessageStruct->GetStringField(TEXT("error"));
-
-      if (Error.IsEmpty()) {
-        OnUpdated.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
-      } else if (Error == "Must verify account") {
-        OnEmailVerified = OnUpdated;
-        OnUpdated.Broadcast(
-          ERedwoodAuthUpdateType::MustVerifyAccount, TEXT("")
-        );
-      } else {
-        OnUpdated.Broadcast(ERedwoodAuthUpdateType::Error, Error);
-      }
-    }
-  );
-}
-
-void ARedwoodTitlePlayerController::RegisterUsername(
+void ARedwoodTitlePlayerController::Register(
   const FString &Username, const FString &Password, FRedwoodAuthUpdate OnUpdated
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
@@ -287,7 +254,7 @@ void ARedwoodTitlePlayerController::RegisterUsername(
       if (Error.IsEmpty()) {
         OnUpdated.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
       } else if (Error == "Must verify account") {
-        OnEmailVerified = OnUpdated;
+        OnAccountVerified = OnUpdated;
         OnUpdated.Broadcast(
           ERedwoodAuthUpdateType::MustVerifyAccount, TEXT("")
         );
@@ -299,16 +266,16 @@ void ARedwoodTitlePlayerController::RegisterUsername(
 }
 
 void ARedwoodTitlePlayerController::Login(
-  const FString &EmailOrUsername,
+  const FString &Username,
   const FString &PasswordOrToken,
   FRedwoodAuthUpdate OnUpdated
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-  Payload->SetStringField(TEXT("account"), EmailOrUsername);
+  Payload->SetStringField(TEXT("username"), Username);
   Payload->SetStringField(TEXT("secret"), PasswordOrToken);
 
   DirectorSocketIOComponent->EmitNative(
-    TEXT("player:login"),
+    TEXT("player:login:username"),
     Payload,
     [this, OnUpdated](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -319,7 +286,7 @@ void ARedwoodTitlePlayerController::Login(
       if (Error.IsEmpty()) {
         OnUpdated.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
       } else if (Error == "Must verify account") {
-        OnEmailVerified = OnUpdated;
+        OnAccountVerified = OnUpdated;
         OnUpdated.Broadcast(
           ERedwoodAuthUpdateType::MustVerifyAccount, TEXT("")
         );
@@ -330,14 +297,75 @@ void ARedwoodTitlePlayerController::Login(
   );
 }
 
-void ARedwoodTitlePlayerController::CancelWaitingForEmailVerification() {
-  if (OnEmailVerified.IsBound()) {
-    OnEmailVerified.Clear();
+void ARedwoodTitlePlayerController::CancelWaitingForAccountVerification() {
+  if (OnAccountVerified.IsBound()) {
+    OnAccountVerified.Clear();
   }
 }
 
+void ARedwoodTitlePlayerController::ListCharacters(
+  FRedwoodCharactersResponse OnResponse
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  DirectorSocketIOComponent->EmitNative(
+    TEXT("realm:characters:list"),
+    Payload,
+    [this, OnResponse](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      TArray<TSharedPtr<FJsonValue>> Characters =
+        MessageObject->GetArrayField(TEXT("characters"));
+
+      TArray<FRedwoodPlayerCharacter> CharactersStruct;
+      for (TSharedPtr<FJsonValue> Character : Characters) {
+        TSharedPtr<FJsonObject> CharacterData = Character->AsObject();
+        FRedwoodPlayerCharacter CharacterStruct;
+
+        CharacterStruct.Id = CharacterData->GetStringField(TEXT("id"));
+        USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
+        CharacterDataObject->SetRootObject(
+          CharacterData->GetObjectField(TEXT("data"))
+        );
+
+        CharactersStruct.Add(CharacterStruct);
+      }
+
+      OnResponse.Broadcast(Error, CharactersStruct);
+    }
+  );
+}
+
+void ARedwoodTitlePlayerController::CreateCharacter(
+  TSharedPtr<FJsonObject> Data, FRedwoodCharacterResponse OnResponse
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetObjectField(TEXT("data"), Data);
+
+  DirectorSocketIOComponent->EmitNative(
+    TEXT("realm:characters:create"),
+    Payload,
+    [this, OnResponse](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      FString CharacterId = MessageObject->GetStringField(TEXT("id"));
+      TSharedPtr<FJsonObject> CharacterData =
+        MessageObject->GetObjectField(TEXT("characterData"));
+
+      FRedwoodPlayerCharacter Character;
+      Character.Id = CharacterId;
+      Character.Data = NewObject<USIOJsonObject>();
+      Character.Data->SetRootObject(CharacterData);
+
+      OnResponse.Broadcast(Error, Character);
+    }
+  );
+}
+
 void ARedwoodTitlePlayerController::GetCharacterData(
-  FRedwoodCharacterResponse OnResponse
+  FString CharacterId, FRedwoodCharacterResponse OnResponse
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("characterId"), CharacterId);
@@ -345,7 +373,7 @@ void ARedwoodTitlePlayerController::GetCharacterData(
   DirectorSocketIOComponent->EmitNative(
     TEXT("realm:characters:get"),
     Payload,
-    [this, OnResponse](auto Response) {
+    [this, OnResponse, CharacterId](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       TSharedPtr<FJsonObject> CharacterData =
@@ -354,13 +382,19 @@ void ARedwoodTitlePlayerController::GetCharacterData(
       USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
       CharacterDataObject->SetRootObject(CharacterData);
 
-      OnResponse.Broadcast(Error, CharacterDataObject);
+      FRedwoodPlayerCharacter Character;
+      Character.Id = CharacterId;
+      Character.Data = CharacterDataObject;
+
+      OnResponse.Broadcast(Error, Character);
     }
   );
 }
 
 void ARedwoodTitlePlayerController::SetCharacterData(
-  TSharedPtr<FJsonObject> Data, FRedwoodCharacterResponse OnResponse
+  FString CharacterId,
+  TSharedPtr<FJsonObject> Data,
+  FRedwoodCharacterResponse OnResponse
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("characterId"), CharacterId);
@@ -369,7 +403,7 @@ void ARedwoodTitlePlayerController::SetCharacterData(
   DirectorSocketIOComponent->EmitNative(
     TEXT("realm:characters:update"),
     Payload,
-    [this, OnResponse](auto Response) {
+    [this, OnResponse, CharacterId](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       TSharedPtr<FJsonObject> CharacterData =
@@ -378,7 +412,11 @@ void ARedwoodTitlePlayerController::SetCharacterData(
       USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
       CharacterDataObject->SetRootObject(CharacterData);
 
-      OnResponse.Broadcast(Error, CharacterDataObject);
+      FRedwoodPlayerCharacter Character;
+      Character.Id = CharacterId;
+      Character.Data = CharacterDataObject;
+
+      OnResponse.Broadcast(Error, Character);
     }
   );
 }
@@ -450,7 +488,9 @@ void ARedwoodTitlePlayerController::AttemptJoinLobby() {
     });
 }
 
-FString ARedwoodTitlePlayerController::GetMatchConnectionString() {
+FString ARedwoodTitlePlayerController::GetMatchConnectionString(
+  FString CharacterId
+) {
   if (LobbyConnection.IsEmpty() || LobbyToken.IsEmpty()) {
     UE_LOG(
       LogRedwood,
