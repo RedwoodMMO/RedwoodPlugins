@@ -18,7 +18,7 @@ URedwoodGetCharacterDataAsync *URedwoodGetCharacterDataAsync::GetCharacterData(
 
 void URedwoodGetCharacterDataAsync::Activate() {
   FRedwoodCharacterResponse Delegate;
-  Delegate.AddDynamic(this, &URedwoodGetCharacterDataAsync::HandleResponse);
+  Delegate.BindDynamic(this, &URedwoodGetCharacterDataAsync::HandleResponse);
   PlayerController->GetCharacterData(CharacterId, Delegate);
 }
 

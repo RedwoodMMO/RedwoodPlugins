@@ -20,10 +20,9 @@ URedwoodSetCharacterDataAsync *URedwoodSetCharacterDataAsync::SetCharacterData(
 
 void URedwoodSetCharacterDataAsync::Activate() {
   FRedwoodCharacterResponse Delegate;
-  Delegate.AddDynamic(this, &URedwoodSetCharacterDataAsync::HandleResponse);
-  PlayerController->SetCharacterData(
-    CharacterId, Data->GetRootObject(), Delegate
-  );
+  Delegate.BindDynamic(this, &URedwoodSetCharacterDataAsync::HandleResponse);
+
+  PlayerController->SetCharacterData(CharacterId, Data, Delegate);
 }
 
 void URedwoodSetCharacterDataAsync::HandleResponse(

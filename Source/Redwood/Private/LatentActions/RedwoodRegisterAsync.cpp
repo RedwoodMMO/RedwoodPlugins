@@ -19,7 +19,7 @@ URedwoodRegisterAsync *URedwoodRegisterAsync::Register(
 
 void URedwoodRegisterAsync::Activate() {
   FRedwoodAuthUpdate Delegate;
-  Delegate.AddDynamic(this, &URedwoodRegisterAsync::HandleUpdated);
+  Delegate.BindDynamic(this, &URedwoodRegisterAsync::HandleUpdated);
   PlayerController->Register(Username, Password, Delegate);
 }
 

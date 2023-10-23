@@ -5,13 +5,13 @@
 URedwoodLoginAsync *URedwoodLoginAsync::Login(
   UObject *WorldContextObject,
   ARedwoodTitlePlayerController *PlayerController,
-  const FString &EmailOrUsername,
-  const FString &PasswordOrToken
+  const FString &Username,
+  const FString &Password
 ) {
   URedwoodLoginAsync *Action = NewObject<URedwoodLoginAsync>();
   Action->PlayerController = PlayerController;
-  Action->EmailOrUsername = EmailOrUsername;
-  Action->EmailOrUsername = EmailOrUsername;
+  Action->Username = Username;
+  Action->Password = Password;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
@@ -19,8 +19,8 @@ URedwoodLoginAsync *URedwoodLoginAsync::Login(
 
 void URedwoodLoginAsync::Activate() {
   FRedwoodAuthUpdate Delegate;
-  Delegate.AddDynamic(this, &URedwoodLoginAsync::HandleUpdated);
-  PlayerController->Login(EmailOrUsername, PasswordOrToken, Delegate);
+  Delegate.BindDynamic(this, &URedwoodLoginAsync::HandleUpdated);
+  PlayerController->Login(Username, Password, Delegate);
 }
 
 void URedwoodLoginAsync::HandleUpdated(

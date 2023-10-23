@@ -6,6 +6,7 @@
 
 #include "SIOJsonObject.h"
 
+#include "RedwoodLatentCommon.h"
 #include "RedwoodTitlePlayerController.h"
 
 #include "RedwoodGetCharacterDataAsync.generated.h"
@@ -22,6 +23,7 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
+       DisplayName = "Get Character Data (Latent)",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
@@ -32,7 +34,7 @@ public:
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodCharacterResponse OnResponse;
+  FRedwoodCharacterResponseLatent OnResponse;
 
   ARedwoodTitlePlayerController *PlayerController;
 

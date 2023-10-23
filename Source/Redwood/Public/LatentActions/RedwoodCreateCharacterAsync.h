@@ -4,12 +4,16 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
-#include "RedwoodLatentCommon.h"
+#include "SIOJsonObject.h"
 
-#include "RedwoodRegisterAsync.generated.h"
+#include "RedwoodLatentCommon.h"
+#include "RedwoodTitlePlayerController.h"
+
+#include "RedwoodCreateCharacterAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodRegisterAsync : public UBlueprintAsyncActionBase {
+class REDWOOD_API URedwoodCreateCharacterAsync
+  : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
@@ -19,25 +23,23 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Register (Latent)",
+       DisplayName = "Create Character (Latent)",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodRegisterAsync *Register(
+  static URedwoodCreateCharacterAsync *CreateCharacter(
     UObject *WorldContextObject,
     ARedwoodTitlePlayerController *PlayerController,
-    const FString &Username,
-    const FString &Password
+    USIOJsonObject *Data
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodAuthResponse Updated;
+  FRedwoodCharacterResponseLatent OnResponse;
 
   ARedwoodTitlePlayerController *PlayerController;
 
-  FString Username;
+  UPROPERTY()
+  USIOJsonObject *Data;
 
-  FString Password;
-
-  void HandleUpdated(ERedwoodAuthUpdateType Type, FString Message);
+  void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
 };

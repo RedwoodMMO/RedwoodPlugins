@@ -9,10 +9,10 @@
 #include "RedwoodLatentCommon.h"
 #include "RedwoodTitlePlayerController.h"
 
-#include "RedwoodSetCharacterDataAsync.generated.h"
+#include "RedwoodListCharactersAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodSetCharacterDataAsync
+class REDWOOD_API URedwoodListCharactersAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
@@ -23,26 +23,20 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Set Character Data (Latent)",
+       DisplayName = "List Characters (Latent)",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodSetCharacterDataAsync *SetCharacterData(
-    UObject *WorldContextObject,
-    ARedwoodTitlePlayerController *PlayerController,
-    FString CharacterId,
-    USIOJsonObject *Data
+  static URedwoodListCharactersAsync *ListCharacters(
+    UObject *WorldContextObject, ARedwoodTitlePlayerController *PlayerController
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodCharacterResponseLatent OnResponse;
+  FRedwoodCharactersResponseLatent OnResponse;
 
   ARedwoodTitlePlayerController *PlayerController;
 
-  FString CharacterId;
-
-  UPROPERTY()
-  USIOJsonObject *Data;
-
-  void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
+  void HandleResponse(
+    FString Error, TArray<FRedwoodPlayerCharacter> Characters
+  );
 };

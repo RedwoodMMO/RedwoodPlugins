@@ -13,13 +13,11 @@
 
 #include "RedwoodTitlePlayerController.generated.h"
 
-UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-  FRedwoodSimpleResponse, FString, Error
-);
+UDELEGATE(BlueprintType)
+DECLARE_DYNAMIC_DELEGATE_OneParam(FRedwoodSimpleResponse, FString, Error);
 
-UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+UDELEGATE(BlueprintType)
+DECLARE_DYNAMIC_DELEGATE_TwoParams(
   FRedwoodAuthUpdate, ERedwoodAuthUpdateType, Type, FString, Message
 );
 
@@ -28,8 +26,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
   FPingResultSignature, FString, Region, float, RTT
 );
 
-UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+UDELEGATE(BlueprintType)
+DECLARE_DYNAMIC_DELEGATE_TwoParams(
   FRedwoodCharactersResponse,
   FString,
   Error,
@@ -37,13 +35,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
   Characters
 );
 
-UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+UDELEGATE(BlueprintType)
+DECLARE_DYNAMIC_DELEGATE_TwoParams(
   FRedwoodCharacterResponse, FString, Error, FRedwoodPlayerCharacter, Character
 );
 
-UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+UDELEGATE(BlueprintType)
+DECLARE_DYNAMIC_DELEGATE_TwoParams(
   FRedwoodLobbyUpdate, ERedwoodLobbyUpdateType, Type, FString, Message
 );
 
@@ -77,12 +75,14 @@ public:
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   bool bUseWebsocketRegionPings = true;
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void Register(
     const FString &Username,
     const FString &Password,
     FRedwoodAuthUpdate OnUpdated
   );
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void Login(
     const FString &Username,
     const FString &PasswordOrToken,
@@ -92,22 +92,27 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CancelWaitingForAccountVerification();
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void ListCharacters(FRedwoodCharactersResponse OnResponse);
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CreateCharacter(
-    TSharedPtr<FJsonObject> Data, FRedwoodCharacterResponse OnResponse
+    USIOJsonObject *Data, FRedwoodCharacterResponse OnResponse
   );
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void GetCharacterData(
     FString CharacterId, FRedwoodCharacterResponse OnResponse
   );
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetCharacterData(
     FString CharacterId,
-    TSharedPtr<FJsonObject> Data,
+    USIOJsonObject *Data,
     FRedwoodCharacterResponse OnResponse
   );
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void JoinLobby(FRedwoodLobbyUpdate OnUpdate);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")

@@ -51,7 +51,9 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
       FString InPlayerId = MessageObject->GetStringField(TEXT("playerId"));
 
       if (InPlayerId == PlayerId) {
-        OnAccountVerified.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
+        OnAccountVerified.ExecuteIfBound(
+          ERedwoodAuthUpdateType::Success, TEXT("")
+        );
       }
     },
     TEXT("/"),
@@ -63,7 +65,9 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       FString UpdateMessage =
         Message->AsObject()->GetStringField(TEXT("message"));
-      OnLobbyUpdate.Broadcast(ERedwoodLobbyUpdateType::Update, UpdateMessage);
+      OnLobbyUpdate.ExecuteIfBound(
+        ERedwoodLobbyUpdateType::Update, UpdateMessage
+      );
     },
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
@@ -77,7 +81,7 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
       LobbyConnection = MessageObject->GetStringField(TEXT("connection"));
       LobbyToken = MessageObject->GetStringField(TEXT("token"));
 
-      OnLobbyUpdate.Broadcast(
+      OnLobbyUpdate.ExecuteIfBound(
         ERedwoodLobbyUpdateType::Ready,
         TEXT("You have been accepted to the lobby.")
       );
@@ -89,7 +93,7 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
   DirectorSocketIOComponent->OnNativeEvent(
     TEXT("realm:lobby:ticket-stale"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
-      OnLobbyUpdate.Broadcast(
+      OnLobbyUpdate.ExecuteIfBound(
         ERedwoodLobbyUpdateType::TicketStale,
         TEXT("Lobby ticket has expired. Please rejoin the lobby.")
       );
@@ -235,14 +239,14 @@ void ARedwoodTitlePlayerController::Register(
       FString Error = MessageStruct->GetStringField(TEXT("error"));
 
       if (Error.IsEmpty()) {
-        OnUpdated.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
+        OnUpdated.ExecuteIfBound(ERedwoodAuthUpdateType::Success, TEXT(""));
       } else if (Error == "Must verify account") {
         OnAccountVerified = OnUpdated;
-        OnUpdated.Broadcast(
+        OnUpdated.ExecuteIfBound(
           ERedwoodAuthUpdateType::MustVerifyAccount, TEXT("")
         );
       } else {
-        OnUpdated.Broadcast(ERedwoodAuthUpdateType::Error, Error);
+        OnUpdated.ExecuteIfBound(ERedwoodAuthUpdateType::Error, Error);
       }
     }
   );
@@ -267,14 +271,14 @@ void ARedwoodTitlePlayerController::Login(
       AuthToken = MessageObject->GetStringField(TEXT("token"));
 
       if (Error.IsEmpty()) {
-        OnUpdated.Broadcast(ERedwoodAuthUpdateType::Success, TEXT(""));
+        OnUpdated.ExecuteIfBound(ERedwoodAuthUpdateType::Success, TEXT(""));
       } else if (Error == "Must verify account") {
         OnAccountVerified = OnUpdated;
-        OnUpdated.Broadcast(
+        OnUpdated.ExecuteIfBound(
           ERedwoodAuthUpdateType::MustVerifyAccount, TEXT("")
         );
       } else {
-        OnUpdated.Broadcast(ERedwoodAuthUpdateType::Error, Error);
+        OnUpdated.ExecuteIfBound(ERedwoodAuthUpdateType::Error, Error);
       }
     }
   );
@@ -315,17 +319,17 @@ void ARedwoodTitlePlayerController::ListCharacters(
         CharactersStruct.Add(CharacterStruct);
       }
 
-      OnResponse.Broadcast(Error, CharactersStruct);
+      OnResponse.ExecuteIfBound(Error, CharactersStruct);
     }
   );
 }
 
 void ARedwoodTitlePlayerController::CreateCharacter(
-  TSharedPtr<FJsonObject> Data, FRedwoodCharacterResponse OnResponse
+  USIOJsonObject *Data, FRedwoodCharacterResponse OnResponse
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
-  Payload->SetObjectField(TEXT("data"), Data);
+  Payload->SetObjectField(TEXT("data"), Data->GetRootObject());
 
   DirectorSocketIOComponent->EmitNative(
     TEXT("realm:characters:create"),
@@ -342,7 +346,7 @@ void ARedwoodTitlePlayerController::CreateCharacter(
       Character.Data = NewObject<USIOJsonObject>();
       Character.Data->SetRootObject(CharacterData);
 
-      OnResponse.Broadcast(Error, Character);
+      OnResponse.ExecuteIfBound(Error, Character);
     }
   );
 }
@@ -369,19 +373,19 @@ void ARedwoodTitlePlayerController::GetCharacterData(
       Character.Id = CharacterId;
       Character.Data = CharacterDataObject;
 
-      OnResponse.Broadcast(Error, Character);
+      OnResponse.ExecuteIfBound(Error, Character);
     }
   );
 }
 
 void ARedwoodTitlePlayerController::SetCharacterData(
   FString CharacterId,
-  TSharedPtr<FJsonObject> Data,
+  USIOJsonObject *Data,
   FRedwoodCharacterResponse OnResponse
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("characterId"), CharacterId);
-  Payload->SetObjectField(TEXT("data"), Data);
+  Payload->SetObjectField(TEXT("data"), Data->GetRootObject());
 
   DirectorSocketIOComponent->EmitNative(
     TEXT("realm:characters:update"),
@@ -399,7 +403,7 @@ void ARedwoodTitlePlayerController::SetCharacterData(
       Character.Id = CharacterId;
       Character.Data = CharacterDataObject;
 
-      OnResponse.Broadcast(Error, Character);
+      OnResponse.ExecuteIfBound(Error, Character);
     }
   );
 }
@@ -467,7 +471,9 @@ void ARedwoodTitlePlayerController::AttemptJoinLobby() {
   DirectorSocketIOComponent
     ->EmitNative(TEXT("realm:lobby:join"), Payload, [this](auto Response) {
       FString Error = Response[0]->AsString();
-      OnLobbyUpdate.Broadcast(ERedwoodLobbyUpdateType::JoinResponse, Error);
+      OnLobbyUpdate.ExecuteIfBound(
+        ERedwoodLobbyUpdateType::JoinResponse, Error
+      );
     });
 }
 
