@@ -31,7 +31,7 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(
   FRedwoodCharactersResponse,
   FString,
   Error,
-  TArray<FRedwoodPlayerCharacter>,
+  const TArray<FRedwoodPlayerCharacter> &,
   Characters
 );
 
@@ -55,7 +55,7 @@ public:
   //~ End AActor Interface
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
-  FString DirectorAddress = "ws://localhost:3000";
+  FString DirectorAddress = "ws://localhost:3001";
 
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FSIOCOpenEventSignature OnDirectorConnected;
@@ -113,12 +113,13 @@ public:
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
-  void JoinLobby(FRedwoodLobbyUpdate OnUpdate);
+  void JoinLobby(FString Profile, FRedwoodLobbyUpdate OnUpdate);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetMatchConnectionString(FString CharacterId);
 
 private:
+  UFUNCTION()
   void HandleDirectorConnected(
     FString SocketId, FString SessionId, bool bIsReconnection
   );
@@ -128,20 +129,21 @@ private:
   );
 
   void InitiatePings();
+  UFUNCTION()
   void HandlePingResult(FString TargetAddress, float RTT);
 
   UPROPERTY()
   USocketIOClientComponent *DirectorSocketIOComponent;
 
-  TMap<FString, FDataCenterLatency> DataCenters;
+  TMap<FString, TSharedPtr<FDataCenterLatency>> DataCenters;
   TMap<FString, float> PingAverages;
   FTimerHandle PingTimer;
   int PingAttemptsLeft;
 
   void AttemptJoinLobby();
   FRedwoodLobbyUpdate OnLobbyUpdate;
+  FString LobbyProfile;
   FString LobbyConnection;
-
   FString LobbyToken;
 
   FRedwoodAuthUpdate OnAccountVerified;

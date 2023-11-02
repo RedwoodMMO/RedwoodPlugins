@@ -39,5 +39,6 @@ public:
 
   FString Password;
 
+  UFUNCTION()
   void HandleUpdated(ERedwoodAuthUpdateType Type, FString Message);
 };

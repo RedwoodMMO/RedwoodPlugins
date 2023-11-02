@@ -82,8 +82,7 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
       LobbyToken = MessageObject->GetStringField(TEXT("token"));
 
       OnLobbyUpdate.ExecuteIfBound(
-        ERedwoodLobbyUpdateType::Ready,
-        TEXT("You have been accepted to the lobby.")
+        ERedwoodLobbyUpdateType::Ready, TEXT("The match is ready.")
       );
     },
     TEXT("/"),
@@ -95,7 +94,7 @@ void ARedwoodTitlePlayerController::HandleDirectorConnected(
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       OnLobbyUpdate.ExecuteIfBound(
         ERedwoodLobbyUpdateType::TicketStale,
-        TEXT("Lobby ticket has expired. Please rejoin the lobby.")
+        TEXT("Could not find a match. Please try again.")
       );
     },
     TEXT("/"),
@@ -116,10 +115,11 @@ void ARedwoodTitlePlayerController::HandleRegionsChanged(
   DataCenters.Empty();
 
   for (FRegion Region : MessageStruct.Regions) {
-    FDataCenterLatency DataCenter;
-    DataCenter.Id = Region.Name;
-    DataCenter.Url = Region.Ping;
-    DataCenters.Add(DataCenter.Id, DataCenter);
+    TSharedPtr<FDataCenterLatency> DataCenter =
+      MakeShareable(new FDataCenterLatency);
+    DataCenter->Id = Region.Name;
+    DataCenter->Url = Region.Ping;
+    DataCenters.Add(DataCenter->Id, DataCenter);
   }
 
   GetWorld()->GetTimerManager().ClearTimer(PingTimer);
@@ -134,34 +134,34 @@ void ARedwoodTitlePlayerController::InitiatePings() {
     for (auto Itr : DataCenters) {
       if (bUseWebsocketRegionPings || PingAttemptsLeft == PingAttempts) {
         // clear the last values
-        Itr.Value.RTTs.Empty(PingAttempts);
+        Itr.Value->RTTs.Empty(PingAttempts);
       }
 
       if (bUseWebsocketRegionPings) {
-        if (!Itr.Value.Url.StartsWith("ws")) {
+        if (!Itr.Value->Url.StartsWith("ws")) {
           UE_LOG(
             LogRedwood,
             Error,
             TEXT("Expected websocket URL, got %s"),
-            *Itr.Value.Url
+            *Itr.Value->Url
           );
           continue;
         }
         ULatencyCheckerLibrary::PingWebSockets(
-          Itr.Value.Url, PingTimeoutSec, PingAttempts, Delegate
+          Itr.Value->Url, PingTimeoutSec, PingAttempts, Delegate
         );
       } else {
-        if (Itr.Value.Url.StartsWith("ws")) {
+        if (Itr.Value->Url.StartsWith("ws")) {
           UE_LOG(
             LogRedwood,
             Error,
             TEXT("Expected non-websocket URL, got %s"),
-            *Itr.Value.Url
+            *Itr.Value->Url
           );
           continue;
         }
         ULatencyCheckerLibrary::PingIcmp(
-          Itr.Value.Url, PingTimeoutSec, Delegate
+          Itr.Value->Url, PingTimeoutSec, Delegate
         );
       }
       PingAttemptsLeft--;
@@ -170,10 +170,10 @@ void ARedwoodTitlePlayerController::InitiatePings() {
     // we're done pinging, let's store the averages
     for (auto Itr : DataCenters) {
       float Sum = 0;
-      for (float RTT : Itr.Value.RTTs) {
+      for (float RTT : Itr.Value->RTTs) {
         Sum += RTT;
       }
-      float Average = Sum / Itr.Value.RTTs.Num();
+      float Average = Sum / Itr.Value->RTTs.Num();
       PingAverages.Add(Itr.Key, Average);
 
       OnPingResultReceived.Broadcast(
@@ -197,22 +197,22 @@ void ARedwoodTitlePlayerController::HandlePingResult(
   FString TargetAddress, float RTT
 ) {
   for (auto Itr : DataCenters) {
-    if (Itr.Value.Url == TargetAddress) {
-      Itr.Value.RTTs.Add(RTT);
+    if (Itr.Value->Url == TargetAddress) {
+      Itr.Value->RTTs.Add(RTT);
       break;
     }
   }
 
   for (auto Itr : DataCenters) {
-    if (Itr.Value.Url.StartsWith("ws")) {
+    if (Itr.Value->Url.StartsWith("ws")) {
       // the LatencyChecker module handles averaging for us for websockets
       // and sends PingAttempts and provides a single number
-      if (Itr.Value.RTTs.Num() == 0) {
+      if (Itr.Value->RTTs.Num() == 0) {
         // we haven't finished receiving all of the pings for this round
         return;
       }
     } else {
-      if (Itr.Value.RTTs.Num() + PingAttemptsLeft != PingAttempts) {
+      if (Itr.Value->RTTs.Num() + PingAttemptsLeft != PingAttempts) {
         // we haven't finished receiving all of the pings for this round
         return;
       }
@@ -315,6 +315,7 @@ void ARedwoodTitlePlayerController::ListCharacters(
         CharacterDataObject->SetRootObject(
           CharacterData->GetObjectField(TEXT("data"))
         );
+        CharacterStruct.Data = CharacterDataObject;
 
         CharactersStruct.Add(CharacterStruct);
       }
@@ -337,9 +338,12 @@ void ARedwoodTitlePlayerController::CreateCharacter(
     [this, OnResponse](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
-      FString CharacterId = MessageObject->GetStringField(TEXT("id"));
+      TSharedPtr<FJsonObject> CharacterObj =
+        MessageObject->GetObjectField(TEXT("character"));
+
+      FString CharacterId = CharacterObj->GetStringField(TEXT("id"));
       TSharedPtr<FJsonObject> CharacterData =
-        MessageObject->GetObjectField(TEXT("characterData"));
+        CharacterObj->GetObjectField(TEXT("data"));
 
       FRedwoodPlayerCharacter Character;
       Character.Id = CharacterId;
@@ -355,6 +359,7 @@ void ARedwoodTitlePlayerController::GetCharacterData(
   FString CharacterId, FRedwoodCharacterResponse OnResponse
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("characterId"), CharacterId);
 
   DirectorSocketIOComponent->EmitNative(
@@ -363,8 +368,11 @@ void ARedwoodTitlePlayerController::GetCharacterData(
     [this, OnResponse, CharacterId](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
+      TSharedPtr<FJsonObject> CharacterObj =
+        MessageObject->GetObjectField(TEXT("character"));
+
       TSharedPtr<FJsonObject> CharacterData =
-        MessageObject->GetObjectField(TEXT("data"));
+        CharacterObj->GetObjectField(TEXT("data"));
 
       USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
       CharacterDataObject->SetRootObject(CharacterData);
@@ -384,17 +392,21 @@ void ARedwoodTitlePlayerController::SetCharacterData(
   FRedwoodCharacterResponse OnResponse
 ) {
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("characterId"), CharacterId);
   Payload->SetObjectField(TEXT("data"), Data->GetRootObject());
 
   DirectorSocketIOComponent->EmitNative(
-    TEXT("realm:characters:update"),
+    TEXT("realm:characters:set"),
     Payload,
     [this, OnResponse, CharacterId](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
+      TSharedPtr<FJsonObject> CharacterObj =
+        MessageObject->GetObjectField(TEXT("character"));
+
       TSharedPtr<FJsonObject> CharacterData =
-        MessageObject->GetObjectField(TEXT("data"));
+        CharacterObj->GetObjectField(TEXT("data"));
 
       USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
       CharacterDataObject->SetRootObject(CharacterData);
@@ -408,7 +420,10 @@ void ARedwoodTitlePlayerController::SetCharacterData(
   );
 }
 
-void ARedwoodTitlePlayerController::JoinLobby(FRedwoodLobbyUpdate OnUpdate) {
+void ARedwoodTitlePlayerController::JoinLobby(
+  FString Profile, FRedwoodLobbyUpdate OnUpdate
+) {
+  LobbyProfile = Profile;
   OnLobbyUpdate = OnUpdate;
   AttemptJoinLobby();
 }
@@ -458,14 +473,22 @@ void ARedwoodTitlePlayerController::AttemptJoinLobby() {
     UnsortedDataCenters.RemoveAt(LowestIndex);
   }
 
+  // TODO: Support multiple profiles
+  TArray<TSharedPtr<FJsonValue>> DesiredProfiles;
+  TSharedPtr<FJsonValueString> LobbyProfileValue =
+    MakeShareable(new FJsonValueString(LobbyProfile));
+  DesiredProfiles.Add(LobbyProfileValue);
+
   TArray<TSharedPtr<FJsonValue>> DesiredRegions;
   for (FDataCenterLatencySort DataCenter : SortedDataCenters) {
     TSharedPtr<FJsonValueString> Value =
       MakeShareable(new FJsonValueString(DataCenter.Id));
+    DesiredRegions.Add(Value);
   }
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetArrayField(TEXT("profiles"), DesiredProfiles);
   Payload->SetArrayField(TEXT("regions"), DesiredRegions);
 
   DirectorSocketIOComponent
@@ -498,7 +521,7 @@ FString ARedwoodTitlePlayerController::GetMatchConnectionString(
   Options.Add("Token", LobbyToken);
 
   TArray<FString> JoinedOptions;
-  for (const TPair<FString, FString> Option : Options) {
+  for (const TPair<FString, FString> &Option : Options) {
     JoinedOptions.Add(Option.Key + "=" + Option.Value);
   }
 

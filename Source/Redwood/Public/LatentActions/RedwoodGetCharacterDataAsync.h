@@ -40,5 +40,6 @@ public:
 
   FString CharacterId;
 
+  UFUNCTION()
   void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
 };

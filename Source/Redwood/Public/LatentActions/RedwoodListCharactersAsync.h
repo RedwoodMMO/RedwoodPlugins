@@ -36,7 +36,8 @@ public:
 
   ARedwoodTitlePlayerController *PlayerController;
 
+  UFUNCTION()
   void HandleResponse(
-    FString Error, TArray<FRedwoodPlayerCharacter> Characters
+    FString Error, const TArray<FRedwoodPlayerCharacter> &Characters
   );
 };

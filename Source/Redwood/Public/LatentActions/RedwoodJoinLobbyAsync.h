@@ -4,16 +4,17 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
-#include "SIOJsonObject.h"
-
-#include "RedwoodLatentCommon.h"
 #include "RedwoodTitlePlayerController.h"
 
-#include "RedwoodCreateCharacterAsync.generated.h"
+#include "RedwoodJoinLobbyAsync.generated.h"
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+  FRedwoodLobbyUpdateLatent, ERedwoodLobbyUpdateType, Type, FString, Message
+);
 
 UCLASS()
-class REDWOOD_API URedwoodCreateCharacterAsync
-  : public UBlueprintAsyncActionBase {
+class REDWOOD_API URedwoodJoinLobbyAsync : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
@@ -23,24 +24,26 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Create Character (Latent)",
+       DisplayName = "Join Lobby (Latent)",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodCreateCharacterAsync *CreateCharacter(
+  static URedwoodJoinLobbyAsync *JoinLobby(
     UObject *WorldContextObject,
     ARedwoodTitlePlayerController *PlayerController,
-    USIOJsonObject *Data
+    FString Profile
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodCharacterResponseLatent OnResponse;
+  FRedwoodLobbyUpdateLatent OnUpdate;
 
   ARedwoodTitlePlayerController *PlayerController;
+
+  FString Profile;
 
   UPROPERTY()
   USIOJsonObject *Data;
 
   UFUNCTION()
-  void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
+  void HandleUpdate(ERedwoodLobbyUpdateType Type, FString Message);
 };

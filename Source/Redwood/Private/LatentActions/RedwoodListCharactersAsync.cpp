@@ -21,7 +21,7 @@ void URedwoodListCharactersAsync::Activate() {
 }
 
 void URedwoodListCharactersAsync::HandleResponse(
-  FString Error, TArray<FRedwoodPlayerCharacter> Characters
+  FString Error, const TArray<FRedwoodPlayerCharacter> &Characters
 ) {
   OnResponse.Broadcast(Error, Characters);
 }

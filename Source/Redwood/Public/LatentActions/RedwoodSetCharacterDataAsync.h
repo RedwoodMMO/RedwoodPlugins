@@ -44,5 +44,6 @@ public:
   UPROPERTY()
   USIOJsonObject *Data;
 
+  UFUNCTION()
   void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
 };

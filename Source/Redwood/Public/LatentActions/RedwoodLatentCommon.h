@@ -27,6 +27,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
   FRedwoodCharactersResponseLatent,
   FString,
   Error,
-  TArray<FRedwoodPlayerCharacter>,
+  const TArray<FRedwoodPlayerCharacter> &,
   Characters
 );
