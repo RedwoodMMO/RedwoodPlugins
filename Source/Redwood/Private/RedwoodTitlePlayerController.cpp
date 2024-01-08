@@ -15,7 +15,8 @@ ARedwoodTitlePlayerController::ARedwoodTitlePlayerController(
     TEXT("DirectorSocketIOComponent")
   );
   DirectorSocketIOComponent->bShouldAutoConnect = false;
-  PingAttemptsLeft = bUseWebsocketRegionPings ? 1 : PingAttempts;
+
+  PingAttemptsLeft = PingAttempts;
 }
 
 void ARedwoodTitlePlayerController::BeginPlay() {
@@ -132,43 +133,37 @@ void ARedwoodTitlePlayerController::InitiatePings() {
 
   if (PingAttemptsLeft > 0) {
     for (auto Itr : DataCenters) {
-      if (bUseWebsocketRegionPings || PingAttemptsLeft == PingAttempts) {
+      if (Itr.Value->Url.StartsWith("ws") && PingAttemptsLeft == PingAttempts) {
+        // websockets only need to iterate once as they'll execute
+        // multiple ping attempts internally
+        PingAttemptsLeft = 1;
+      }
+
+      if (Itr.Value->Url.StartsWith("ws") || PingAttemptsLeft == PingAttempts) {
         // clear the last values
         Itr.Value->RTTs.Empty(PingAttempts);
       }
 
-      if (bUseWebsocketRegionPings) {
-        if (!Itr.Value->Url.StartsWith("ws")) {
-          UE_LOG(
-            LogRedwood,
-            Error,
-            TEXT("Expected websocket URL, got %s"),
-            *Itr.Value->Url
-          );
-          continue;
-        }
+      if (Itr.Value->Url.StartsWith("ws")) {
         ULatencyCheckerLibrary::PingWebSockets(
           Itr.Value->Url, PingTimeoutSec, PingAttempts, Delegate
         );
       } else {
-        if (Itr.Value->Url.StartsWith("ws")) {
-          UE_LOG(
-            LogRedwood,
-            Error,
-            TEXT("Expected non-websocket URL, got %s"),
-            *Itr.Value->Url
-          );
-          continue;
-        }
         ULatencyCheckerLibrary::PingIcmp(
           Itr.Value->Url, PingTimeoutSec, Delegate
         );
       }
-      PingAttemptsLeft--;
     }
+
+    PingAttemptsLeft--;
   } else {
     // we're done pinging, let's store the averages
+    bool bHasWebsocketDataCenter = false;
     for (auto Itr : DataCenters) {
+      if (Itr.Value->Url.StartsWith("ws")) {
+        bHasWebsocketDataCenter = true;
+      }
+
       float Sum = 0;
       for (float RTT : Itr.Value->RTTs) {
         Sum += RTT;
@@ -182,7 +177,7 @@ void ARedwoodTitlePlayerController::InitiatePings() {
     }
 
     // queue the next set of pings
-    PingAttemptsLeft = bUseWebsocketRegionPings ? 1 : PingAttempts;
+    PingAttemptsLeft = bHasWebsocketDataCenter ? 1 : PingAttempts;
     GetWorld()->GetTimerManager().SetTimer(
       PingTimer,
       this,
