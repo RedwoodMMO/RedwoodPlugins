@@ -54,6 +54,9 @@ public:
   virtual void BeginPlay() override;
   //~ End AActor Interface
 
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  USocketIOClientComponent *DirectorSocketIOComponent;
+
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   FString DirectorAddress = "ws://localhost:3001";
 
@@ -131,9 +134,6 @@ private:
   void InitiatePings();
   UFUNCTION()
   void HandlePingResult(FString TargetAddress, float RTT);
-
-  UPROPERTY()
-  USocketIOClientComponent *DirectorSocketIOComponent;
 
   TMap<FString, TSharedPtr<FDataCenterLatency>> DataCenters;
   TMap<FString, float> PingAverages;
