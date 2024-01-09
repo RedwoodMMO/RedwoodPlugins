@@ -73,7 +73,7 @@ public:
   float PingFrequencySec = 10;
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
-  bool bUseWebsocketRegionPings = true;
+  bool bUseWebsocketRegionPings = false;
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void Register(
