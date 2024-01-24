@@ -1,4 +1,4 @@
-// Copyright Incanta Games 2023. All Rights Reserved.
+// Copyright Incanta Games. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -21,6 +21,7 @@ public class RedwoodEditor : ModuleRules {
     PublicDependencyModuleNames.AddRange(
       new string[] {
         "Core",
+        "DeveloperSettings",
       }
     );
 

@@ -3,13 +3,13 @@
 #include "LatentActions/RedwoodRegisterAsync.h"
 
 URedwoodRegisterAsync *URedwoodRegisterAsync::Register(
+  URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
-  ARedwoodTitlePlayerController *PlayerController,
   const FString &Username,
   const FString &Password
 ) {
   URedwoodRegisterAsync *Action = NewObject<URedwoodRegisterAsync>();
-  Action->PlayerController = PlayerController;
+  Action->Target = Target;
   Action->Username = Username;
   Action->Password = Password;
   Action->RegisterWithGameInstance(WorldContextObject);
@@ -18,13 +18,17 @@ URedwoodRegisterAsync *URedwoodRegisterAsync::Register(
 }
 
 void URedwoodRegisterAsync::Activate() {
-  FRedwoodAuthUpdate Delegate;
-  Delegate.BindDynamic(this, &URedwoodRegisterAsync::HandleUpdated);
-  PlayerController->Register(Username, Password, Delegate);
-}
+  Target->Register(
+    Username,
+    Password,
+    URedwoodTitleGameSubsystem::FRedwoodOnAuthUpdate::CreateLambda(
+      [this](FRedwoodAuthUpdate Update) {
+        OnUpdate.Broadcast(Update);
 
-void URedwoodRegisterAsync::HandleUpdated(
-  ERedwoodAuthUpdateType Type, FString Message
-) {
-  Updated.Broadcast(Type, Message);
+        if (Update.Type != ERedwoodAuthUpdateType::MustVerifyAccount) {
+          SetReadyToDestroy();
+        }
+      }
+    )
+  );
 }

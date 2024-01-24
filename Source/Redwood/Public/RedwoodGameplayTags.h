@@ -1,10 +1,10 @@
-// Copyright Incanta Games 2023. All Rights Reserved.
+// Copyright Incanta Games. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NativeGameplayTags.h"
 #include "GameFramework/PlayerState.h"
+#include "NativeGameplayTags.h"
 #include "SIOJsonObject.h"
 
 #include "RedwoodGameplayTags.generated.h"
@@ -24,8 +24,8 @@ struct REDWOOD_API FRedwoodPlayerJoined {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  APlayerState* PlayerState;
+  APlayerState *PlayerState;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject* CharacterData;
+  USIOJsonObject *CharacterData;
 };

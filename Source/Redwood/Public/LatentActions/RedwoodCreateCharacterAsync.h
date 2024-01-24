@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodLatentCommon.h"
-#include "RedwoodTitlePlayerController.h"
+#include "RedwoodTitleGameSubsystem.h"
 
 #include "RedwoodCreateCharacterAsync.generated.h"
 
@@ -23,24 +23,20 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Create Character (Latent)",
+       DisplayName = "Create Character",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
   static URedwoodCreateCharacterAsync *CreateCharacter(
+    URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    ARedwoodTitlePlayerController *PlayerController,
     USIOJsonObject *Data
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodCharacterResponseLatent OnResponse;
+  FRedwoodCharacterResultLatent OnResult;
 
-  ARedwoodTitlePlayerController *PlayerController;
+  URedwoodTitleGameSubsystem *Target;
 
-  UPROPERTY()
-  USIOJsonObject *Data;
-
-  UFUNCTION()
-  void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
+  UPROPERTY() USIOJsonObject *Data;
 };

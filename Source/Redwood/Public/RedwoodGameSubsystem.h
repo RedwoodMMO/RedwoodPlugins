@@ -1,13 +1,13 @@
-// Copyright Incanta Games 2023. All Rights Reserved.
+// Copyright Incanta Games. All Rights Reserved.
 
 #pragma once
 
-#include "RedwoodModule.h"
 #include "RedwoodGameplayTags.h"
+#include "RedwoodModule.h"
 
 #include "CoreMinimal.h"
-#include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/TimerHandle.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "SocketIOFunctionLibrary.h"
@@ -20,14 +20,12 @@ class URedwoodGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
 
 public:
-
   // Begin USubsystem
-  virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+  virtual void Initialize(FSubsystemCollectionBase &Collection) override;
   virtual void Deinitialize() override;
   // End USubsystem
 
 private:
-
   void InitializeSidecar();
   void SendUpdateToSidecar();
 
@@ -39,6 +37,6 @@ private:
   FTimerHandle TimerHandle_UpdateSidecarLoading;
 
   bool bIsShuttingDown = false;
-	FGameplayMessageListenerHandle ListenerHandle;
-	void OnShutdownMessage(FGameplayTag Channel, const FRedwoodReason& Message);
+  FGameplayMessageListenerHandle ListenerHandle;
+  void OnShutdownMessage(FGameplayTag Channel, const FRedwoodReason &Message);
 };

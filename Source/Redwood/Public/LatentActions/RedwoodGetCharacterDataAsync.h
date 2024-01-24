@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodLatentCommon.h"
-#include "RedwoodTitlePlayerController.h"
+#include "RedwoodTitleGameSubsystem.h"
 
 #include "RedwoodGetCharacterDataAsync.generated.h"
 
@@ -23,23 +23,20 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Get Character Data (Latent)",
+       DisplayName = "Get Character Data",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
   static URedwoodGetCharacterDataAsync *GetCharacterData(
+    URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    ARedwoodTitlePlayerController *PlayerController,
     FString CharacterId
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodCharacterResponseLatent OnResponse;
+  FRedwoodCharacterResultLatent OnResult;
 
-  ARedwoodTitlePlayerController *PlayerController;
+  URedwoodTitleGameSubsystem *Target;
 
   FString CharacterId;
-
-  UFUNCTION()
-  void HandleResponse(FString Error, FRedwoodPlayerCharacter Character);
 };

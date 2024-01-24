@@ -3,13 +3,13 @@
 #include "LatentActions/RedwoodCreateCharacterAsync.h"
 
 URedwoodCreateCharacterAsync *URedwoodCreateCharacterAsync::CreateCharacter(
+  URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
-  ARedwoodTitlePlayerController *PlayerController,
   USIOJsonObject *Data
 ) {
   URedwoodCreateCharacterAsync *Action =
     NewObject<URedwoodCreateCharacterAsync>();
-  Action->PlayerController = PlayerController;
+  Action->Target = Target;
   Action->Data = Data;
   Action->RegisterWithGameInstance(WorldContextObject);
 
@@ -17,14 +17,13 @@ URedwoodCreateCharacterAsync *URedwoodCreateCharacterAsync::CreateCharacter(
 }
 
 void URedwoodCreateCharacterAsync::Activate() {
-  FRedwoodCharacterResponse Delegate;
-  Delegate.BindDynamic(this, &URedwoodCreateCharacterAsync::HandleResponse);
-
-  PlayerController->CreateCharacter(Data, Delegate);
-}
-
-void URedwoodCreateCharacterAsync::HandleResponse(
-  FString Error, FRedwoodPlayerCharacter Character
-) {
-  OnResponse.Broadcast(Error, Character);
+  Target->CreateCharacter(
+    Data,
+    URedwoodTitleGameSubsystem::FRedwoodOnGetCharacter::CreateLambda(
+      [this](FRedwoodCharacterResult Result) {
+        OnResult.Broadcast(Result);
+        SetReadyToDestroy();
+      }
+    )
+  );
 }

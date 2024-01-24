@@ -4,13 +4,16 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
+#include "SIOJsonObject.h"
+
 #include "RedwoodLatentCommon.h"
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodRegisterAsync.generated.h"
+#include "RedwoodInitiateRealmConnectionAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodRegisterAsync : public UBlueprintAsyncActionBase {
+class REDWOOD_API URedwoodInitiateRealmConnectionAsync
+  : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
@@ -20,23 +23,20 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Register",
+       DisplayName = "Initiate Realm Connection",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodRegisterAsync *Register(
+  static URedwoodInitiateRealmConnectionAsync *InitializeRealmConnection(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    const FString &Username,
-    const FString &Password
+    FRedwoodRealm Realm
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodAuthUpdateLatent OnUpdate;
+  FRedwoodOnSocketConnectedLatent OnResult;
 
   URedwoodTitleGameSubsystem *Target;
 
-  FString Username;
-
-  FString Password;
+  FRedwoodRealm Realm;
 };

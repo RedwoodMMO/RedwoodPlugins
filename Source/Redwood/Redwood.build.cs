@@ -1,4 +1,4 @@
-// Copyright Incanta Games 2023. All Rights Reserved.
+// Copyright Incanta Games. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -11,12 +11,10 @@ public class Redwood : ModuleRules {
       }
     );
 
-
     PrivateIncludePaths.AddRange(
       new string[] {
       }
     );
-
 
     PublicDependencyModuleNames.AddRange(
       new string[] {
@@ -31,7 +29,6 @@ public class Redwood : ModuleRules {
       }
     );
 
-
     PrivateDependencyModuleNames.AddRange(
       new string[] {
         "CoreUObject",
@@ -40,6 +37,13 @@ public class Redwood : ModuleRules {
       }
     );
 
+    if (Target.Type == TargetType.Editor) {
+      PrivateDependencyModuleNames.AddRange(
+        new string[] {
+          "RedwoodEditor",
+        }
+      );
+    }
 
     DynamicallyLoadedModuleNames.AddRange(
       new string[] {

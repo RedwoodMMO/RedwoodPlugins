@@ -1,4 +1,4 @@
-// Copyright Incanta Games 2023. All Rights Reserved.
+// Copyright Incanta Games. All Rights Reserved.
 
 #pragma once
 

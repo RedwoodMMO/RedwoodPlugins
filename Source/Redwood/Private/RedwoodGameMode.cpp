@@ -1,8 +1,11 @@
-// Copyright Incanta Games 2023. All rights reserved.
+// Copyright Incanta Games. All rights reserved.
 
 #include "RedwoodGameMode.h"
 #include "RedwoodGameplayTags.h"
-#include "RedwoodSettings.h"
+
+#if WITH_EDITOR
+  #include "RedwoodEditorSettings.h"
+#endif
 
 #include "Dom/JsonObject.h"
 #include "Kismet/GameplayStatics.h"
@@ -16,9 +19,18 @@ void ARedwoodGameMode::InitGame(
 ) {
   Super::InitGame(MapName, Options, ErrorMessage);
 
-  URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
+  bool bConnectToSidecar = false;
 
-  if (!GIsEditor || RedwoodSettings->bConnectToSidecarInPIE) {
+#if WITH_EDITOR
+  URedwoodEditorSettings *RedwoodEditorSettings =
+    GetMutableDefault<URedwoodEditorSettings>();
+  bConnectToSidecar =
+    !GIsEditor || RedwoodEditorSettings->bConnectToSidecarInPIE;
+#else
+  bConnectToSidecar = true;
+#endif
+
+  if (bConnectToSidecar) {
     Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
     // Sidecar will always be on the same host; 3020 is the default port
@@ -38,9 +50,18 @@ APlayerController *ARedwoodGameMode::Login(
     NewPlayer, InRemoteRole, Portal, Options, UniqueId, ErrorMessage
   );
 
-  URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
+  bool bConnectToSidecar = false;
 
-  if (!GIsEditor || RedwoodSettings->bConnectToSidecarInPIE) {
+#if WITH_EDITOR
+  URedwoodEditorSettings *RedwoodEditorSettings =
+    GetMutableDefault<URedwoodEditorSettings>();
+  bConnectToSidecar =
+    !GIsEditor || RedwoodEditorSettings->bConnectToSidecarInPIE;
+#else
+  bConnectToSidecar = true;
+#endif
+
+  if (bConnectToSidecar) {
     if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
       FString PlayerId =
         UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));

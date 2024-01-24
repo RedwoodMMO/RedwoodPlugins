@@ -9,24 +9,21 @@
 #include "RedwoodLatentCommon.generated.h"
 
 UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-  FRedwoodAuthResponse, ERedwoodAuthUpdateType, Type, FString, Message
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodAuthUpdateLatent, FRedwoodAuthUpdate, Data
 );
 
 UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-  FRedwoodCharacterResponseLatent,
-  FString,
-  Error,
-  FRedwoodPlayerCharacter,
-  Character
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodCharacterResultLatent, FRedwoodCharacterResult, Data
 );
 
 UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-  FRedwoodCharactersResponseLatent,
-  FString,
-  Error,
-  const TArray<FRedwoodPlayerCharacter> &,
-  Characters
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodCharactersResultLatent, FRedwoodCharactersResult, Data
+);
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodOnSocketConnectedLatent, FRedwoodSocketConnected, Result
 );

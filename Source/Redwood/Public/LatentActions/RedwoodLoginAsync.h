@@ -5,6 +5,7 @@
 #include "Kismet/BlueprintAsyncActionBase.h"
 
 #include "RedwoodLatentCommon.h"
+#include "RedwoodTitleGameSubsystem.h"
 
 #include "RedwoodLoginAsync.generated.h"
 
@@ -19,26 +20,23 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Login (Latent)",
+       DisplayName = "Login",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
   static URedwoodLoginAsync *Login(
+    URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    ARedwoodTitlePlayerController *PlayerController,
     const FString &Username,
     const FString &Password
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodAuthResponse Updated;
+  FRedwoodAuthUpdateLatent OnUpdate;
 
-  ARedwoodTitlePlayerController *PlayerController;
+  URedwoodTitleGameSubsystem *Target;
 
   FString Username;
 
   FString Password;
-
-  UFUNCTION()
-  void HandleUpdated(ERedwoodAuthUpdateType Type, FString Message);
 };

@@ -4,13 +4,18 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
-#include "RedwoodLatentCommon.h"
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodRegisterAsync.generated.h"
+#include "RedwoodJoinTicketingAsync.generated.h"
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodTicketingUpdateLatent, FRedwoodTicketingUpdate, Update
+);
 
 UCLASS()
-class REDWOOD_API URedwoodRegisterAsync : public UBlueprintAsyncActionBase {
+class REDWOOD_API URedwoodJoinTicketingAsync
+  : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
@@ -20,23 +25,23 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Register",
+       DisplayName = "Join Ticketing",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodRegisterAsync *Register(
+  static URedwoodJoinTicketingAsync *JoinTicketing(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    const FString &Username,
-    const FString &Password
+    FString Profile
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodAuthUpdateLatent OnUpdate;
+  FRedwoodTicketingUpdateLatent OnUpdate;
 
   URedwoodTitleGameSubsystem *Target;
 
-  FString Username;
+  FString Profile;
 
-  FString Password;
+  UPROPERTY()
+  USIOJsonObject *Data;
 };

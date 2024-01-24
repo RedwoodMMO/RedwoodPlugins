@@ -3,25 +3,23 @@
 #include "LatentActions/RedwoodListCharactersAsync.h"
 
 URedwoodListCharactersAsync *URedwoodListCharactersAsync::ListCharacters(
-  UObject *WorldContextObject, ARedwoodTitlePlayerController *PlayerController
+  URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodListCharactersAsync *Action =
     NewObject<URedwoodListCharactersAsync>();
-  Action->PlayerController = PlayerController;
+  Action->Target = Target;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
 }
 
 void URedwoodListCharactersAsync::Activate() {
-  FRedwoodCharactersResponse Delegate;
-  Delegate.BindDynamic(this, &URedwoodListCharactersAsync::HandleResponse);
-
-  PlayerController->ListCharacters(Delegate);
-}
-
-void URedwoodListCharactersAsync::HandleResponse(
-  FString Error, const TArray<FRedwoodPlayerCharacter> &Characters
-) {
-  OnResponse.Broadcast(Error, Characters);
+  Target->ListCharacters(
+    URedwoodTitleGameSubsystem::FRedwoodOnListCharacters::CreateLambda(
+      [this](FRedwoodCharactersResult Result) {
+        OnResult.Broadcast(Result);
+        SetReadyToDestroy();
+      }
+    )
+  );
 }

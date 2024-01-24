@@ -1,4 +1,4 @@
-// Copyright Incanta Games 2023. All Rights Reserved.
+// Copyright Incanta Games. All Rights Reserved.
 
 #pragma once
 
@@ -8,7 +8,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogRedwood, Log, All);
 
 class FRedwoodModule : public IModuleInterface {
 public:
-
   /** IModuleInterface implementation */
   virtual void StartupModule() override;
   virtual void ShutdownModule() override;

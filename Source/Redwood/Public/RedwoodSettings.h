@@ -1,4 +1,4 @@
-// Copyright Incanta Games 2023. All Rights Reserved.
+// Copyright Incanta Games. All Rights Reserved.
 
 #pragma once
 
@@ -6,25 +6,33 @@
 
 #include "RedwoodSettings.generated.h"
 
-UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Redwood"))
+UCLASS(config = ProjectSettings, meta = (DisplayName = "Redwood"))
 class REDWOOD_API URedwoodSettings : public UDeveloperSettings {
   GENERATED_BODY()
 
 public:
   URedwoodSettings() {
     CategoryName = TEXT("Plugins");
-    SectionName  = TEXT("Redwood");
+    SectionName = TEXT("Redwood");
   }
 
-  /** Whether or not you want the server to try to connect to the sidecar while running PIE */
-  UPROPERTY(
-    config,
-    EditAnywhere,
-    BlueprintReadWrite,
-    Category = "General")
-  bool bConnectToSidecarInPIE = false;
+  /** The full URI to connect to the Director service */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  FString DirectorUri = "ws://localhost:3001";
+
+  /** The number of times to ping a server (using the minimum response) */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  int PingAttempts = 3;
+
+  /** How long to wait for a ping attempt to timeout (seconds) */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  float PingTimeout = 3.f;
+
+  /** How long to wait before refreshing ping responses (seconds) */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  float PingFrequency = 10.f;
 
   virtual FName GetContainerName() const override {
-    return "Editor";
+    return "Project";
   }
 };
