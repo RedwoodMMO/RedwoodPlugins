@@ -29,13 +29,13 @@ public:
   static URedwoodCreateServerAsync *CreateServer(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    FRedwoodCreateServerParameters Parameters
+    FRedwoodCreateServerInput Parameters
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodGetServerResultAsync OnResult;
+  FRedwoodGetServerOutputDynamicDelegate OnOutput;
 
   URedwoodTitleGameSubsystem *Target;
 
-  FRedwoodCreateServerParameters Parameters;
+  FRedwoodCreateServerInput Parameters;
 };

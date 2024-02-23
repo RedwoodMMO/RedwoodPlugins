@@ -8,11 +8,6 @@
 
 #include "RedwoodJoinTicketingAsync.generated.h"
 
-UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-  FRedwoodTicketingUpdateAsync, FRedwoodTicketingUpdate, Update
-);
-
 UCLASS()
 class REDWOOD_API URedwoodJoinTicketingAsync
   : public UBlueprintAsyncActionBase {
@@ -36,7 +31,7 @@ public:
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodTicketingUpdateAsync OnUpdate;
+  FRedwoodTicketingUpdateDynamicDelegate OnUpdate;
 
   URedwoodTitleGameSubsystem *Target;
 

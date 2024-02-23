@@ -18,7 +18,7 @@ URedwoodJoinTicketingAsync *URedwoodJoinTicketingAsync::JoinTicketing(
 void URedwoodJoinTicketingAsync::Activate() {
   Target->JoinTicketing(
     Profile,
-    URedwoodTitleGameSubsystem::FRedwoodOnTicketingUpdate::CreateLambda(
+    FRedwoodTicketingUpdateDelegate::CreateLambda(
       [this](FRedwoodTicketingUpdate Update) {
         OnUpdate.Broadcast(Update);
 

@@ -16,9 +16,9 @@ URedwoodInitiateSingleRealmConnectionAsync::InitializeSingleRealmConnection(
 
 void URedwoodInitiateSingleRealmConnectionAsync::Activate() {
   Target->InitializeSingleRealmConnection(
-    URedwoodTitleGameSubsystem::FRedwoodOnSocketConnected::CreateLambda(
-      [this](FRedwoodSocketConnected Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodSocketConnectedDelegate::CreateLambda(
+      [this](FRedwoodSocketConnected Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )

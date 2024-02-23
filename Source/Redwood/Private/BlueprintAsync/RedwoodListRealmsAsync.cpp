@@ -13,12 +13,10 @@ URedwoodListRealmsAsync *URedwoodListRealmsAsync::ListRealms(
 }
 
 void URedwoodListRealmsAsync::Activate() {
-  Target->ListRealms(
-    URedwoodTitleGameSubsystem::FRedwoodOnListRealms::CreateLambda(
-      [this](FRedwoodRealmsResult Result) {
-        OnResult.Broadcast(Result);
-        SetReadyToDestroy();
-      }
-    )
-  );
+  Target->ListRealms(FRedwoodListRealmsOutputDelegate::CreateLambda(
+    [this](FRedwoodListRealmsOutput Output) {
+      OnOutput.Broadcast(Output);
+      SetReadyToDestroy();
+    }
+  ));
 }

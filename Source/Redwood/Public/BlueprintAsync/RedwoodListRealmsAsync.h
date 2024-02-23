@@ -11,11 +11,6 @@
 
 #include "RedwoodListRealmsAsync.generated.h"
 
-UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-  FRedwoodListRealmsResultAsync, FRedwoodRealmsResult, Result
-);
-
 UCLASS()
 class REDWOOD_API URedwoodListRealmsAsync : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
@@ -36,7 +31,7 @@ public:
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodListRealmsResultAsync OnResult;
+  FRedwoodListRealmsOutputDynamicDelegate OnOutput;
 
   URedwoodTitleGameSubsystem *Target;
 };

@@ -21,14 +21,12 @@ void URedwoodLoginAsync::Activate() {
   Target->Login(
     Username,
     Password,
-    URedwoodTitleGameSubsystem::FRedwoodOnAuthUpdate::CreateLambda(
-      [this](FRedwoodAuthUpdate Update) {
-        OnUpdate.Broadcast(Update);
+    FRedwoodAuthUpdateDelegate::CreateLambda([this](FRedwoodAuthUpdate Update) {
+      OnUpdate.Broadcast(Update);
 
-        if (Update.Type != ERedwoodAuthUpdateType::MustVerifyAccount) {
-          SetReadyToDestroy();
-        }
+      if (Update.Type != ERedwoodAuthUpdateType::MustVerifyAccount) {
+        SetReadyToDestroy();
       }
-    )
+    })
   );
 }

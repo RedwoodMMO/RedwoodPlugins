@@ -19,9 +19,9 @@ URedwoodGetCharacterDataAsync *URedwoodGetCharacterDataAsync::GetCharacterData(
 void URedwoodGetCharacterDataAsync::Activate() {
   Target->GetCharacterData(
     CharacterId,
-    URedwoodTitleGameSubsystem::FRedwoodOnGetCharacter::CreateLambda(
-      [this](FRedwoodCharacterResult Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodGetCharacterOutputDelegate::CreateLambda(
+      [this](FRedwoodGetCharacterOutput Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )

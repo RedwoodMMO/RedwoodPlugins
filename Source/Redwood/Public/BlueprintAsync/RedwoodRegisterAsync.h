@@ -32,7 +32,7 @@ public:
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodAuthUpdateAsync OnUpdate;
+  FRedwoodAuthUpdateDynamicDelegate OnUpdate;
 
   URedwoodTitleGameSubsystem *Target;
 

@@ -29,7 +29,7 @@ void URedwoodTitleGameSubsystem::Deinitialize() {
 }
 
 void URedwoodTitleGameSubsystem::InitializeDirectorConnection(
-  FRedwoodOnSocketConnected OnDirectorConnected
+  FRedwoodSocketConnectedDelegate OnDirectorConnected
 ) {
   Director = ISocketIOClientModule::Get().NewValidNativePointer();
 
@@ -105,11 +105,11 @@ void URedwoodTitleGameSubsystem::InitializeDirectorConnection(
                                     const FString &InSocketId,
                                     const FString &InSessionId
                                   ) {
-    FRedwoodSocketConnected Result;
-    Result.Error = TEXT("");
-    Result.SocketId = InSocketId;
-    Result.SessionId = InSessionId;
-    OnDirectorConnected.ExecuteIfBound(Result);
+    FRedwoodSocketConnected Details;
+    Details.Error = TEXT("");
+    Details.SocketId = InSocketId;
+    Details.SessionId = InSessionId;
+    OnDirectorConnected.ExecuteIfBound(Details);
   };
 
   URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
@@ -244,7 +244,7 @@ void URedwoodTitleGameSubsystem::HandlePingResult(
 void URedwoodTitleGameSubsystem::Register(
   const FString &Username,
   const FString &Password,
-  FRedwoodOnAuthUpdate OnUpdate
+  FRedwoodAuthUpdateDelegate OnUpdate
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FRedwoodAuthUpdate Update;
@@ -288,7 +288,7 @@ void URedwoodTitleGameSubsystem::Register(
 void URedwoodTitleGameSubsystem::Login(
   const FString &Username,
   const FString &PasswordOrToken,
-  FRedwoodOnAuthUpdate OnUpdate
+  FRedwoodAuthUpdateDelegate OnUpdate
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FRedwoodAuthUpdate Update;
@@ -336,24 +336,26 @@ void URedwoodTitleGameSubsystem::CancelWaitingForAccountVerification() {
   }
 }
 
-void URedwoodTitleGameSubsystem::ListRealms(FRedwoodOnListRealms OnResult) {
+void URedwoodTitleGameSubsystem::ListRealms(
+  FRedwoodListRealmsOutputDelegate OnOutput
+) {
   if (!Director.IsValid() || !Director->bIsConnected) {
-    FRedwoodRealmsResult Result;
-    Result.Error = TEXT("Not connected to Director.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodListRealmsOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
 
-  Director->Emit(TEXT("realm:list"), Payload, [this, OnResult](auto Response) {
+  Director->Emit(TEXT("realm:list"), Payload, [this, OnOutput](auto Response) {
     TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
 
-    FRedwoodRealmsResult Result;
+    FRedwoodListRealmsOutput Output;
 
-    Result.Error = MessageObject->GetStringField(TEXT("error"));
-    Result.bSingleRealm = MessageObject->GetBoolField(TEXT("isSingleRealm"));
+    Output.Error = MessageObject->GetStringField(TEXT("error"));
+    Output.bSingleRealm = MessageObject->GetBoolField(TEXT("isSingleRealm"));
 
     const TArray<TSharedPtr<FJsonValue>> &Realms =
       MessageObject->GetArrayField(TEXT("realms"));
@@ -365,56 +367,56 @@ void URedwoodTitleGameSubsystem::ListRealms(FRedwoodOnListRealms OnResult) {
       OutRealm.Uri = InRealm->AsObject()->GetStringField(TEXT("uri"));
       OutRealm.PingHost = InRealm->AsObject()->GetStringField(TEXT("pingHost"));
 
-      Result.Realms.Add(OutRealm);
+      Output.Realms.Add(OutRealm);
     }
 
-    OnResult.ExecuteIfBound(Result);
+    OnOutput.ExecuteIfBound(Output);
   });
 }
 
 void URedwoodTitleGameSubsystem::InitializeSingleRealmConnection(
-  FRedwoodOnSocketConnected OnRealmConnected
+  FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
-    FRedwoodSocketConnected Result;
-    Result.Error = TEXT("Not connected to Director.");
-    OnRealmConnected.ExecuteIfBound(Result);
+    FRedwoodSocketConnected Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnRealmConnected.ExecuteIfBound(Output);
     return;
   }
 
   Realm = Director;
 
-  FRedwoodSocketConnected Result;
-  Result.Error = TEXT("");
-  Result.SocketId = Realm->SocketId;
-  Result.SessionId = Realm->SessionId;
-  OnRealmConnected.ExecuteIfBound(Result);
+  FRedwoodSocketConnected Output;
+  Output.Error = TEXT("");
+  Output.SocketId = Realm->SocketId;
+  Output.SessionId = Realm->SessionId;
+  OnRealmConnected.ExecuteIfBound(Output);
 }
 
 void URedwoodTitleGameSubsystem::InitializeRealmConnection(
-  FRedwoodRealm InRealm, FRedwoodOnSocketConnected OnRealmConnected
+  FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
   Realm = ISocketIOClientModule::Get().NewValidNativePointer();
 
   Realm->OnConnectedCallback =
     [OnRealmConnected](const FString &InSocketId, const FString &InSessionId) {
-      FRedwoodSocketConnected Result;
-      Result.Error = TEXT("");
-      Result.SocketId = InSocketId;
-      Result.SessionId = InSessionId;
-      OnRealmConnected.ExecuteIfBound(Result);
+      FRedwoodSocketConnected Output;
+      Output.Error = TEXT("");
+      Output.SocketId = InSocketId;
+      Output.SessionId = InSessionId;
+      OnRealmConnected.ExecuteIfBound(Output);
     };
 
   Realm->Connect(*InRealm.Uri);
 }
 
 void URedwoodTitleGameSubsystem::ListCharacters(
-  FRedwoodOnListCharacters OnResult
+  FRedwoodListCharactersOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodCharactersResult Result;
-    Result.Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodListCharactersOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
@@ -424,16 +426,16 @@ void URedwoodTitleGameSubsystem::ListCharacters(
   Realm->Emit(
     TEXT("realm:characters:list"),
     Payload,
-    [this, OnResult](auto Response) {
+    [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       TArray<TSharedPtr<FJsonValue>> Characters =
         MessageObject->GetArrayField(TEXT("characters"));
 
-      TArray<FRedwoodPlayerCharacter> CharactersStruct;
+      TArray<FRedwoodCharacter> CharactersStruct;
       for (TSharedPtr<FJsonValue> Character : Characters) {
         TSharedPtr<FJsonObject> CharacterData = Character->AsObject();
-        FRedwoodPlayerCharacter CharacterStruct;
+        FRedwoodCharacter CharacterStruct;
 
         CharacterStruct.Id = CharacterData->GetStringField(TEXT("id"));
         USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
@@ -445,21 +447,21 @@ void URedwoodTitleGameSubsystem::ListCharacters(
         CharactersStruct.Add(CharacterStruct);
       }
 
-      FRedwoodCharactersResult Result;
-      Result.Error = Error;
-      Result.Characters = CharactersStruct;
-      OnResult.ExecuteIfBound(Result);
+      FRedwoodListCharactersOutput Output;
+      Output.Error = Error;
+      Output.Characters = CharactersStruct;
+      OnOutput.ExecuteIfBound(Output);
     }
   );
 }
 
 void URedwoodTitleGameSubsystem::CreateCharacter(
-  USIOJsonObject *Data, FRedwoodOnGetCharacter OnResult
+  USIOJsonObject *Data, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodCharacterResult Result;
-    Result.Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodGetCharacterOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
@@ -470,7 +472,7 @@ void URedwoodTitleGameSubsystem::CreateCharacter(
   Realm->Emit(
     TEXT("realm:characters:create"),
     Payload,
-    [this, OnResult](auto Response) {
+    [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       TSharedPtr<FJsonObject> CharacterObj =
@@ -480,26 +482,26 @@ void URedwoodTitleGameSubsystem::CreateCharacter(
       TSharedPtr<FJsonObject> CharacterData =
         CharacterObj->GetObjectField(TEXT("data"));
 
-      FRedwoodPlayerCharacter Character;
+      FRedwoodCharacter Character;
       Character.Id = CharacterId;
       Character.Data = NewObject<USIOJsonObject>();
       Character.Data->SetRootObject(CharacterData);
 
-      FRedwoodCharacterResult Result;
-      Result.Error = Error;
-      Result.Character = Character;
-      OnResult.ExecuteIfBound(Result);
+      FRedwoodGetCharacterOutput Output;
+      Output.Error = Error;
+      Output.Character = Character;
+      OnOutput.ExecuteIfBound(Output);
     }
   );
 }
 
 void URedwoodTitleGameSubsystem::GetCharacterData(
-  FString CharacterId, FRedwoodOnGetCharacter OnResult
+  FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodCharacterResult Result;
-    Result.Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodGetCharacterOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
@@ -510,7 +512,7 @@ void URedwoodTitleGameSubsystem::GetCharacterData(
   Realm->Emit(
     TEXT("realm:characters:get"),
     Payload,
-    [this, OnResult, CharacterId](auto Response) {
+    [this, OnOutput, CharacterId](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       TSharedPtr<FJsonObject> CharacterObj =
@@ -522,25 +524,27 @@ void URedwoodTitleGameSubsystem::GetCharacterData(
       USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
       CharacterDataObject->SetRootObject(CharacterData);
 
-      FRedwoodPlayerCharacter Character;
+      FRedwoodCharacter Character;
       Character.Id = CharacterId;
       Character.Data = CharacterDataObject;
 
-      FRedwoodCharacterResult Result;
-      Result.Error = Error;
-      Result.Character = Character;
-      OnResult.ExecuteIfBound(Result);
+      FRedwoodGetCharacterOutput Output;
+      Output.Error = Error;
+      Output.Character = Character;
+      OnOutput.ExecuteIfBound(Output);
     }
   );
 }
 
 void URedwoodTitleGameSubsystem::SetCharacterData(
-  FString CharacterId, USIOJsonObject *Data, FRedwoodOnGetCharacter OnResult
+  FString CharacterId,
+  USIOJsonObject *Data,
+  FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodCharacterResult Result;
-    Result.Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodGetCharacterOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
@@ -552,7 +556,7 @@ void URedwoodTitleGameSubsystem::SetCharacterData(
   Realm->Emit(
     TEXT("realm:characters:set"),
     Payload,
-    [this, OnResult, CharacterId](auto Response) {
+    [this, OnOutput, CharacterId](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       TSharedPtr<FJsonObject> CharacterObj =
@@ -564,20 +568,20 @@ void URedwoodTitleGameSubsystem::SetCharacterData(
       USIOJsonObject *CharacterDataObject = NewObject<USIOJsonObject>();
       CharacterDataObject->SetRootObject(CharacterData);
 
-      FRedwoodPlayerCharacter Character;
+      FRedwoodCharacter Character;
       Character.Id = CharacterId;
       Character.Data = CharacterDataObject;
 
-      FRedwoodCharacterResult Result;
-      Result.Error = Error;
-      Result.Character = Character;
-      OnResult.ExecuteIfBound(Result);
+      FRedwoodGetCharacterOutput Output;
+      Output.Error = Error;
+      Output.Character = Character;
+      OnOutput.ExecuteIfBound(Output);
     }
   );
 }
 
 void URedwoodTitleGameSubsystem::JoinTicketing(
-  FString Profile, FRedwoodOnTicketingUpdate OnUpdate
+  FString Profile, FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   TicketingProfile = Profile;
   OnTicketingUpdate = OnUpdate;
@@ -672,12 +676,13 @@ FRedwoodGameServerInstance URedwoodTitleGameSubsystem::ParseServerInstance(
 }
 
 void URedwoodTitleGameSubsystem::ListServers(
-  TArray<FString> PrivateServerReferences, FRedwoodOnListServers OnResult
+  TArray<FString> PrivateServerReferences,
+  FRedwoodListServersOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodListServers Result;
-    Result.Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodListServersOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
@@ -697,7 +702,7 @@ void URedwoodTitleGameSubsystem::ListServers(
   Realm->Emit(
     TEXT("realm:servers:list"),
     Payload,
-    [this, OnResult](auto Response) {
+    [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       TArray<TSharedPtr<FJsonValue>> Servers =
@@ -711,21 +716,21 @@ void URedwoodTitleGameSubsystem::ListServers(
         );
       }
 
-      FRedwoodListServers Result;
-      Result.Error = Error;
-      Result.Servers = ServersStruct;
-      OnResult.ExecuteIfBound(Result);
+      FRedwoodListServersOutput Output;
+      Output.Error = Error;
+      Output.Servers = ServersStruct;
+      OnOutput.ExecuteIfBound(Output);
     }
   );
 }
 
 void URedwoodTitleGameSubsystem::CreateServer(
-  FRedwoodCreateServerParameters Parameters, FRedwoodOnGetServer OnResult
+  FRedwoodCreateServerInput Parameters, FRedwoodGetServerOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodGetServer Result;
-    Result.Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodGetServerOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
@@ -760,11 +765,11 @@ void URedwoodTitleGameSubsystem::CreateServer(
   Realm->Emit(
     TEXT("realm:servers:create"),
     Payload,
-    [this, OnResult](auto Response) {
-      FRedwoodGetServer Result;
+    [this, OnOutput](auto Response) {
+      FRedwoodGetServerOutput Output;
 
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
-      Result.Error = MessageObject->GetStringField(TEXT("error"));
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
 
       const TSharedPtr<FJsonObject> *ServerInstanceObject = nullptr;
       if (MessageObject->TryGetObjectField(
@@ -773,21 +778,23 @@ void URedwoodTitleGameSubsystem::CreateServer(
         FRedwoodGameServerInstance ServerInstance =
           URedwoodTitleGameSubsystem::ParseServerInstance(*ServerInstanceObject
           );
-        Result.ServerInstance = ServerInstance;
+        Output.ServerInstance = ServerInstance;
       }
 
-      OnResult.ExecuteIfBound(Result);
+      OnOutput.ExecuteIfBound(Output);
     }
   );
 }
 
 void URedwoodTitleGameSubsystem::GetServerInstance(
-  FString ServerReference, FString Password, FRedwoodOnGetServer OnResult
+  FString ServerReference,
+  FString Password,
+  FRedwoodGetServerOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodGetServer Result;
-    Result.Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Result);
+    FRedwoodGetServerOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
     return;
   }
 
@@ -804,11 +811,11 @@ void URedwoodTitleGameSubsystem::GetServerInstance(
   }
 
   Realm
-    ->Emit(TEXT("realm:servers:get"), Payload, [this, OnResult](auto Response) {
-      FRedwoodGetServer Result;
+    ->Emit(TEXT("realm:servers:get"), Payload, [this, OnOutput](auto Response) {
+      FRedwoodGetServerOutput Output;
 
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
-      Result.Error = MessageObject->GetStringField(TEXT("error"));
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
 
       const TSharedPtr<FJsonObject> *ServerInstanceObject = nullptr;
       if (MessageObject->TryGetObjectField(
@@ -817,19 +824,19 @@ void URedwoodTitleGameSubsystem::GetServerInstance(
         FRedwoodGameServerInstance ServerInstance =
           URedwoodTitleGameSubsystem::ParseServerInstance(*ServerInstanceObject
           );
-        Result.ServerInstance = ServerInstance;
+        Output.ServerInstance = ServerInstance;
       }
 
-      OnResult.ExecuteIfBound(Result);
+      OnOutput.ExecuteIfBound(Output);
     });
 }
 
 void URedwoodTitleGameSubsystem::StopServer(
-  FString ServerProxyId, FRedwoodOnSimpleResult OnResult
+  FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
     FString Error = TEXT("Not connected to Realm.");
-    OnResult.ExecuteIfBound(Error);
+    OnOutput.ExecuteIfBound(Error);
     return;
   }
 
@@ -841,12 +848,10 @@ void URedwoodTitleGameSubsystem::StopServer(
   Realm->Emit(
     TEXT("realm:servers:stop"),
     Payload,
-    [this, OnResult](auto Response) {
-      FRedwoodGetServer Result;
-
+    [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
 
-      OnResult.ExecuteIfBound(MessageObject->GetStringField(TEXT("error")));
+      OnOutput.ExecuteIfBound(MessageObject->GetStringField(TEXT("error")));
     }
   );
 }

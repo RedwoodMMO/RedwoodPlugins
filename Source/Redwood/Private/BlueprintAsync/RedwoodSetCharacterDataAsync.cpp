@@ -22,9 +22,9 @@ void URedwoodSetCharacterDataAsync::Activate() {
   Target->SetCharacterData(
     CharacterId,
     Data,
-    URedwoodTitleGameSubsystem::FRedwoodOnGetCharacter::CreateLambda(
-      [this](FRedwoodCharacterResult Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodGetCharacterOutputDelegate::CreateLambda(
+      [this](FRedwoodGetCharacterOutput Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )

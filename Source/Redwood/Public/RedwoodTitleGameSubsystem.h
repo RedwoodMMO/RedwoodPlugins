@@ -3,7 +3,7 @@
 #pragma once
 
 #include "RedwoodModule.h"
-#include "RedwoodTypes.h"
+#include "Types/RedwoodTypes.h"
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -18,20 +18,6 @@ class URedwoodTitleGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
 
 public:
-  typedef TDelegate<void(const FRedwoodAuthUpdate &)> FRedwoodOnAuthUpdate;
-  typedef TDelegate<void(const FRedwoodCharactersResult &)>
-    FRedwoodOnListCharacters;
-  typedef TDelegate<void(const FRedwoodCharacterResult &)>
-    FRedwoodOnGetCharacter;
-  typedef TDelegate<void(const FRedwoodTicketingUpdate &)>
-    FRedwoodOnTicketingUpdate;
-  typedef TDelegate<void(const FRedwoodRealmsResult &)> FRedwoodOnListRealms;
-  typedef TDelegate<void(const FRedwoodSocketConnected &)>
-    FRedwoodOnSocketConnected;
-  typedef TDelegate<void(const FRedwoodListServers &)> FRedwoodOnListServers;
-  typedef TDelegate<void(const FRedwoodGetServer &)> FRedwoodOnGetServer;
-  typedef TDelegate<void(const FString &)> FRedwoodOnSimpleResult;
-
   UDELEGATE()
   DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     FRedwoodPingResult, FString, Region, float, RTT
@@ -43,7 +29,7 @@ public:
   // End USubsystem
 
   void InitializeDirectorConnection(
-    FRedwoodOnSocketConnected OnDirectorConnected
+    FRedwoodSocketConnectedDelegate OnDirectorConnected
   );
 
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
@@ -52,38 +38,44 @@ public:
   void Register(
     const FString &Username,
     const FString &Password,
-    FRedwoodOnAuthUpdate OnUpdate
+    FRedwoodAuthUpdateDelegate OnUpdate
   );
 
   void Login(
     const FString &Username,
     const FString &PasswordOrToken,
-    FRedwoodOnAuthUpdate OnUpdate
+    FRedwoodAuthUpdateDelegate OnUpdate
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CancelWaitingForAccountVerification();
 
-  void ListRealms(FRedwoodOnListRealms OnResult);
+  void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
   void InitializeSingleRealmConnection(
-    FRedwoodOnSocketConnected OnRealmConnected
+    FRedwoodSocketConnectedDelegate OnRealmConnected
   );
   void InitializeRealmConnection(
-    FRedwoodRealm InRealm, FRedwoodOnSocketConnected OnRealmConnected
+    FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
   );
 
-  void ListCharacters(FRedwoodOnListCharacters OnResult);
+  void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
-  void CreateCharacter(USIOJsonObject *Data, FRedwoodOnGetCharacter OnResult);
+  void CreateCharacter(
+    USIOJsonObject *Data, FRedwoodGetCharacterOutputDelegate OnOutput
+  );
 
-  void GetCharacterData(FString CharacterId, FRedwoodOnGetCharacter OnResult);
+  void GetCharacterData(
+    FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
+  );
 
   void SetCharacterData(
-    FString CharacterId, USIOJsonObject *Data, FRedwoodOnGetCharacter OnResult
+    FString CharacterId,
+    USIOJsonObject *Data,
+    FRedwoodGetCharacterOutputDelegate OnOutput
   );
 
-  void JoinTicketing(FString Profile, FRedwoodOnTicketingUpdate OnUpdate);
+  void JoinTicketing(FString Profile, FRedwoodTicketingUpdateDelegate OnUpdate);
 
   static FRedwoodGameServerProxy ParseServerProxy(
     TSharedPtr<FJsonObject> ServerProxy
@@ -92,15 +84,19 @@ public:
     TSharedPtr<FJsonObject> ServerInstance
   );
   void ListServers(
-    TArray<FString> PrivateServerReferences, FRedwoodOnListServers OnResult
+    TArray<FString> PrivateServerReferences,
+    FRedwoodListServersOutputDelegate OnOutput
   );
   void CreateServer(
-    FRedwoodCreateServerParameters Parameters, FRedwoodOnGetServer OnResult
+    FRedwoodCreateServerInput Parameters,
+    FRedwoodGetServerOutputDelegate OnOutput
   );
   void GetServerInstance(
-    FString ServerReference, FString Password, FRedwoodOnGetServer OnResult
+    FString ServerReference,
+    FString Password,
+    FRedwoodGetServerOutputDelegate OnOutput
   );
-  void StopServer(FString ServerProxyId, FRedwoodOnSimpleResult OnResult);
+  void StopServer(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionString(FString CharacterId);
@@ -123,12 +119,12 @@ private:
   int PingAttemptsLeft;
 
   void AttemptJoinTicketing();
-  FRedwoodOnTicketingUpdate OnTicketingUpdate;
+  FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
   FString TicketingProfile;
   FString TicketingConnection;
   FString TicketingToken;
 
-  FRedwoodOnAuthUpdate OnAccountVerified;
+  FRedwoodAuthUpdateDelegate OnAccountVerified;
   FString PlayerId;
   FString AuthToken;
 };

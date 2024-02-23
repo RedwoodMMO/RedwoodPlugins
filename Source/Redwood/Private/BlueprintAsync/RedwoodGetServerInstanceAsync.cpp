@@ -23,9 +23,9 @@ void URedwoodGetServerInstanceAsync::Activate() {
   Target->GetServerInstance(
     ServerReference,
     Password,
-    URedwoodTitleGameSubsystem::FRedwoodOnGetServer::CreateLambda(
-      [this](FRedwoodGetServer Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodGetServerOutputDelegate::CreateLambda(
+      [this](FRedwoodGetServerOutput Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )

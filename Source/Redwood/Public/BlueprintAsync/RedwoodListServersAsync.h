@@ -33,7 +33,7 @@ public:
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodServersResultAsync OnResult;
+  FRedwoodListServersOutputDynamicDelegate OnOutput;
 
   URedwoodTitleGameSubsystem *Target;
 

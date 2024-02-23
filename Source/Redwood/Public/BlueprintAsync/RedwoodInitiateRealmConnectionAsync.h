@@ -34,7 +34,7 @@ public:
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodOnSocketConnectedAsync OnResult;
+  FRedwoodSocketConnectedDynamicDelegate OnOutput;
 
   URedwoodTitleGameSubsystem *Target;
 

@@ -18,9 +18,9 @@ URedwoodListServersAsync *URedwoodListServersAsync::ListServers(
 void URedwoodListServersAsync::Activate() {
   Target->ListServers(
     PrivateServerReferences,
-    URedwoodTitleGameSubsystem::FRedwoodOnListServers::CreateLambda(
-      [this](FRedwoodListServers Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodListServersOutputDelegate::CreateLambda(
+      [this](FRedwoodListServersOutput Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )

@@ -14,12 +14,10 @@ URedwoodListCharactersAsync *URedwoodListCharactersAsync::ListCharacters(
 }
 
 void URedwoodListCharactersAsync::Activate() {
-  Target->ListCharacters(
-    URedwoodTitleGameSubsystem::FRedwoodOnListCharacters::CreateLambda(
-      [this](FRedwoodCharactersResult Result) {
-        OnResult.Broadcast(Result);
-        SetReadyToDestroy();
-      }
-    )
-  );
+  Target->ListCharacters(FRedwoodListCharactersOutputDelegate::CreateLambda(
+    [this](FRedwoodListCharactersOutput Output) {
+      OnOutput.Broadcast(Output);
+      SetReadyToDestroy();
+    }
+  ));
 }

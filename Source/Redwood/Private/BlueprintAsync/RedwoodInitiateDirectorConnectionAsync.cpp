@@ -16,9 +16,9 @@ URedwoodInitiateDirectorConnectionAsync::ListRealms(
 
 void URedwoodInitiateDirectorConnectionAsync::Activate() {
   Target->InitializeDirectorConnection(
-    URedwoodTitleGameSubsystem::FRedwoodOnSocketConnected::CreateLambda(
-      [this](FRedwoodSocketConnected Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodSocketConnectedDelegate::CreateLambda(
+      [this](FRedwoodSocketConnected Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )

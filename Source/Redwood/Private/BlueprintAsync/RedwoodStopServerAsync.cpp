@@ -18,11 +18,9 @@ URedwoodStopServerAsync *URedwoodStopServerAsync::StopServer(
 void URedwoodStopServerAsync::Activate() {
   Target->StopServer(
     ServerProxyId,
-    URedwoodTitleGameSubsystem::FRedwoodOnSimpleResult::CreateLambda(
-      [this](FString Error) {
-        OnResult.Broadcast(Error);
-        SetReadyToDestroy();
-      }
-    )
+    FRedwoodErrorOutputDelegate::CreateLambda([this](FString Error) {
+      OnOutput.Broadcast(Error);
+      SetReadyToDestroy();
+    })
   );
 }

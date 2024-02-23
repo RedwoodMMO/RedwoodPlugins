@@ -19,9 +19,9 @@ URedwoodCreateCharacterAsync *URedwoodCreateCharacterAsync::CreateCharacter(
 void URedwoodCreateCharacterAsync::Activate() {
   Target->CreateCharacter(
     Data,
-    URedwoodTitleGameSubsystem::FRedwoodOnGetCharacter::CreateLambda(
-      [this](FRedwoodCharacterResult Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodGetCharacterOutputDelegate::CreateLambda(
+      [this](FRedwoodGetCharacterOutput Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )

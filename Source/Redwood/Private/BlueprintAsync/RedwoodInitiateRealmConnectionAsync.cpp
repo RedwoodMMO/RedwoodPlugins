@@ -20,9 +20,9 @@ URedwoodInitiateRealmConnectionAsync::InitializeRealmConnection(
 void URedwoodInitiateRealmConnectionAsync::Activate() {
   Target->InitializeRealmConnection(
     Realm,
-    URedwoodTitleGameSubsystem::FRedwoodOnSocketConnected::CreateLambda(
-      [this](FRedwoodSocketConnected Result) {
-        OnResult.Broadcast(Result);
+    FRedwoodSocketConnectedDelegate::CreateLambda(
+      [this](FRedwoodSocketConnected Output) {
+        OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }
     )
