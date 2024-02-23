@@ -10,6 +10,11 @@
 
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodSimpleResultLatent, FString, Error
+);
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodAuthUpdateLatent, FRedwoodAuthUpdate, Data
 );
 
@@ -26,4 +31,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodOnSocketConnectedLatent, FRedwoodSocketConnected, Result
+);
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodServersResultLatent, FRedwoodListServers, Data
+);
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodGetServerResultLatent, FRedwoodGetServer, Data
 );

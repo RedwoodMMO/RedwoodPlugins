@@ -584,6 +584,273 @@ void URedwoodTitleGameSubsystem::JoinTicketing(
   AttemptJoinTicketing();
 }
 
+FRedwoodGameServerProxy URedwoodTitleGameSubsystem::ParseServerProxy(
+  TSharedPtr<FJsonObject> ServerProxy
+) {
+  FRedwoodGameServerProxy Server;
+
+  Server.Id = ServerProxy->GetStringField(TEXT("id"));
+
+  FDateTime::ParseIso8601(
+    *ServerProxy->GetStringField(TEXT("createdAt")), Server.CreatedAt
+  );
+
+  FDateTime::ParseIso8601(
+    *ServerProxy->GetStringField(TEXT("updatedAt")), Server.UpdatedAt
+  );
+
+  FDateTime::ParseIso8601(
+    *ServerProxy->GetStringField(TEXT("endedAt")), Server.EndedAt
+  );
+
+  Server.Name = ServerProxy->GetStringField(TEXT("name"));
+
+  Server.Region = ServerProxy->GetStringField(TEXT("region"));
+
+  Server.Mode = ServerProxy->GetStringField(TEXT("mode"));
+
+  Server.bPublic = ServerProxy->GetBoolField(TEXT("public"));
+
+  Server.bContinuousPlay = ServerProxy->GetBoolField(TEXT("continuousPlay"));
+
+  ServerProxy->TryGetBoolField(TEXT("hasPassword"), Server.bHasPassword);
+
+  ServerProxy->TryGetStringField(TEXT("password"), Server.Password);
+
+  Server.ShortCode = ServerProxy->GetStringField(TEXT("shortCode"));
+
+  Server.CurrentPlayers = ServerProxy->GetIntegerField(TEXT("currentPlayers"));
+
+  Server.MaxPlayers = ServerProxy->GetIntegerField(TEXT("maxPlayers"));
+
+  TSharedPtr<FJsonObject> Data = ServerProxy->GetObjectField(TEXT("data"));
+  USIOJsonObject *DataObject = NewObject<USIOJsonObject>();
+  DataObject->SetRootObject(Data);
+  Server.Data = DataObject;
+
+  Server.OwnerPlayerIdentityId =
+    ServerProxy->GetStringField(TEXT("ownerPlayerIdentityId"));
+
+  Server.ActiveInstanceId =
+    ServerProxy->GetStringField(TEXT("activeInstanceId"));
+
+  return Server;
+}
+
+FRedwoodGameServerInstance URedwoodTitleGameSubsystem::ParseServerInstance(
+  TSharedPtr<FJsonObject> ServerInstance
+) {
+  FRedwoodGameServerInstance Instance;
+
+  Instance.Id = ServerInstance->GetStringField(TEXT("id"));
+
+  FDateTime::ParseIso8601(
+    *ServerInstance->GetStringField(TEXT("createdAt")), Instance.CreatedAt
+  );
+
+  FDateTime::ParseIso8601(
+    *ServerInstance->GetStringField(TEXT("updatedAt")), Instance.UpdatedAt
+  );
+
+  Instance.ProviderId = ServerInstance->GetStringField(TEXT("providerId"));
+
+  FDateTime::ParseIso8601(
+    *ServerInstance->GetStringField(TEXT("startedAt")), Instance.StartedAt
+  );
+
+  FDateTime::ParseIso8601(
+    *ServerInstance->GetStringField(TEXT("endedAt")), Instance.EndedAt
+  );
+
+  Instance.Connection = ServerInstance->GetStringField(TEXT("connection"));
+
+  Instance.ContainerId = ServerInstance->GetStringField(TEXT("containerId"));
+
+  Instance.ProxyId = ServerInstance->GetStringField(TEXT("proxyId"));
+
+  return Instance;
+}
+
+void URedwoodTitleGameSubsystem::ListServers(
+  TArray<FString> PrivateServerReferences, FRedwoodOnListServers OnResult
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodListServers Result;
+    Result.Error = TEXT("Not connected to Realm.");
+    OnResult.ExecuteIfBound(Result);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  TArray<TSharedPtr<FJsonValue>> PrivateServerReferencesArray;
+  for (FString Reference : PrivateServerReferences) {
+    TSharedPtr<FJsonValueString> Value =
+      MakeShareable(new FJsonValueString(Reference));
+    PrivateServerReferencesArray.Add(Value);
+  }
+  Payload->SetArrayField(
+    TEXT("privateServerReferences"), PrivateServerReferencesArray
+  );
+
+  Realm->Emit(
+    TEXT("realm:servers:list"),
+    Payload,
+    [this, OnResult](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      TArray<TSharedPtr<FJsonValue>> Servers =
+        MessageObject->GetArrayField(TEXT("servers"));
+
+      TArray<FRedwoodGameServerProxy> ServersStruct;
+      for (TSharedPtr<FJsonValue> Server : Servers) {
+        TSharedPtr<FJsonObject> ServerData = Server->AsObject();
+        ServersStruct.Add(
+          URedwoodTitleGameSubsystem::ParseServerProxy(ServerData)
+        );
+      }
+
+      FRedwoodListServers Result;
+      Result.Error = Error;
+      Result.Servers = ServersStruct;
+      OnResult.ExecuteIfBound(Result);
+    }
+  );
+}
+
+void URedwoodTitleGameSubsystem::CreateServer(
+  FRedwoodCreateServerParameters Parameters, FRedwoodOnGetServer OnResult
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodGetServer Result;
+    Result.Error = TEXT("Not connected to Realm.");
+    OnResult.ExecuteIfBound(Result);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  Payload->SetStringField(TEXT("name"), Parameters.Name);
+
+  Payload->SetStringField(TEXT("region"), Parameters.Region);
+
+  Payload->SetStringField(TEXT("mode"), Parameters.Mode);
+
+  Payload->SetBoolField(TEXT("public"), Parameters.bPublic);
+
+  Payload->SetBoolField(TEXT("continuousPlay"), Parameters.bContinuousPlay);
+
+  if (!Parameters.Password.IsEmpty()) {
+    Payload->SetStringField(TEXT("password"), Parameters.Password);
+  } else {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+    Payload->SetField(TEXT("password"), NullValue);
+  }
+
+  Payload->SetStringField(TEXT("shortCode"), Parameters.ShortCode);
+
+  Payload->SetNumberField(TEXT("maxPlayers"), Parameters.MaxPlayers);
+
+  if (Parameters.Data) {
+    Payload->SetObjectField(TEXT("data"), Parameters.Data->GetRootObject());
+  }
+
+  Realm->Emit(
+    TEXT("realm:servers:create"),
+    Payload,
+    [this, OnResult](auto Response) {
+      FRedwoodGetServer Result;
+
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      Result.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TSharedPtr<FJsonObject> *ServerInstanceObject = nullptr;
+      if (MessageObject->TryGetObjectField(
+            TEXT("instance"), ServerInstanceObject
+          )) {
+        FRedwoodGameServerInstance ServerInstance =
+          URedwoodTitleGameSubsystem::ParseServerInstance(*ServerInstanceObject
+          );
+        Result.ServerInstance = ServerInstance;
+      }
+
+      OnResult.ExecuteIfBound(Result);
+    }
+  );
+}
+
+void URedwoodTitleGameSubsystem::GetServerInstance(
+  FString ServerReference, FString Password, FRedwoodOnGetServer OnResult
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodGetServer Result;
+    Result.Error = TEXT("Not connected to Realm.");
+    OnResult.ExecuteIfBound(Result);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("id"), PlayerId);
+
+  Payload->SetStringField(TEXT("serverReference"), ServerReference);
+
+  if (!Password.IsEmpty()) {
+    Payload->SetStringField(TEXT("password"), Password);
+  } else {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+    Payload->SetField(TEXT("password"), NullValue);
+  }
+
+  Realm
+    ->Emit(TEXT("realm:servers:get"), Payload, [this, OnResult](auto Response) {
+      FRedwoodGetServer Result;
+
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      Result.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TSharedPtr<FJsonObject> *ServerInstanceObject = nullptr;
+      if (MessageObject->TryGetObjectField(
+            TEXT("instance"), ServerInstanceObject
+          )) {
+        FRedwoodGameServerInstance ServerInstance =
+          URedwoodTitleGameSubsystem::ParseServerInstance(*ServerInstanceObject
+          );
+        Result.ServerInstance = ServerInstance;
+      }
+
+      OnResult.ExecuteIfBound(Result);
+    });
+}
+
+void URedwoodTitleGameSubsystem::StopServer(
+  FString ServerProxyId, FRedwoodOnSimpleResult OnResult
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FString Error = TEXT("Not connected to Realm.");
+    OnResult.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("id"), PlayerId);
+
+  Payload->SetStringField(TEXT("proxyId"), ServerProxyId);
+
+  Realm->Emit(
+    TEXT("realm:servers:stop"),
+    Payload,
+    [this, OnResult](auto Response) {
+      FRedwoodGetServer Result;
+
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      OnResult.ExecuteIfBound(MessageObject->GetStringField(TEXT("error")));
+    }
+  );
+}
+
 void URedwoodTitleGameSubsystem::AttemptJoinTicketing() {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
     FRedwoodTicketingUpdate Update;

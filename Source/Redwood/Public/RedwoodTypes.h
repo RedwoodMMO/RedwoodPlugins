@@ -77,7 +77,7 @@ struct FRedwoodPlayerCharacter {
   FString Id;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject *Data;
+  USIOJsonObject *Data = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -167,4 +167,154 @@ struct FRedwoodSocketConnected {
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString SessionId;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodGameServerProxy {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Id;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FDateTime CreatedAt;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FDateTime UpdatedAt;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FDateTime EndedAt;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Name;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Region;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Mode;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  bool bPublic = false;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  bool bContinuousPlay = false;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  bool bHasPassword = false;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Password;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ShortCode;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  int32 CurrentPlayers = 0;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  int32 MaxPlayers = 0;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *Data = nullptr;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString OwnerPlayerIdentityId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ActiveInstanceId;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodGameServerInstance {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Id;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FDateTime CreatedAt;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FDateTime UpdatedAt;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ProviderId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FDateTime StartedAt;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FDateTime EndedAt;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Connection;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ContainerId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ProxyId;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodCreateServerParameters {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Name;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Region;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Mode;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  bool bPublic = false;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  bool bContinuousPlay = false;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Password;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ShortCode;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  int32 MaxPlayers = 0;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *Data = nullptr;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodListServers {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Error;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  TArray<FRedwoodGameServerProxy> Servers;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodGetServer {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Error;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FRedwoodGameServerInstance ServerInstance;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodSimpleResult {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Error;
 };

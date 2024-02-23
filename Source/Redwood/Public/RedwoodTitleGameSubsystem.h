@@ -28,6 +28,9 @@ public:
   typedef TDelegate<void(const FRedwoodRealmsResult &)> FRedwoodOnListRealms;
   typedef TDelegate<void(const FRedwoodSocketConnected &)>
     FRedwoodOnSocketConnected;
+  typedef TDelegate<void(const FRedwoodListServers &)> FRedwoodOnListServers;
+  typedef TDelegate<void(const FRedwoodGetServer &)> FRedwoodOnGetServer;
+  typedef TDelegate<void(const FString &)> FRedwoodOnSimpleResult;
 
   UDELEGATE()
   DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
@@ -81,6 +84,23 @@ public:
   );
 
   void JoinTicketing(FString Profile, FRedwoodOnTicketingUpdate OnUpdate);
+
+  static FRedwoodGameServerProxy ParseServerProxy(
+    TSharedPtr<FJsonObject> ServerProxy
+  );
+  static FRedwoodGameServerInstance ParseServerInstance(
+    TSharedPtr<FJsonObject> ServerInstance
+  );
+  void ListServers(
+    TArray<FString> PrivateServerReferences, FRedwoodOnListServers OnResult
+  );
+  void CreateServer(
+    FRedwoodCreateServerParameters Parameters, FRedwoodOnGetServer OnResult
+  );
+  void GetServerInstance(
+    FString ServerReference, FString Password, FRedwoodOnGetServer OnResult
+  );
+  void StopServer(FString ServerProxyId, FRedwoodOnSimpleResult OnResult);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionString(FString CharacterId);
