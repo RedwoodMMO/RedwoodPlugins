@@ -30,6 +30,9 @@ public:
   static URedwoodCreateCharacterAsync *CreateCharacter(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
+    USIOJsonObject *Metadata,
+    USIOJsonObject *EquippedInventory,
+    USIOJsonObject *NonequippedInventory,
     USIOJsonObject *Data
   );
 
@@ -38,5 +41,15 @@ public:
 
   URedwoodTitleGameSubsystem *Target;
 
-  UPROPERTY() USIOJsonObject *Data;
+  UPROPERTY()
+  USIOJsonObject *Metadata;
+
+  UPROPERTY()
+  USIOJsonObject *EquippedInventory;
+
+  UPROPERTY()
+  USIOJsonObject *NonequippedInventory;
+
+  UPROPERTY()
+  USIOJsonObject *Data;
 };

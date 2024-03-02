@@ -107,22 +107,12 @@ void URedwoodGameSubsystem::InitializeSidecar() {
           FURL Url;
           Url.Protocol = "unreal";
           Url.Map = MapStr;
+
+          // TODO use Game= to specify a game mode
           Url.AddOption(*FString("Mode=" + ModeStr));
 
           FString Command = FString::Printf(TEXT("open %s"), *Url.ToString());
           GetGameInstance()->GetEngine()->DeferredCommands.Add(Command);
-
-          GetGameInstance()->GetTimerManager().SetTimerForNextTick(
-            this, &URedwoodGameSubsystem::SendUpdateToSidecar
-          );
-
-          GetGameInstance()->GetTimerManager().SetTimer(
-            TimerHandle_UpdateSidecarLoading,
-            this,
-            &URedwoodGameSubsystem::SendUpdateToSidecar,
-            UpdateSidecarLoadingRate,
-            true // loop
-          );
         }
       }
     }

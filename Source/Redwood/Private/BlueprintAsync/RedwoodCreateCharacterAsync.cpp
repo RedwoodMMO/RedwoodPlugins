@@ -5,11 +5,17 @@
 URedwoodCreateCharacterAsync *URedwoodCreateCharacterAsync::CreateCharacter(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
+  USIOJsonObject *Metadata,
+  USIOJsonObject *EquippedInventory,
+  USIOJsonObject *NonequippedInventory,
   USIOJsonObject *Data
 ) {
   URedwoodCreateCharacterAsync *Action =
     NewObject<URedwoodCreateCharacterAsync>();
   Action->Target = Target;
+  Action->Metadata = Metadata;
+  Action->EquippedInventory = EquippedInventory;
+  Action->NonequippedInventory = NonequippedInventory;
   Action->Data = Data;
   Action->RegisterWithGameInstance(WorldContextObject);
 
@@ -18,6 +24,9 @@ URedwoodCreateCharacterAsync *URedwoodCreateCharacterAsync::CreateCharacter(
 
 void URedwoodCreateCharacterAsync::Activate() {
   Target->CreateCharacter(
+    Metadata,
+    EquippedInventory,
+    NonequippedInventory,
     Data,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](FRedwoodGetCharacterOutput Output) {

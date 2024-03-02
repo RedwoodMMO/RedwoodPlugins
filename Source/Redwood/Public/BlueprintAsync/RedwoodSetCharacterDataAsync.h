@@ -31,6 +31,9 @@ public:
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
     FString CharacterId,
+    USIOJsonObject *Metadata,
+    USIOJsonObject *EquippedInventory,
+    USIOJsonObject *NonequippedInventory,
     USIOJsonObject *Data
   );
 
@@ -40,6 +43,15 @@ public:
   URedwoodTitleGameSubsystem *Target;
 
   FString CharacterId;
+
+  UPROPERTY()
+  USIOJsonObject *Metadata;
+
+  UPROPERTY()
+  USIOJsonObject *EquippedInventory;
+
+  UPROPERTY()
+  USIOJsonObject *NonequippedInventory;
 
   UPROPERTY()
   USIOJsonObject *Data;

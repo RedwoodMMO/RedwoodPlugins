@@ -63,15 +63,12 @@ APlayerController *ARedwoodGameMode::Login(
 
   if (bConnectToSidecar) {
     if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
-      FString PlayerId =
-        UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));
       FString CharacterId =
         UGameplayStatics::ParseOption(Options, TEXT("CharacterId"));
       FString Token = UGameplayStatics::ParseOption(Options, TEXT("Token"));
 
       // query for player legitimacy
       TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-      JsonObject->SetStringField(TEXT("playerId"), PlayerId);
       JsonObject->SetStringField(TEXT("characterId"), CharacterId);
       JsonObject->SetStringField(TEXT("token"), Token);
 

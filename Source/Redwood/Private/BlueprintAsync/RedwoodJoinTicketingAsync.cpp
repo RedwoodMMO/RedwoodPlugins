@@ -23,11 +23,10 @@ void URedwoodJoinTicketingAsync::Activate() {
         OnUpdate.Broadcast(Update);
 
         if (
-          Update.Type == ERedwoodTicketingUpdateType::Ready ||
           Update.Type == ERedwoodTicketingUpdateType::TicketStale ||
           (
             Update.Type == ERedwoodTicketingUpdateType::JoinResponse &&
-            Update.Message != TEXT("")
+            !Update.Message.IsEmpty()
           )
         ) {
           SetReadyToDestroy();

@@ -7,7 +7,8 @@ URedwoodGetServerInstanceAsync::GetServerInstance(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
   FString ServerReference,
-  FString Password
+  FString Password,
+  bool bJoinSession
 ) {
   URedwoodGetServerInstanceAsync *Action =
     NewObject<URedwoodGetServerInstanceAsync>();
@@ -23,6 +24,7 @@ void URedwoodGetServerInstanceAsync::Activate() {
   Target->GetServerInstance(
     ServerReference,
     Password,
+    bJoinSession,
     FRedwoodGetServerOutputDelegate::CreateLambda(
       [this](FRedwoodGetServerOutput Output) {
         OnOutput.Broadcast(Output);

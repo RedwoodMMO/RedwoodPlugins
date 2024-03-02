@@ -31,7 +31,8 @@ public:
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
     FString ServerReference,
-    FString Password
+    FString Password,
+    bool bJoinSession
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -41,4 +42,5 @@ public:
 
   FString ServerReference;
   FString Password;
+  bool bJoinSession;
 };

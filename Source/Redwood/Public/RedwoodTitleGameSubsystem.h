@@ -13,16 +13,11 @@
 
 #include "RedwoodTitleGameSubsystem.generated.h"
 
-UCLASS()
+UCLASS(BlueprintType)
 class URedwoodTitleGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
 
 public:
-  UDELEGATE()
-  DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-    FRedwoodPingResult, FString, Region, float, RTT
-  );
-
   // Begin USubsystem
   virtual void Initialize(FSubsystemCollectionBase &Collection) override;
   virtual void Deinitialize() override;
@@ -32,8 +27,14 @@ public:
     FRedwoodSocketConnectedDelegate OnDirectorConnected
   );
 
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsDirectorConnected();
+
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
-  FRedwoodPingResult OnPingResultReceived;
+  FRedwoodDynamicDelegate OnPingsReceived;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnRequestToJoinServer;
 
   void Register(
     const FString &Username,
@@ -48,6 +49,12 @@ public:
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void Logout();
+
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsLoggedIn();
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CancelWaitingForAccountVerification();
 
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
@@ -59,10 +66,20 @@ public:
     FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
   );
 
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsRealmConnected();
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  TMap<FString, float> GetRegions();
+
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
   void CreateCharacter(
-    USIOJsonObject *Data, FRedwoodGetCharacterOutputDelegate OnOutput
+    USIOJsonObject *Metadata,
+    USIOJsonObject *EquippedInventory,
+    USIOJsonObject *NonequippedInventory,
+    USIOJsonObject *Data,
+    FRedwoodGetCharacterOutputDelegate OnOutput
   );
 
   void GetCharacterData(
@@ -71,9 +88,15 @@ public:
 
   void SetCharacterData(
     FString CharacterId,
+    USIOJsonObject *Metadata,
+    USIOJsonObject *EquippedInventory,
+    USIOJsonObject *NonequippedInventory,
     USIOJsonObject *Data,
     FRedwoodGetCharacterOutputDelegate OnOutput
   );
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void SetSelectedCharacter(FString CharacterId);
 
   void JoinTicketing(FString Profile, FRedwoodTicketingUpdateDelegate OnUpdate);
 
@@ -88,18 +111,20 @@ public:
     FRedwoodListServersOutputDelegate OnOutput
   );
   void CreateServer(
+    bool bJoinSession,
     FRedwoodCreateServerInput Parameters,
-    FRedwoodGetServerOutputDelegate OnOutput
+    FRedwoodCreateServerOutputDelegate OnOutput
   );
   void GetServerInstance(
     FString ServerReference,
     FString Password,
+    bool bJoinSession,
     FRedwoodGetServerOutputDelegate OnOutput
   );
   void StopServer(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
-  FString GetConnectionString(FString CharacterId);
+  FString GetConnectionConsoleCommand();
 
 private:
   TSharedPtr<FSocketIONative> Director;
@@ -121,10 +146,11 @@ private:
   void AttemptJoinTicketing();
   FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
   FString TicketingProfile;
-  FString TicketingConnection;
-  FString TicketingToken;
+  FString ServerConnection;
+  FString ServerToken;
 
   FRedwoodAuthUpdateDelegate OnAccountVerified;
   FString PlayerId;
   FString AuthToken;
+  FString SelectedCharacterId;
 };

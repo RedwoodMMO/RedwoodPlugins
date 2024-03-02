@@ -10,7 +10,6 @@ UENUM(BlueprintType)
 enum class ERedwoodTicketingUpdateType : uint8 {
   JoinResponse,
   Update,
-  Ready,
   TicketStale,
   Unknown
 };

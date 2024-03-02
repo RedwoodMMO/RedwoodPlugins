@@ -20,6 +20,20 @@ public:
   UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
   FString DirectorUri = "ws://localhost:3001";
 
+  /**
+   * If set to true, Redwood will automatically connect clients to servers
+   * when they receive a request from the Realm service. This will happen
+   * when the client A) requests to join a lobby session, B) requests to join
+   * matchmaking, or C) is part of a party that is joining because of A or B.
+   * If set to false, the URedwoodTitleGameSubsystem::OnRequestToJoinServer
+   * delegate will be called instead. Clients will then need to call
+   * URedwoodTitleGameSubsystem::GetConnectionConsoleCommand (which they can
+   * append with additional parameters) to pass to the Execute Console Command
+   * engine function. This delegate will not be fired if set to true.
+   */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  bool bAutoConnectToServers = true;
+
   /** The number of times to ping a server (using the minimum response) */
   UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
   int PingAttempts = 3;

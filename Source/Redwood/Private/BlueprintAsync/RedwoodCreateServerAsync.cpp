@@ -5,10 +5,12 @@
 URedwoodCreateServerAsync *URedwoodCreateServerAsync::CreateServer(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
+  bool bJoinSession,
   FRedwoodCreateServerInput Parameters
 ) {
   URedwoodCreateServerAsync *Action = NewObject<URedwoodCreateServerAsync>();
   Action->Target = Target;
+  Action->bJoinSession = bJoinSession;
   Action->Parameters = Parameters;
   Action->RegisterWithGameInstance(WorldContextObject);
 
@@ -17,9 +19,10 @@ URedwoodCreateServerAsync *URedwoodCreateServerAsync::CreateServer(
 
 void URedwoodCreateServerAsync::Activate() {
   Target->CreateServer(
+    bJoinSession,
     Parameters,
-    FRedwoodGetServerOutputDelegate::CreateLambda(
-      [this](FRedwoodGetServerOutput Output) {
+    FRedwoodCreateServerOutputDelegate::CreateLambda(
+      [this](FRedwoodCreateServerOutput Output) {
         OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }

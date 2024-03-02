@@ -32,6 +32,9 @@ struct FRedwoodGameServerProxy {
   FString Mode;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Map;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bPublic = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -108,6 +111,9 @@ struct FRedwoodCreateServerInput {
   FString Mode;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Map;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bPublic = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -143,6 +149,25 @@ typedef TDelegate<void(const FRedwoodListServersOutput &)>
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodListServersOutputDynamicDelegate, FRedwoodListServersOutput, Data
+);
+
+USTRUCT(BlueprintType)
+struct FRedwoodCreateServerOutput {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Error;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ServerReference;
+};
+
+typedef TDelegate<void(const FRedwoodCreateServerOutput &)>
+  FRedwoodCreateServerOutputDelegate;
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodCreateServerOutputDynamicDelegate, FRedwoodCreateServerOutput, Data
 );
 
 USTRUCT(BlueprintType)
