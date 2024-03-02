@@ -626,34 +626,22 @@ void URedwoodTitleGameSubsystem::SetCharacterData(
 
   if (IsValid(Metadata)) {
     Payload->SetObjectField(TEXT("metadata"), Metadata->GetRootObject());
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("metadata"), NullValue);
   }
 
   if (IsValid(EquippedInventory)) {
     Payload->SetObjectField(
       TEXT("equippedInventory"), EquippedInventory->GetRootObject()
     );
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("equippedInventory"), NullValue);
   }
 
   if (IsValid(NonequippedInventory)) {
     Payload->SetObjectField(
       TEXT("nonequippedInventory"), NonequippedInventory->GetRootObject()
     );
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("nonequippedInventory"), NullValue);
   }
 
   if (IsValid(Data)) {
     Payload->SetObjectField(TEXT("data"), Data->GetRootObject());
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("data"), NullValue);
   }
 
   Realm->Emit(
