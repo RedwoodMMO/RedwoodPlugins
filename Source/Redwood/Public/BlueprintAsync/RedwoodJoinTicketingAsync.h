@@ -27,7 +27,8 @@ public:
   static URedwoodJoinTicketingAsync *JoinTicketing(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    FString Profile
+    TArray<FString> ModeIds,
+    TArray<FString> Regions
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -35,7 +36,8 @@ public:
 
   URedwoodTitleGameSubsystem *Target;
 
-  FString Profile;
+  TArray<FString> ModeIds;
+  TArray<FString> Regions;
 
   UPROPERTY()
   USIOJsonObject *Data;

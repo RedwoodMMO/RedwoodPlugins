@@ -98,7 +98,11 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetSelectedCharacter(FString CharacterId);
 
-  void JoinTicketing(FString Profile, FRedwoodTicketingUpdateDelegate OnUpdate);
+  void JoinTicketing(
+    TArray<FString> ModeIds,
+    TArray<FString> InRegions,
+    FRedwoodTicketingUpdateDelegate OnUpdate
+  );
 
   static FRedwoodGameServerProxy ParseServerProxy(
     TSharedPtr<FJsonObject> ServerProxy
@@ -145,7 +149,9 @@ private:
 
   void AttemptJoinTicketing();
   FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
-  FString TicketingProfile;
+  TArray<FString> TicketingModeIds;
+  TArray<FString> TicketingRegions;
+
   FString ServerConnection;
   FString ServerToken;
 

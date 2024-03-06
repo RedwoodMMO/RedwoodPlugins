@@ -26,6 +26,7 @@ public class Redwood : ModuleRules {
         "GameplayMessageRuntime",
         "DeveloperSettings",
         "Json",
+        "JsonModern",
       }
     );
 

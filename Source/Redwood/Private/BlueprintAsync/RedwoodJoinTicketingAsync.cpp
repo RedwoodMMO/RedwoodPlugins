@@ -5,11 +5,13 @@
 URedwoodJoinTicketingAsync *URedwoodJoinTicketingAsync::JoinTicketing(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
-  FString Profile
+  TArray<FString> ModeIds,
+  TArray<FString> Regions
 ) {
   URedwoodJoinTicketingAsync *Action = NewObject<URedwoodJoinTicketingAsync>();
   Action->Target = Target;
-  Action->Profile = Profile;
+  Action->ModeIds = ModeIds;
+  Action->Regions = Regions;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
@@ -17,7 +19,8 @@ URedwoodJoinTicketingAsync *URedwoodJoinTicketingAsync::JoinTicketing(
 
 void URedwoodJoinTicketingAsync::Activate() {
   Target->JoinTicketing(
-    Profile,
+    ModeIds,
+    Regions,
     FRedwoodTicketingUpdateDelegate::CreateLambda(
       [this](FRedwoodTicketingUpdate Update) {
         OnUpdate.Broadcast(Update);

@@ -29,10 +29,10 @@ struct FRedwoodGameServerProxy {
   FString Region;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Mode;
+  FString ModeId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Map;
+  FString MapId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bPublic = false;
@@ -108,10 +108,10 @@ struct FRedwoodCreateServerInput {
   FString Region;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Mode;
+  FString ModeId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Map;
+  FString MapId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bPublic = false;
