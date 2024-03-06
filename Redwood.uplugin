@@ -18,14 +18,17 @@
     {
       "Name": "Redwood",
       "Type": "Runtime",
-      "LoadingPhase": "PreDefault",
-      "WhitelistPlatforms": [ "Win64", "Mac", "Linux", "LinuxArm64", "Android", "IOS" ]
+      "LoadingPhase": "PreDefault"
     },
     {
       "Name": "RedwoodEditor",
       "Type": "Editor",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": [ "Win64", "Mac", "Linux" ]
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "RedwoodTests",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
     }
   ],
   "Plugins": [
