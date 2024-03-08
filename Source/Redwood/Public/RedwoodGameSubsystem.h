@@ -16,7 +16,7 @@
 #include "RedwoodGameSubsystem.generated.h"
 
 UCLASS()
-class URedwoodGameSubsystem : public UGameInstanceSubsystem {
+class REDWOOD_API URedwoodGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
 
 public:

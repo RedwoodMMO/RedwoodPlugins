@@ -29,7 +29,7 @@ struct FRedwoodCharacter {
   USIOJsonObject *EquippedInventory = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject *NonEquippedInventory = nullptr;
+  USIOJsonObject *NonequippedInventory = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;

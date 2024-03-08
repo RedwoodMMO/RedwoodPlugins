@@ -26,7 +26,10 @@ public class RedwoodTests : ModuleRules {
       new string[] {
         "CoreUObject",
         "Engine",
+        "UnrealEd",
         "Redwood",
+        "Json",
+        "SIOJson",
       }
     );
 
