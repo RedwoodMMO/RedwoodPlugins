@@ -1,16 +1,19 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodGameSubsystem.h"
+#include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"
+#include "RedwoodMapAsset.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
 #endif
 
+#include "Engine/AssetManager.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameSession.h"
-
 #include "GameFramework/GameplayMessageSubsystem.h"
+
 #include "SocketIOClient.h"
 
 void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
@@ -25,6 +28,53 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
       World->GetNetMode() == ENetMode::NM_ListenServer
     )
   ) {
+    FPrimaryAssetType GameModeAssetType =
+      URedwoodGameModeAsset::StaticClass()->GetFName();
+    FPrimaryAssetType MapAssetType =
+      URedwoodMapAsset::StaticClass()->GetFName();
+
+    UAssetManager &AssetManager = UAssetManager::Get();
+
+    // Load Redwood GameMode and Map assets so we can know which underlying GameMode and Map to load later
+    TSharedPtr<FStreamableHandle> Handle =
+      AssetManager.LoadPrimaryAssetsWithType(GameModeAssetType);
+    if (ensure(Handle.IsValid())) {
+      Handle->WaitUntilComplete();
+    }
+    Handle = AssetManager.LoadPrimaryAssetsWithType(MapAssetType);
+    if (ensure(Handle.IsValid())) {
+      Handle->WaitUntilComplete();
+    }
+
+    TArray<UObject *> GameModesAssets;
+    TArray<UObject *> MapsAssets;
+
+    AssetManager.GetPrimaryAssetObjectList(GameModeAssetType, GameModesAssets);
+    AssetManager.GetPrimaryAssetObjectList(MapAssetType, MapsAssets);
+
+    for (UObject *Object : GameModesAssets) {
+      URedwoodGameModeAsset *RedwoodGameMode =
+        Cast<URedwoodGameModeAsset>(Object);
+      if (ensure(RedwoodGameMode)) {
+        if (RedwoodGameMode->GameModeType == ERedwoodGameMode::GameModeBase) {
+          GameModeClasses.Add(
+            RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeBaseClass
+          );
+        } else {
+          GameModeClasses.Add(
+            RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeClass
+          );
+        }
+      }
+    }
+
+    for (UObject *Object : MapsAssets) {
+      URedwoodMapAsset *RedwoodMap = Cast<URedwoodMapAsset>(Object);
+      if (ensure(RedwoodMap)) {
+        Maps.Add(RedwoodMap->RedwoodId, RedwoodMap->Map);
+      }
+    }
+
 #if WITH_EDITOR
     URedwoodEditorSettings *RedwoodEditorSettings =
       GetMutableDefault<URedwoodEditorSettings>();
@@ -80,16 +130,20 @@ void URedwoodGameSubsystem::InitializeSidecar() {
   Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
   Sidecar->OnEvent(
-    TEXT("realm:servers:session:read-to-load"),
+    TEXT("realm:servers:session:load-map"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       UE_LOG(LogRedwood, Log, TEXT("Received message to load a map"));
       const TSharedPtr<FJsonObject> *Object;
+
+      TSharedPtr<FJsonObject> Response = MakeShareable(new FJsonObject);
 
       if (Message->TryGetObject(Object) && Object) {
         UE_LOG(LogRedwood, Log, TEXT("LoadMap message is valid object"));
         TSharedPtr<FJsonObject> ActualObject = *Object;
         FString MapId = ActualObject->GetStringField(TEXT("mapId"));
         FString ModeId = ActualObject->GetStringField(TEXT("modeId"));
+        TSharedPtr<FJsonObject> Data =
+          ActualObject->GetObjectField(TEXT("data"));
 
         UE_LOG(
           LogRedwood,
@@ -98,17 +152,50 @@ void URedwoodGameSubsystem::InitializeSidecar() {
           *MapId,
           *ModeId
         );
+
+        TSubclassOf<AGameModeBase> *GameModeToLoad =
+          GameModeClasses.Find(FName(*ModeId));
+        FSoftObjectPath *MapToLoad = Maps.Find(FName(*MapId));
+
+        if (GameModeToLoad == nullptr || MapToLoad == nullptr) {
+          UE_LOG(
+            LogRedwood, Error, TEXT("Failed to find GameMode or Map to load")
+          );
+          Response->SetStringField(
+            TEXT("error"), TEXT("Invalid ModeId or MapId")
+          );
+          Sidecar->Emit(
+            TEXT("realm:servers:session:load-map:response"), Response
+          );
+          return;
+        }
+
         FString Error;
         FURL Url;
         Url.Protocol = "unreal";
-        Url.Map = MapId;
+        Url.Map = MapToLoad->GetAssetPathString();
 
-        // TODO MIKE HERE use Game= to specify a game mode
-        Url.AddOption(*FString("Mode=" + ModeId));
+        Url.AddOption(*FString("game=" + (*GameModeToLoad)->GetPathName()));
+
+        TArray<FString> Keys;
+        Data->Values.GetKeys(Keys);
+        for (FString Key : Keys) {
+          FString Value;
+          if (Data->TryGetStringField(Key, Value)) {
+            Url.AddOption(*FString(Key + "=" + Value));
+          }
+        }
 
         FString Command = FString::Printf(TEXT("open %s"), *Url.ToString());
         GetGameInstance()->GetEngine()->DeferredCommands.Add(Command);
+
+        Response->SetStringField(TEXT("error"), TEXT(""));
+      } else {
+        UE_LOG(LogRedwood, Error, TEXT("LoadMap message is not valid object"));
+        Response->SetStringField(TEXT("error"), TEXT("Invalid request"));
       }
+
+      Sidecar->Emit(TEXT("realm:servers:session:load-map:response"), Response);
     }
   );
 
@@ -175,10 +262,10 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
           JsonObject->SetStringField(TEXT("state"), TEXT("LoadingMap"));
         }
 
-        JsonObject->SetStringField(TEXT("map"), World->URL.Map);
+        JsonObject->SetStringField(TEXT("mapId"), World->URL.Map);
 
         JsonObject->SetStringField(
-          TEXT("mode"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
+          TEXT("modeId"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
         );
 
         JsonObject->SetNumberField(
@@ -191,18 +278,18 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
           TEXT("playerAcceptance"), TEXT("NotAccepting")
         );
 
-        JsonObject->SetStringField(TEXT("map"), World->URL.Map);
+        JsonObject->SetStringField(TEXT("mapId"), World->URL.Map);
 
         JsonObject->SetStringField(
-          TEXT("mode"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
+          TEXT("modeId"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
         );
 
         JsonObject->SetNumberField(TEXT("numPlayers"), 0);
       }
     } else {
       JsonObject->SetStringField(TEXT("state"), TEXT("Starting"));
-      JsonObject->SetStringField(TEXT("mode"), TEXT(""));
-      JsonObject->SetStringField(TEXT("map"), TEXT(""));
+      JsonObject->SetStringField(TEXT("modeId"), TEXT(""));
+      JsonObject->SetStringField(TEXT("mapId"), TEXT(""));
       JsonObject->SetNumberField(TEXT("numPlayers"), 0);
 
       JsonObject->SetStringField(

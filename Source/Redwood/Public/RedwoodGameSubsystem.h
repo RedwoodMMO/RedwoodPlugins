@@ -15,6 +15,8 @@
 
 #include "RedwoodGameSubsystem.generated.h"
 
+class AGameModeBase;
+
 UCLASS()
 class REDWOOD_API URedwoodGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
@@ -26,6 +28,9 @@ public:
   // End USubsystem
 
 private:
+  TMap<FName, TSubclassOf<AGameModeBase>> GameModeClasses;
+  TMap<FName, FSoftObjectPath> Maps;
+
   void InitializeSidecar();
   void SendUpdateToSidecar();
 
