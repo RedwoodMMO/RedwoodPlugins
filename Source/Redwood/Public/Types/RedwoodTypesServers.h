@@ -178,7 +178,10 @@ struct FRedwoodGetServerOutput {
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FRedwoodGameServerInstance ServerInstance;
+  FRedwoodGameServerInstance Instance;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Token;
 };
 
 typedef TDelegate<void(const FRedwoodGetServerOutput &)>

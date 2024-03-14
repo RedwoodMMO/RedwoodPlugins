@@ -1,21 +1,20 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "../TestCommon.h"
+#include "../../TestCommon.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
   FClientFlowTest,
-  "Redwood.Client.Flow",
+  "Redwood.NonMock.Client.Flow",
   EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter
 );
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FInitialize);
 void FInitialize::Initialize() {
-
   Redwood->InitializeDirectorConnection(
     FRedwoodSocketConnectedDelegate::CreateLambda(
       [this](const FRedwoodSocketConnected &Result) {
-        CurrentTest->TestTrue(
-          TEXT("Director Connection Success"), Result.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("Director Connection Success"), Result.Error, TEXT("")
         );
         Context->bIsCurrentTestComplete = true;
       }
@@ -59,8 +58,8 @@ DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListRealms);
 void FListRealms::Initialize() {
   Redwood->ListRealms(FRedwoodListRealmsOutputDelegate::CreateLambda(
     [this](const FRedwoodListRealmsOutput &Output) {
-      CurrentTest->TestTrue(
-        TEXT("ListRealms no error"), Output.Error.IsEmpty()
+      CurrentTest->TestEqual(
+        TEXT("ListRealms no error"), Output.Error, TEXT("")
       );
       CurrentTest->TestEqual(
         TEXT("ListRealms returns no realms"), Output.Realms.Num(), 0
@@ -78,8 +77,8 @@ void FInitializeSingleRealm::Initialize() {
   Redwood->InitializeSingleRealmConnection(
     FRedwoodSocketConnectedDelegate::CreateLambda(
       [this](const FRedwoodSocketConnected &Result) {
-        CurrentTest->TestTrue(
-          TEXT("Single Realm Connection Success"), Result.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("Single Realm Connection Success"), Result.Error, TEXT("")
         );
         Context->bIsCurrentTestComplete = true;
       }
@@ -91,8 +90,8 @@ DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListNoCharacters);
 void FListNoCharacters::Initialize() {
   Redwood->ListCharacters(FRedwoodListCharactersOutputDelegate::CreateLambda(
     [this](const FRedwoodListCharactersOutput &Output) {
-      CurrentTest->TestTrue(
-        TEXT("ListCharacters no error"), Output.Error.IsEmpty()
+      CurrentTest->TestEqual(
+        TEXT("ListCharacters no error"), Output.Error, TEXT("")
       );
       CurrentTest->TestEqual(
         TEXT("ListCharacters returns no characters"), Output.Characters.Num(), 0
@@ -114,8 +113,8 @@ void FCreateCharacter::Initialize() {
     nullptr,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](const FRedwoodGetCharacterOutput &Output) {
-        CurrentTest->TestTrue(
-          TEXT("CreateCharacter no error"), Output.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("CreateCharacter no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestTrue(
           TEXT("CreateCharacter has valid character"),
@@ -141,8 +140,8 @@ DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListCharacters);
 void FListCharacters::Initialize() {
   Redwood->ListCharacters(FRedwoodListCharactersOutputDelegate::CreateLambda(
     [this](const FRedwoodListCharactersOutput &Output) {
-      CurrentTest->TestTrue(
-        TEXT("ListCharacters no error"), Output.Error.IsEmpty()
+      CurrentTest->TestEqual(
+        TEXT("ListCharacters no error"), Output.Error, TEXT("")
       );
       CurrentTest->TestEqual(
         TEXT("ListCharacters returns character"), Output.Characters.Num(), 1
@@ -165,8 +164,8 @@ void FSetCharacter::Initialize() {
     nullptr,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](const FRedwoodGetCharacterOutput &Output) {
-        CurrentTest->TestTrue(
-          TEXT("SetCharacter no error"), Output.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("SetCharacter no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestTrue(
           TEXT("SetCharacter has valid character"),
@@ -191,8 +190,8 @@ void FGetCharacter::Initialize() {
     Context->Data.GetStringField("CharacterId"),
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](const FRedwoodGetCharacterOutput &Output) {
-        CurrentTest->TestTrue(
-          TEXT("GetCharacter no error"), Output.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("GetCharacter no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestTrue(
           TEXT("GetCharacter has valid character"),
@@ -217,8 +216,8 @@ void FListNoServers::Initialize() {
     TArray<FString>(),
     FRedwoodListServersOutputDelegate::CreateLambda(
       [this](const FRedwoodListServersOutput &Output) {
-        CurrentTest->TestTrue(
-          TEXT("ListServers no error"), Output.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("ListServers no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestEqual(
           TEXT("ListServers returns no servers"), Output.Servers.Num(), 0
@@ -247,8 +246,8 @@ void FCreatePublicServer::Initialize() {
     Parameters,
     FRedwoodCreateServerOutputDelegate::CreateLambda(
       [this](const FRedwoodCreateServerOutput &Output) {
-        CurrentTest->TestTrue(
-          TEXT("CreateServer no error"), Output.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("CreateServer no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestTrue(
           TEXT("CreateServer has valid server"),
@@ -267,8 +266,8 @@ void FListServers::Initialize() {
     TArray<FString>(),
     FRedwoodListServersOutputDelegate::CreateLambda(
       [this](const FRedwoodListServersOutput &Output) {
-        CurrentTest->TestTrue(
-          TEXT("ListServers no error"), Output.Error.IsEmpty()
+        CurrentTest->TestEqual(
+          TEXT("ListServers no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestEqual(
           TEXT("ListServers returns server"), Output.Servers.Num(), 1
@@ -284,7 +283,7 @@ void FStopServer::Initialize() {
   Redwood->StopServer(
     Context->Data.GetStringField("ServerReference"),
     FRedwoodErrorOutputDelegate::CreateLambda([this](const FString &Error) {
-      CurrentTest->TestTrue(TEXT("StopServer no error"), Error.IsEmpty());
+      CurrentTest->TestEqual(TEXT("StopServer no error"), Error, TEXT(""));
       Context->bIsCurrentTestComplete = true;
     })
   );

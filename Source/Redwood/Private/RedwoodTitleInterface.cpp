@@ -31,15 +31,6 @@ void URedwoodTitleInterface::InitializeDirectorConnection(
   Director = ISocketIOClientModule::Get().NewValidNativePointer();
 
   Director->OnEvent(
-    TEXT("realm:regions"),
-    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
-      HandleRegionsChanged(Event, Message);
-    },
-    TEXT("/"),
-    ESIOThreadOverrideOption::USE_GAME_THREAD
-  );
-
-  Director->OnEvent(
     TEXT("player:account-verified"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
@@ -56,61 +47,12 @@ void URedwoodTitleInterface::InitializeDirectorConnection(
     ESIOThreadOverrideOption::USE_GAME_THREAD
   );
 
-  Director->OnEvent(
-    TEXT("realm:ticketing:update"),
-    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
-      FRedwoodTicketingUpdate Update;
-      Update.Type = ERedwoodTicketingUpdateType::Update;
-      Update.Message = Message->AsObject()->GetStringField(TEXT("message"));
-      OnTicketingUpdate.ExecuteIfBound(Update);
-    },
-    TEXT("/"),
-    ESIOThreadOverrideOption::USE_GAME_THREAD
-  );
-
-  Director->OnEvent(
-    TEXT("realm:ticketing:ticket-stale"),
-    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
-      FRedwoodTicketingUpdate Update;
-      Update.Type = ERedwoodTicketingUpdateType::TicketStale;
-      Update.Message = TEXT("Could not find a match. Please try again.");
-      OnTicketingUpdate.ExecuteIfBound(Update);
-    },
-    TEXT("/"),
-    ESIOThreadOverrideOption::USE_GAME_THREAD
-  );
-
-  Director->OnEvent(
-    TEXT("realm:servers:connect"),
-    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
-      TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
-
-      ServerConnection = MessageObject->GetStringField(TEXT("connection"));
-      ServerToken = MessageObject->GetStringField(TEXT("token"));
-
-      URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
-      if (RedwoodSettings->bAutoConnectToServers) {
-        FString ConsoleCommand = GetConnectionConsoleCommand();
-        UWorld *World = GetWorld();
-        if (IsValid(World)) {
-          UKismetSystemLibrary::ExecuteConsoleCommand(World, ConsoleCommand);
-        }
-      } else {
-        OnRequestToJoinServer.Broadcast();
-      }
-    },
-    TEXT("/"),
-    ESIOThreadOverrideOption::USE_GAME_THREAD
-  );
-
   Director->OnConnectedCallback = [OnDirectorConnected](
                                     const FString &InSocketId,
                                     const FString &InSessionId
                                   ) {
     FRedwoodSocketConnected Details;
     Details.Error = TEXT("");
-    Details.SocketId = InSocketId;
-    Details.SessionId = InSessionId;
     OnDirectorConnected.ExecuteIfBound(Details);
   };
 
@@ -317,6 +259,10 @@ bool URedwoodTitleInterface::IsLoggedIn() {
   return !PlayerId.IsEmpty() && !AuthToken.IsEmpty();
 }
 
+FString URedwoodTitleInterface::GetPlayerId() {
+  return PlayerId;
+}
+
 void URedwoodTitleInterface::Login(
   const FString &Username,
   const FString &PasswordOrToken,
@@ -397,10 +343,18 @@ void URedwoodTitleInterface::ListRealms(
 
     for (TSharedPtr<FJsonValue> InRealm : Realms) {
       FRedwoodRealm OutRealm;
-      OutRealm.Id = InRealm->AsObject()->GetStringField(TEXT("id"));
-      OutRealm.Name = InRealm->AsObject()->GetStringField(TEXT("name"));
-      OutRealm.Uri = InRealm->AsObject()->GetStringField(TEXT("uri"));
-      OutRealm.PingHost = InRealm->AsObject()->GetStringField(TEXT("pingHost"));
+      TSharedPtr<FJsonObject> RealmObj = InRealm->AsObject();
+      OutRealm.Id = RealmObj->GetStringField(TEXT("id"));
+      FDateTime::ParseIso8601(
+        *RealmObj->GetStringField(TEXT("createdAt")), OutRealm.CreatedAt
+      );
+      FDateTime::ParseIso8601(
+        *RealmObj->GetStringField(TEXT("updatedAt")), OutRealm.UpdatedAt
+      );
+      OutRealm.Name = RealmObj->GetStringField(TEXT("name"));
+      OutRealm.Uri = RealmObj->GetStringField(TEXT("uri"));
+      OutRealm.PingHost = RealmObj->GetStringField(TEXT("pingHost"));
+      OutRealm.Secret = RealmObj->GetStringField(TEXT("secret"));
 
       Output.Realms.Add(OutRealm);
     }
@@ -412,37 +366,142 @@ void URedwoodTitleInterface::ListRealms(
 void URedwoodTitleInterface::InitializeSingleRealmConnection(
   FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
-  if (!Director.IsValid() || !Director->bIsConnected) {
-    FRedwoodSocketConnected Output;
-    Output.Error = TEXT("Not connected to Director.");
-    OnRealmConnected.ExecuteIfBound(Output);
-    return;
-  }
-
-  Realm = Director;
-
-  FRedwoodSocketConnected Output;
-  Output.Error = TEXT("");
-  Output.SocketId = Realm->SocketId;
-  Output.SessionId = Realm->SessionId;
-  OnRealmConnected.ExecuteIfBound(Output);
+  FRedwoodRealm SingleRealm;
+  SingleRealm.Id = TEXT("single-realm");
+  InitiateRealmHandshake(SingleRealm, OnRealmConnected);
 }
 
 void URedwoodTitleInterface::InitializeRealmConnection(
   FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
-  Realm = ISocketIOClientModule::Get().NewValidNativePointer();
+  InitiateRealmHandshake(InRealm, OnRealmConnected);
+}
 
-  Realm->OnConnectedCallback =
-    [OnRealmConnected](const FString &InSocketId, const FString &InSessionId) {
+void URedwoodTitleInterface::InitiateRealmHandshake(
+  FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
+) {
+  if (!Director.IsValid() || !Director->bIsConnected || !IsLoggedIn()) {
+    FRedwoodSocketConnected Output;
+    Output.Error = TEXT("Not connected or authenticated to Director.");
+    OnRealmConnected.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("realmId"), InRealm.Id);
+
+  Director->Emit(
+    TEXT("realm:request-connection:client-to-director"),
+    Payload,
+    [this, InRealm, OnRealmConnected](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      FString Token = MessageObject->GetStringField(TEXT("token"));
+
+      if (!Error.IsEmpty()) {
+        FRedwoodSocketConnected Output;
+        Output.Error = Error;
+        OnRealmConnected.ExecuteIfBound(Output);
+        return;
+      }
+
+      if (InRealm.Id == TEXT("single-realm")) {
+        Realm = Director;
+        FinalizeRealmHandshake(Token, OnRealmConnected);
+      } else {
+        Realm = ISocketIOClientModule::Get().NewValidNativePointer();
+
+        Realm->OnConnectedCallback =
+          [this, Token, OnRealmConnected](
+            const FString &InSocketId, const FString &InSessionId
+          ) { FinalizeRealmHandshake(Token, OnRealmConnected); };
+
+        Realm->Connect(*InRealm.Uri);
+      }
+    }
+  );
+}
+
+void URedwoodTitleInterface::FinalizeRealmHandshake(
+  FString Token, FRedwoodSocketConnectedDelegate OnRealmConnected
+) {
+  BindRealmEvents();
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("token"), Token);
+
+  Realm->Emit(
+    TEXT("realm:request-connection:client-to-realm"),
+    Payload,
+    [this, OnRealmConnected](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
       FRedwoodSocketConnected Output;
-      Output.Error = TEXT("");
-      Output.SocketId = InSocketId;
-      Output.SessionId = InSessionId;
+      Output.Error = Error;
       OnRealmConnected.ExecuteIfBound(Output);
-    };
+    }
+  );
+}
 
-  Realm->Connect(*InRealm.Uri);
+void URedwoodTitleInterface::BindRealmEvents() {
+  Realm->OnEvent(
+    TEXT("realm:regions"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      HandleRegionsChanged(Event, Message);
+    },
+    TEXT("/"),
+    ESIOThreadOverrideOption::USE_GAME_THREAD
+  );
+
+  Realm->OnEvent(
+    TEXT("realm:ticketing:update"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      FRedwoodTicketingUpdate Update;
+      Update.Type = ERedwoodTicketingUpdateType::Update;
+      Update.Message = Message->AsObject()->GetStringField(TEXT("message"));
+      OnTicketingUpdate.ExecuteIfBound(Update);
+    },
+    TEXT("/"),
+    ESIOThreadOverrideOption::USE_GAME_THREAD
+  );
+
+  Realm->OnEvent(
+    TEXT("realm:ticketing:ticket-stale"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      FRedwoodTicketingUpdate Update;
+      Update.Type = ERedwoodTicketingUpdateType::TicketStale;
+      Update.Message = TEXT("Could not find a match. Please try again.");
+      OnTicketingUpdate.ExecuteIfBound(Update);
+    },
+    TEXT("/"),
+    ESIOThreadOverrideOption::USE_GAME_THREAD
+  );
+
+  Realm->OnEvent(
+    TEXT("realm:servers:connect"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
+
+      ServerConnection = MessageObject->GetStringField(TEXT("connection"));
+      ServerToken = MessageObject->GetStringField(TEXT("token"));
+
+      URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
+      if (RedwoodSettings->bAutoConnectToServers) {
+        FString ConsoleCommand = GetConnectionConsoleCommand();
+        UWorld *World = GetWorld();
+        if (IsValid(World)) {
+          UKismetSystemLibrary::ExecuteConsoleCommand(World, ConsoleCommand);
+        }
+      } else {
+        OnRequestToJoinServer.Broadcast();
+      }
+    },
+    TEXT("/"),
+    ESIOThreadOverrideOption::USE_GAME_THREAD
+  );
 }
 
 bool URedwoodTitleInterface::IsRealmConnected() {
@@ -557,33 +616,28 @@ void URedwoodTitleInterface::CreateCharacter(
   if (IsValid(Metadata)) {
     Payload->SetObjectField(TEXT("metadata"), Metadata->GetRootObject());
   } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("metadata"), NullValue);
+    FRedwoodGetCharacterOutput Output;
+    Output.Error = TEXT(
+      "Metadata must be a valid non-null object; it can be an empty object but it must exist. Other USIOJsonObject parameters can be null."
+    );
+    OnOutput.ExecuteIfBound(Output);
+    return;
   }
 
   if (IsValid(EquippedInventory)) {
     Payload->SetObjectField(
       TEXT("equippedInventory"), EquippedInventory->GetRootObject()
     );
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("equippedInventory"), NullValue);
   }
 
   if (IsValid(NonequippedInventory)) {
     Payload->SetObjectField(
       TEXT("nonequippedInventory"), NonequippedInventory->GetRootObject()
     );
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("nonequippedInventory"), NullValue);
   }
 
   if (IsValid(Data)) {
     Payload->SetObjectField(TEXT("data"), Data->GetRootObject());
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("data"), NullValue);
   }
 
   Realm->Emit(
@@ -800,15 +854,17 @@ FRedwoodGameServerInstance URedwoodTitleInterface::ParseServerInstance(
 
   Instance.ProviderId = ServerInstance->GetStringField(TEXT("providerId"));
 
-  FDateTime::ParseIso8601(
-    *ServerInstance->GetStringField(TEXT("startedAt")), Instance.StartedAt
-  );
+  FString StartedAt;
+  if (ServerInstance->TryGetStringField(TEXT("startedAt"), StartedAt)) {
+    FDateTime::ParseIso8601(*StartedAt, Instance.StartedAt);
+  }
 
-  FDateTime::ParseIso8601(
-    *ServerInstance->GetStringField(TEXT("endedAt")), Instance.EndedAt
-  );
+  FString EndedAt;
+  if (ServerInstance->TryGetStringField(TEXT("endedAt"), EndedAt)) {
+    FDateTime::ParseIso8601(*EndedAt, Instance.EndedAt);
+  }
 
-  Instance.Connection = ServerInstance->GetStringField(TEXT("connection"));
+  ServerInstance->TryGetStringField(TEXT("connection"), Instance.Connection);
 
   Instance.ContainerId = ServerInstance->GetStringField(TEXT("containerId"));
 
@@ -918,9 +974,6 @@ void URedwoodTitleInterface::CreateServer(
 
   if (Parameters.Data) {
     Payload->SetObjectField(TEXT("data"), Parameters.Data->GetRootObject());
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("data"), NullValue);
   }
 
   Realm->Emit(
@@ -992,10 +1045,12 @@ void URedwoodTitleInterface::GetServerInstance(
       if (MessageObject->TryGetObjectField(
             TEXT("instance"), ServerInstanceObject
           )) {
-        FRedwoodGameServerInstance ServerInstance =
+        FRedwoodGameServerInstance Instance =
           URedwoodTitleInterface::ParseServerInstance(*ServerInstanceObject);
-        Output.ServerInstance = ServerInstance;
+        Output.Instance = Instance;
       }
+
+      MessageObject->TryGetStringField(TEXT("token"), Output.Token);
 
       OnOutput.ExecuteIfBound(Output);
     });

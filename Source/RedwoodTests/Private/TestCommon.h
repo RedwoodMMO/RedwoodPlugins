@@ -80,7 +80,9 @@ bool FWaitForEnd::Update() {
       if (Context->bIsCurrentTestStarting) {
         Context->bIsCurrentTestStarting = false;
         StartTime = FPlatformTime::Seconds();
-        UE_LOG(LogTemp, Warning, TEXT("Deinitializing Redwood in 0.5 seconds"));
+        UE_LOG(
+          LogTemp, Warning, TEXT("Deinitializing Redwood in 0.05 seconds")
+        );
       } else {
         bIsComplete = true;
       }
@@ -88,7 +90,7 @@ bool FWaitForEnd::Update() {
   }
 
   if (bIsComplete) {
-    if (FPlatformTime::Seconds() - StartTime > 0.5) {
+    if (FPlatformTime::Seconds() - StartTime > 0.05) {
       Redwood->RemoveFromRoot();
       Context->RemoveFromRoot();
       return true;

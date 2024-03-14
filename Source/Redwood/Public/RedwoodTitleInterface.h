@@ -50,6 +50,8 @@ public:
 
   bool IsLoggedIn();
 
+  FString GetPlayerId();
+
   void CancelWaitingForAccountVerification();
 
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
@@ -126,6 +128,14 @@ public:
 private:
   TSharedPtr<FSocketIONative> Director;
   TSharedPtr<FSocketIONative> Realm;
+
+  void InitiateRealmHandshake(
+    FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
+  );
+  void BindRealmEvents();
+  void FinalizeRealmHandshake(
+    FString Token, FRedwoodSocketConnectedDelegate OnRealmConnected
+  );
 
   void HandleRegionsChanged(
     const FString &Event, const TSharedPtr<FJsonValue> &Message

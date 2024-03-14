@@ -73,7 +73,7 @@ APlayerController *ARedwoodGameMode::Login(
       JsonObject->SetStringField(TEXT("token"), Token);
 
       Sidecar->Emit(
-        TEXT("realm:game-server:player-auth"),
+        TEXT("realm:servers:player-auth:game-server-to-sidecar"),
         JsonObject,
         [this, PlayerController](auto Response) {
           TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();

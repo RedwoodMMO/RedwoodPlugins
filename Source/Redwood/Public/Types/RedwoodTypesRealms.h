@@ -14,6 +14,12 @@ struct FRedwoodRealm {
   FString Id;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FDateTime CreatedAt;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FDateTime UpdatedAt;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Name;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -21,6 +27,10 @@ struct FRedwoodRealm {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString PingHost;
+
+  // This is always an empty string from the ListRealms API call
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Secret;
 };
 
 USTRUCT(BlueprintType)

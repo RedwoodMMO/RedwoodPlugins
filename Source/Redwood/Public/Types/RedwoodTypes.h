@@ -21,12 +21,6 @@ struct FRedwoodSocketConnected {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Error;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString SocketId;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString SessionId;
 };
 
 typedef TDelegate<void(const FRedwoodSocketConnected &)>

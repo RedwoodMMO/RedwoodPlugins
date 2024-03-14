@@ -80,7 +80,7 @@ void URedwoodGameSubsystem::InitializeSidecar() {
   Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
   Sidecar->OnEvent(
-    TEXT("realm:game-server:load-map"),
+    TEXT("realm:servers:session:read-to-load"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       UE_LOG(LogRedwood, Log, TEXT("Received message to load a map"));
       const TSharedPtr<FJsonObject> *Object;
@@ -88,32 +88,26 @@ void URedwoodGameSubsystem::InitializeSidecar() {
       if (Message->TryGetObject(Object) && Object) {
         UE_LOG(LogRedwood, Log, TEXT("LoadMap message is valid object"));
         TSharedPtr<FJsonObject> ActualObject = *Object;
-        TSharedPtr<FJsonValue> Map =
-          ActualObject->GetField<EJson::String>(TEXT("map"));
-        TSharedPtr<FJsonValue> Mode =
-          ActualObject->GetField<EJson::String>(TEXT("mode"));
+        FString MapId = ActualObject->GetStringField(TEXT("mapId"));
+        FString ModeId = ActualObject->GetStringField(TEXT("modeId"));
 
-        if (Map.IsValid() && Mode.IsValid()) {
-          FString MapStr = Map->AsString();
-          FString ModeStr = Mode->AsString();
-          UE_LOG(
-            LogRedwood,
-            Log,
-            TEXT("LoadMap message has valid map (%s) and mode (%s)"),
-            *MapStr,
-            *ModeStr
-          );
-          FString Error;
-          FURL Url;
-          Url.Protocol = "unreal";
-          Url.Map = MapStr;
+        UE_LOG(
+          LogRedwood,
+          Log,
+          TEXT("LoadMap message has valid map (%s) and mode (%s)"),
+          *MapId,
+          *ModeId
+        );
+        FString Error;
+        FURL Url;
+        Url.Protocol = "unreal";
+        Url.Map = MapId;
 
-          // TODO use Game= to specify a game mode
-          Url.AddOption(*FString("Mode=" + ModeStr));
+        // TODO MIKE HERE use Game= to specify a game mode
+        Url.AddOption(*FString("Mode=" + ModeId));
 
-          FString Command = FString::Printf(TEXT("open %s"), *Url.ToString());
-          GetGameInstance()->GetEngine()->DeferredCommands.Add(Command);
-        }
+        FString Command = FString::Printf(TEXT("open %s"), *Url.ToString());
+        GetGameInstance()->GetEngine()->DeferredCommands.Add(Command);
       }
     }
   );
@@ -147,7 +141,6 @@ void URedwoodGameSubsystem::InitializeSidecar() {
 void URedwoodGameSubsystem::SendUpdateToSidecar() {
   if (Sidecar.IsValid()) {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-    TSharedPtr<FJsonObject> NumPlayersObject = MakeShareable(new FJsonObject);
 
     UWorld *World = GetWorld();
 
@@ -170,28 +163,16 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
                 JsonObject->SetStringField(TEXT("state"), TEXT("Ended"));
               }
 
-              JsonObject->SetStringField(
-                TEXT("playerAcceptance"), TEXT("NotAccepting")
-              );
             } else {
               JsonObject->SetStringField(TEXT("state"), TEXT("Started"));
-              JsonObject->SetStringField(
-                TEXT("playerAcceptance"), TEXT("NotAccepting")
-              ); // todo: support backfills
             }
           } else {
             JsonObject->SetStringField(
               TEXT("state"), TEXT("WaitingForPlayers")
             );
-            JsonObject->SetStringField(
-              TEXT("playerAcceptance"), TEXT("Public")
-            );
           }
         } else {
           JsonObject->SetStringField(TEXT("state"), TEXT("LoadingMap"));
-          JsonObject->SetStringField(
-            TEXT("playerAcceptance"), TEXT("NotAccepting")
-          );
         }
 
         JsonObject->SetStringField(TEXT("map"), World->URL.Map);
@@ -200,15 +181,9 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
           TEXT("mode"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
         );
 
-        NumPlayersObject->SetNumberField(
-          TEXT("current"), GameMode->GetNumPlayers()
+        JsonObject->SetNumberField(
+          TEXT("numPlayers"), GameMode->GetNumPlayers()
         );
-        NumPlayersObject->SetNumberField(
-          TEXT("max"),
-          GameMode->GameSession == nullptr ? 0
-                                           : GameMode->GameSession->MaxPlayers
-        );
-        JsonObject->SetObjectField(TEXT("numPlayers"), NumPlayersObject);
       } else {
         bool bStarted = World->GetRealTimeSeconds() > 0;
         JsonObject->SetStringField(TEXT("state"), TEXT("LoadingMap"));
@@ -222,23 +197,19 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
           TEXT("mode"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
         );
 
-        NumPlayersObject->SetNumberField(TEXT("current"), 0);
-        NumPlayersObject->SetNumberField(TEXT("max"), 0);
-        JsonObject->SetObjectField(TEXT("numPlayers"), NumPlayersObject);
+        JsonObject->SetNumberField(TEXT("numPlayers"), 0);
       }
     } else {
       JsonObject->SetStringField(TEXT("state"), TEXT("Starting"));
       JsonObject->SetStringField(TEXT("mode"), TEXT(""));
       JsonObject->SetStringField(TEXT("map"), TEXT(""));
-      NumPlayersObject->SetNumberField(TEXT("current"), 0);
-      NumPlayersObject->SetNumberField(TEXT("max"), 0);
-      JsonObject->SetObjectField(TEXT("numPlayers"), NumPlayersObject);
+      JsonObject->SetNumberField(TEXT("numPlayers"), 0);
 
       JsonObject->SetStringField(
         TEXT("playerAcceptance"), TEXT("NotAccepting")
       );
     }
 
-    Sidecar->Emit(TEXT("realm:game-server:update"), JsonObject);
+    Sidecar->Emit(TEXT("realm:servers:update-state"), JsonObject);
   }
 }
