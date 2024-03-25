@@ -33,7 +33,7 @@ public:
   FRedwoodDynamicDelegate OnPingsReceived;
 
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
-  FRedwoodDynamicDelegate OnRequestToJoinServer;
+  FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;
 
   void Register(
     const FString &Username,
@@ -132,4 +132,10 @@ public:
 private:
   UPROPERTY()
   URedwoodTitleInterface *TitleInterface;
+
+  UFUNCTION()
+  void HandlePingsReceived();
+
+  UFUNCTION()
+  void HandleRequestToJoinServer(FString ConsoleCommand);
 };

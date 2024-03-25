@@ -17,6 +17,13 @@ void URedwoodTitleGameSubsystem::Initialize(FSubsystemCollectionBase &Collection
   Super::Initialize(Collection);
 
   TitleInterface = NewObject<URedwoodTitleInterface>();
+
+  TitleInterface->OnPingsReceived.AddDynamic(
+    this, &URedwoodTitleGameSubsystem::HandlePingsReceived
+  );
+  TitleInterface->OnRequestToJoinServer.AddDynamic(
+    this, &URedwoodTitleGameSubsystem::HandleRequestToJoinServer
+  );
 }
 
 void URedwoodTitleGameSubsystem::Deinitialize() {
@@ -176,6 +183,12 @@ void URedwoodTitleGameSubsystem::GetServerInstance(
   bool bJoinSession,
   FRedwoodGetServerOutputDelegate OnOutput
 ) {
+  UE_LOG(
+    LogRedwood,
+    Log,
+    TEXT("GetServerInstance: %s"),
+    bJoinSession ? TEXT("true") : TEXT("false")
+  );
   TitleInterface->GetServerInstance(
     ServerReference, Password, bJoinSession, OnOutput
   );
@@ -189,4 +202,26 @@ void URedwoodTitleGameSubsystem::StopServer(
 
 FString URedwoodTitleGameSubsystem::GetConnectionConsoleCommand() {
   return TitleInterface->GetConnectionConsoleCommand();
+}
+
+void URedwoodTitleGameSubsystem::HandlePingsReceived() {
+  OnPingsReceived.Broadcast();
+}
+
+void URedwoodTitleGameSubsystem::HandleRequestToJoinServer(
+  FString ConsoleCommand
+) {
+  URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
+  if (RedwoodSettings->bAutoConnectToServers) {
+    UWorld *World = GetGameInstance()->GetWorld();
+    if (IsValid(World)) {
+      UKismetSystemLibrary::ExecuteConsoleCommand(World, ConsoleCommand);
+    } else {
+      UE_LOG(
+        LogRedwood, Error, TEXT("World is not valid when trying to join server")
+      );
+    }
+  } else {
+    OnRequestToJoinServer.Broadcast(ConsoleCommand);
+  }
 }

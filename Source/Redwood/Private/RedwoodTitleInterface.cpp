@@ -488,16 +488,8 @@ void URedwoodTitleInterface::BindRealmEvents() {
       ServerConnection = MessageObject->GetStringField(TEXT("connection"));
       ServerToken = MessageObject->GetStringField(TEXT("token"));
 
-      URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
-      if (RedwoodSettings->bAutoConnectToServers) {
-        FString ConsoleCommand = GetConnectionConsoleCommand();
-        UWorld *World = GetWorld();
-        if (IsValid(World)) {
-          UKismetSystemLibrary::ExecuteConsoleCommand(World, ConsoleCommand);
-        }
-      } else {
-        OnRequestToJoinServer.Broadcast();
-      }
+      FString ConsoleCommand = GetConnectionConsoleCommand();
+      OnRequestToJoinServer.Broadcast(ConsoleCommand);
     },
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
@@ -526,7 +518,7 @@ FRedwoodCharacter URedwoodTitleInterface::ParseCharacter(
     *CharacterObj->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
   );
 
-  Character.PlayerId = CharacterObj->GetStringField(TEXT("playerIdentityId"));
+  Character.PlayerId = CharacterObj->GetStringField(TEXT("playerId"));
 
   const TSharedPtr<FJsonObject> *CharacterMetadata = nullptr;
   if (CharacterObj->TryGetObjectField(TEXT("metadata"), CharacterMetadata)) {
@@ -671,7 +663,7 @@ void URedwoodTitleInterface::GetCharacterData(
   }
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("id"), PlayerId);
   Payload->SetStringField(TEXT("characterId"), CharacterId);
 
   Realm->Emit(
@@ -758,7 +750,7 @@ void URedwoodTitleInterface::SetSelectedCharacter(FString CharacterId) {
 }
 
 void URedwoodTitleInterface::JoinTicketing(
-  TArray<FString> ModeIds,
+  TArray<FString> ProfileTypes,
   TArray<FString> InRegions,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
@@ -771,7 +763,7 @@ void URedwoodTitleInterface::JoinTicketing(
     return;
   }
 
-  TicketingModeIds = ModeIds;
+  TicketingProfileTypes = ProfileTypes;
   TicketingRegions = InRegions;
   OnTicketingUpdate = OnUpdate;
   AttemptJoinTicketing();
@@ -826,9 +818,7 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
     Server.Data = DataObject;
   }
 
-  ServerProxy->TryGetStringField(
-    TEXT("ownerPlayerIdentityId"), Server.OwnerPlayerIdentityId
-  );
+  ServerProxy->TryGetStringField(TEXT("ownerPlayerId"), Server.OwnerPlayerId);
 
   ServerProxy->TryGetStringField(
     TEXT("activeInstanceId"), Server.ActiveInstanceId
@@ -1115,75 +1105,54 @@ void URedwoodTitleInterface::AttemptJoinTicketing() {
     return;
   }
 
-  // TArray<FRedwoodRegionLatencySort> UnsortedRegions;
-  // TArray<FRedwoodRegionLatencySort> SortedRegions;
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
 
-  // for (auto Itr : Regions) {
-  //   FRedwoodRegionLatencySort Region;
-  //   Region.Id = Itr.Key;
-  //   Region.RTT = PingAverages[Itr.Key];
-  //   UnsortedRegions.Add(Region);
-  // }
+  TSharedPtr<FJsonObject> Data = MakeShareable(new FJsonObject);
 
-  // while (UnsortedRegions.Num() > 0) {
-  //   int32 LowestIndex = 0;
-  //   for (int32 i = 0; i < UnsortedRegions.Num(); i++) {
-  //     if (UnsortedRegions[i].RTT < UnsortedRegions[LowestIndex].RTT) {
-  //       LowestIndex = i;
-  //     }
-  //   }
-
-  //   SortedRegions.Add(UnsortedRegions[LowestIndex]);
-  //   UnsortedRegions.RemoveAt(LowestIndex);
-  // }
-
-  // TODO: Support multiple profiles
-  // TArray<TSharedPtr<FJsonValue>> DesiredProfiles;
-  // TSharedPtr<FJsonValueString> TicketingProfileValue =
-  //   MakeShareable(new FJsonValueString(TicketingProfile));
-  // DesiredProfiles.Add(TicketingProfileValue);
-
-  // TArray<TSharedPtr<FJsonValue>> DesiredRegions;
-  // for (FRedwoodRegionLatencySort Region : SortedRegions) {
-  //   TSharedPtr<FJsonValueString> Value =
-  //     MakeShareable(new FJsonValueString(Region.Id));
-  //   DesiredRegions.Add(Value);
-  // }
-
-  JsonModern::FJson j = {
-    {"playerId", PlayerId},
-    {"characterId", SelectedCharacterId},
-    {"data",
-     {"modeIds", TicketingModeIds},
-     {"regions", JsonModern::FJson::array()}}};
-
-  for (FString DesiredRegion : TicketingRegions) {
-    float *Ping = PingAverages.Find(DesiredRegion);
-    if (Ping) {
-      j["data"]["regions"].push_back({{"name", DesiredRegion}, {"ping", *Ping}}
-      );
-    }
+  TArray<TSharedPtr<FJsonValue>> DesiredProfileTypes;
+  for (FString ProfileType : TicketingProfileTypes) {
+    TSharedPtr<FJsonValueString> Value =
+      MakeShareable(new FJsonValueString(ProfileType));
+    DesiredProfileTypes.Add(Value);
   }
+  Data->SetArrayField(TEXT("profileTypes"), DesiredProfileTypes);
 
-  // TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-  // Payload->SetStringField(TEXT("playerId"), PlayerId);
-  // Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+  TArray<TSharedPtr<FJsonValue>> DesiredRegions;
+  for (FString RegionName : TicketingRegions) {
+    float *Ping = PingAverages.Find(RegionName);
 
-  // TSharedPtr<FJsonObject> Data = MakeShareable(new FJsonObject);
-  // Payload->SetArrayField(TEXT("profiles"), DesiredProfiles);
-  // Payload->SetArrayField(TEXT("regions"), DesiredRegions);
-
-  Realm->Emit(
-    TEXT("realm:ticketing:join"),
-    JsonModern::ToUnreal(j),
-    [this](auto Response) {
-      FString Error = Response[0]->AsString();
-      FRedwoodTicketingUpdate Update;
-      Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
-      Update.Message = Error;
-      OnTicketingUpdate.ExecuteIfBound(Update);
+    if (Ping == nullptr) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Could not find ping for region %s."),
+        *RegionName
+      );
+      continue;
     }
-  );
+
+    TSharedPtr<FJsonObject> RegionObject = MakeShareable(new FJsonObject);
+    RegionObject->SetStringField(TEXT("name"), RegionName);
+    RegionObject->SetNumberField(TEXT("ping"), *Ping);
+
+    TSharedPtr<FJsonValueObject> Value =
+      MakeShareable(new FJsonValueObject(RegionObject));
+
+    DesiredRegions.Add(Value);
+  }
+  Data->SetArrayField(TEXT("regions"), DesiredRegions);
+
+  Payload->SetObjectField(TEXT("data"), Data);
+
+  Realm->Emit(TEXT("realm:ticketing:join"), Payload, [this](auto Response) {
+    FString Error = Response[0]->AsString();
+    FRedwoodTicketingUpdate Update;
+    Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Update.Message = Error;
+    OnTicketingUpdate.ExecuteIfBound(Update);
+  });
 }
 
 FString URedwoodTitleInterface::GetConnectionConsoleCommand() {

@@ -32,7 +32,7 @@ public:
 
   FRedwoodDynamicDelegate OnPingsReceived;
 
-  FRedwoodDynamicDelegate OnRequestToJoinServer;
+  FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;
 
   void Register(
     const FString &Username,
@@ -95,7 +95,7 @@ public:
   void SetSelectedCharacter(FString CharacterId);
 
   void JoinTicketing(
-    TArray<FString> ModeIds,
+    TArray<FString> ProfileTypes,
     TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
@@ -152,7 +152,7 @@ private:
 
   void AttemptJoinTicketing();
   FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
-  TArray<FString> TicketingModeIds;
+  TArray<FString> TicketingProfileTypes;
   TArray<FString> TicketingRegions;
 
   FString ServerConnection;

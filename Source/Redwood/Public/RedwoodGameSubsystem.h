@@ -17,7 +17,7 @@
 
 class AGameModeBase;
 
-UCLASS()
+UCLASS(BlueprintType)
 class REDWOOD_API URedwoodGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
 
@@ -27,9 +27,42 @@ public:
   virtual void Deinitialize() override;
   // End USubsystem
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void CallExecCommandOnAllClients(const FString &Command);
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString RequestId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Name;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString MapId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ModeId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  bool bContinuousPlay = false;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Password;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ShortCode;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  int32 MaxPlayers = 0;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  USIOJsonObject *Data = nullptr;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString OwnerPlayerId;
+
 private:
   TMap<FName, TSubclassOf<AGameModeBase>> GameModeClasses;
-  TMap<FName, FSoftObjectPath> Maps;
+  TMap<FName, FPrimaryAssetId> Maps;
 
   void InitializeSidecar();
   void SendUpdateToSidecar();

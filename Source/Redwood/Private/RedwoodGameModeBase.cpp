@@ -50,6 +50,10 @@ APlayerController *ARedwoodGameModeBase::Login(
     NewPlayer, InRemoteRole, Portal, Options, UniqueId, ErrorMessage
   );
 
+  if (!ErrorMessage.IsEmpty() || PlayerController == nullptr) {
+    return PlayerController;
+  }
+
   bool bConnectToSidecar = false;
 
 #if WITH_EDITOR

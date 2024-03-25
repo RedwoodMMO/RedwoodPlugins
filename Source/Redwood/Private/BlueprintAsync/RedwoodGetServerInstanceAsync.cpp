@@ -15,6 +15,7 @@ URedwoodGetServerInstanceAsync::GetServerInstance(
   Action->Target = Target;
   Action->ServerReference = ServerReference;
   Action->Password = Password;
+  Action->bJoinSession = bJoinSession;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;

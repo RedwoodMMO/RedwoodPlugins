@@ -38,14 +38,3 @@ struct FRedwoodRegionLatency {
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<float> RTTs;
 };
-
-USTRUCT(BlueprintType)
-struct FRedwoodRegionLatencySort {
-  GENERATED_BODY()
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Id;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  float RTT = 0.0f;
-};

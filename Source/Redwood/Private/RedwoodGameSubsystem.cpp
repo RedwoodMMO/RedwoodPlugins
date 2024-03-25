@@ -71,7 +71,7 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
     for (UObject *Object : MapsAssets) {
       URedwoodMapAsset *RedwoodMap = Cast<URedwoodMapAsset>(Object);
       if (ensure(RedwoodMap)) {
-        Maps.Add(RedwoodMap->RedwoodId, RedwoodMap->Map);
+        Maps.Add(RedwoodMap->RedwoodId, RedwoodMap->MapId);
       }
     }
 
@@ -140,10 +140,20 @@ void URedwoodGameSubsystem::InitializeSidecar() {
       if (Message->TryGetObject(Object) && Object) {
         UE_LOG(LogRedwood, Log, TEXT("LoadMap message is valid object"));
         TSharedPtr<FJsonObject> ActualObject = *Object;
-        FString MapId = ActualObject->GetStringField(TEXT("mapId"));
-        FString ModeId = ActualObject->GetStringField(TEXT("modeId"));
-        TSharedPtr<FJsonObject> Data =
+        RequestId = ActualObject->GetStringField(TEXT("requestId"));
+        Name = ActualObject->GetStringField(TEXT("name"));
+        MapId = ActualObject->GetStringField(TEXT("mapId"));
+        ModeId = ActualObject->GetStringField(TEXT("modeId"));
+        bool bContinuousPlay =
+          ActualObject->GetBoolField(TEXT("continuousPlay"));
+        ActualObject->TryGetStringField(TEXT("password"), Password);
+        ActualObject->TryGetStringField(TEXT("shortCode"), ShortCode);
+        MaxPlayers = ActualObject->GetIntegerField(TEXT("maxPlayers"));
+        TSharedPtr<FJsonObject> DataObj =
           ActualObject->GetObjectField(TEXT("data"));
+        Data = NewObject<USIOJsonObject>();
+        Data->SetRootObject(DataObj);
+        ActualObject->TryGetStringField(TEXT("ownerPlayerId"), OwnerPlayerId);
 
         UE_LOG(
           LogRedwood,
@@ -155,7 +165,7 @@ void URedwoodGameSubsystem::InitializeSidecar() {
 
         TSubclassOf<AGameModeBase> *GameModeToLoad =
           GameModeClasses.Find(FName(*ModeId));
-        FSoftObjectPath *MapToLoad = Maps.Find(FName(*MapId));
+        FPrimaryAssetId *MapToLoad = Maps.Find(FName(*MapId));
 
         if (GameModeToLoad == nullptr || MapToLoad == nullptr) {
           UE_LOG(
@@ -173,15 +183,28 @@ void URedwoodGameSubsystem::InitializeSidecar() {
         FString Error;
         FURL Url;
         Url.Protocol = "unreal";
-        Url.Map = MapToLoad->GetAssetPathString();
+        Url.Map = MapToLoad->PrimaryAssetName.ToString();
 
+        // The preferred method to retrieve these variables is via this subsystem public
+        // member variables, but we add them to the URL for convenience if needed
+        Url.AddOption(*FString("requestId=" + RequestId));
+        Url.AddOption(*FString("name=" + Name));
+        Url.AddOption(*FString("mapId=" + MapId));
+        Url.AddOption(*FString("modeId=" + ModeId));
+        Url.AddOption(
+          *FString("continuousPlay=" + FString::FromInt(bContinuousPlay))
+        );
+        Url.AddOption(*FString("password=" + Password));
+        Url.AddOption(*FString("shortCode=" + ShortCode));
+        Url.AddOption(*FString("maxPlayers=" + FString::FromInt(MaxPlayers)));
+        Url.AddOption(*FString("ownerPlayerId=" + OwnerPlayerId));
         Url.AddOption(*FString("game=" + (*GameModeToLoad)->GetPathName()));
 
         TArray<FString> Keys;
-        Data->Values.GetKeys(Keys);
+        DataObj->Values.GetKeys(Keys);
         for (FString Key : Keys) {
           FString Value;
-          if (Data->TryGetStringField(Key, Value)) {
+          if (DataObj->TryGetStringField(Key, Value)) {
             Url.AddOption(*FString(Key + "=" + Value));
           }
         }
@@ -242,61 +265,70 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
             );
           }
 
-          if (GameMode->HasMatchStarted()) {
-            if (GameMode->HasMatchEnded()) {
-              if (bIsShuttingDown) {
-                JsonObject->SetStringField(TEXT("state"), TEXT("Stopping"));
-              } else {
-                JsonObject->SetStringField(TEXT("state"), TEXT("Ended"));
-              }
-
-            } else {
-              JsonObject->SetStringField(TEXT("state"), TEXT("Started"));
-            }
+          if (bIsShuttingDown) {
+            JsonObject->SetStringField(TEXT("state"), TEXT("Stopping"));
           } else {
-            JsonObject->SetStringField(
-              TEXT("state"), TEXT("WaitingForPlayers")
-            );
+            if (GameMode->HasMatchStarted()) {
+              if (GameMode->HasMatchEnded()) {
+                JsonObject->SetStringField(TEXT("state"), TEXT("Ended"));
+
+              } else {
+                JsonObject->SetStringField(TEXT("state"), TEXT("Started"));
+              }
+            } else {
+              JsonObject->SetStringField(
+                TEXT("state"), TEXT("WaitingForPlayers")
+              );
+            }
           }
-        } else {
-          JsonObject->SetStringField(TEXT("state"), TEXT("LoadingMap"));
         }
-
-        JsonObject->SetStringField(TEXT("mapId"), World->URL.Map);
-
-        JsonObject->SetStringField(
-          TEXT("modeId"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
-        );
-
-        JsonObject->SetNumberField(
-          TEXT("numPlayers"), GameMode->GetNumPlayers()
-        );
       } else {
-        bool bStarted = World->GetRealTimeSeconds() > 0;
         JsonObject->SetStringField(TEXT("state"), TEXT("LoadingMap"));
-        JsonObject->SetStringField(
-          TEXT("playerAcceptance"), TEXT("NotAccepting")
-        );
-
-        JsonObject->SetStringField(TEXT("mapId"), World->URL.Map);
-
-        JsonObject->SetStringField(
-          TEXT("modeId"), World->URL.GetOption(TEXT("Mode="), TEXT(""))
-        );
-
-        JsonObject->SetNumberField(TEXT("numPlayers"), 0);
       }
-    } else {
-      JsonObject->SetStringField(TEXT("state"), TEXT("Starting"));
-      JsonObject->SetStringField(TEXT("modeId"), TEXT(""));
-      JsonObject->SetStringField(TEXT("mapId"), TEXT(""));
-      JsonObject->SetNumberField(TEXT("numPlayers"), 0);
 
-      JsonObject->SetStringField(
-        TEXT("playerAcceptance"), TEXT("NotAccepting")
-      );
+      JsonObject->SetNumberField(TEXT("numPlayers"), GameMode->GetNumPlayers());
+    } else {
+      bool bStarted = World->GetRealTimeSeconds() > 0;
+      JsonObject->SetStringField(TEXT("state"), TEXT("LoadingMap"));
+
+      JsonObject->SetNumberField(TEXT("numPlayers"), 0);
     }
 
-    Sidecar->Emit(TEXT("realm:servers:update-state"), JsonObject);
+    // We get these options from the URL instead of the member variables to
+    // ensure the map got loaded
+
+    JsonObject->SetStringField(
+      TEXT("id"), World->URL.GetOption(TEXT("requestId="), TEXT(""))
+    );
+
+    JsonObject->SetStringField(
+      TEXT("mapId"), World->URL.GetOption(TEXT("mapId="), TEXT(""))
+    );
+
+    JsonObject->SetStringField(
+      TEXT("modeId"), World->URL.GetOption(TEXT("modeId="), TEXT(""))
+    );
+
+    Sidecar->Emit(
+      TEXT("realm:servers:update-state:game-server-to-sidecar"), JsonObject
+    );
+  }
+}
+
+void URedwoodGameSubsystem::CallExecCommandOnAllClients(const FString &Command
+) {
+  // spawn ARedwoodClientExecCommand
+  UWorld *World = GetWorld();
+  if (IsValid(World)) {
+    // spawn actor
+    ARedwoodClientExecCommand *ExecCommand = Cast<ARedwoodClientExecCommand>(
+      UGameplayStatics::BeginDeferredActorSpawnFromClass(
+        this, ARedwoodClientExecCommand::StaticClass(), FTransform()
+      )
+    );
+    if (ExecCommand) {
+      ExecCommand->Command = Command;
+      UGameplayStatics::FinishSpawningActor(ExecCommand, FTransform());
+    }
   }
 }

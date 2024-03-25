@@ -153,7 +153,7 @@ void FMockRealmsServersListRun::Initialize() {
 
         CurrentTest->TestEqual(
           TEXT("returns correct server max players"),
-          Output.Servers[0].OwnerPlayerIdentityId,
+          Output.Servers[0].OwnerPlayerId,
           TEXT("mock-owner-id")
         );
 

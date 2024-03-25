@@ -22,6 +22,9 @@ public:
   FName RedwoodId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
+  FName GameModeName;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
   ERedwoodGameMode GameModeType;
 
   UPROPERTY(

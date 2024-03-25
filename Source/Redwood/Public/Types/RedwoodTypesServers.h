@@ -59,7 +59,7 @@ struct FRedwoodGameServerProxy {
   USIOJsonObject *Data = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString OwnerPlayerIdentityId;
+  FString OwnerPlayerId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ActiveInstanceId;
@@ -190,4 +190,9 @@ typedef TDelegate<void(const FRedwoodGetServerOutput &)>
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodGetServerOutputDynamicDelegate, FRedwoodGetServerOutput, Data
+);
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodConnectToServerDynamicDelegate, FString, ConsoleCommand
 );

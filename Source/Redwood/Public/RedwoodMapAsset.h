@@ -15,11 +15,9 @@ public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
   FName RedwoodId;
 
-  UPROPERTY(
-    BlueprintReadWrite,
-    EditAnywhere,
-    Category = Map,
-    meta = (AllowedClasses = "/Script/Engine.World")
-  )
-  FSoftObjectPath Map;
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Map)
+  FName MapName;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Map, meta=(AllowedTypes="Map"))
+	FPrimaryAssetId MapId;
 };
