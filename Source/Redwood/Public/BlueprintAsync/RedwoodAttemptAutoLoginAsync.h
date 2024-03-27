@@ -4,12 +4,13 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
+#include "RedwoodAsyncCommon.h"
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodJoinTicketingAsync.generated.h"
+#include "RedwoodAttemptAutoLoginAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodJoinTicketingAsync
+class REDWOOD_API URedwoodAttemptAutoLoginAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
@@ -20,22 +21,16 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Join Ticketing",
+       DisplayName = "Attempt Auto-Login",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodJoinTicketingAsync *JoinTicketing(
-    URedwoodTitleGameSubsystem *Target,
-    UObject *WorldContextObject,
-    TArray<FString> ModeIds,
-    TArray<FString> Regions
+  static URedwoodAttemptAutoLoginAsync *AttemptAutoLogin(
+    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodTicketingUpdateDynamicDelegate OnUpdate;
+  FRedwoodAuthUpdateDynamicDelegate OnUpdate;
 
   URedwoodTitleGameSubsystem *Target;
-
-  TArray<FString> ModeIds;
-  TArray<FString> Regions;
 };

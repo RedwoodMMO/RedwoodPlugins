@@ -60,6 +60,9 @@ public:
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString OwnerPlayerId;
 
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString SidecarUri;
+
 private:
   TMap<FName, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FName, FPrimaryAssetId> Maps;

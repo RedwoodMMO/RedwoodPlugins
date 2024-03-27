@@ -2,6 +2,7 @@
 
 #include "RedwoodTitleInterface.h"
 #include "RedwoodGameplayTags.h"
+#include "RedwoodSaveGame.h"
 #include "RedwoodSettings.h"
 #include "RedwoodTitleGameSubsystem.h"
 
@@ -252,6 +253,12 @@ void URedwoodTitleInterface::Logout() {
 
     PlayerId = TEXT("");
     AuthToken = TEXT("");
+
+    URedwoodSaveGame *SaveGame = Cast<URedwoodSaveGame>(
+      UGameplayStatics::CreateSaveGameObject(URedwoodSaveGame::StaticClass())
+    );
+
+    UGameplayStatics::SaveGameToSlot(SaveGame, TEXT("RedwoodSaveGame"), 0);
   }
 }
 
@@ -263,9 +270,35 @@ FString URedwoodTitleInterface::GetPlayerId() {
   return PlayerId;
 }
 
+void URedwoodTitleInterface::AttemptAutoLogin(
+  FRedwoodAuthUpdateDelegate OnUpdate
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodAuthUpdate Update;
+    Update.Type = ERedwoodAuthUpdateType::Error;
+    Update.Message = TEXT("Not connected to Director.");
+    OnUpdate.ExecuteIfBound(Update);
+    return;
+  }
+
+  URedwoodSaveGame *SaveGame = Cast<URedwoodSaveGame>(
+    UGameplayStatics::LoadGameFromSlot(TEXT("RedwoodSaveGame"), 0)
+  );
+
+  if (SaveGame && !SaveGame->Username.IsEmpty() && !SaveGame->AuthToken.IsEmpty()) {
+    Login(SaveGame->Username, SaveGame->AuthToken, true, OnUpdate);
+  } else {
+    FRedwoodAuthUpdate Update;
+    Update.Type = ERedwoodAuthUpdateType::Error;
+    Update.Message = TEXT("No saved credentials found.");
+    OnUpdate.ExecuteIfBound(Update);
+  }
+}
+
 void URedwoodTitleInterface::Login(
   const FString &Username,
   const FString &PasswordOrToken,
+  bool bRememberMe,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
@@ -286,7 +319,7 @@ void URedwoodTitleInterface::Login(
   Director->Emit(
     TEXT("player:login:username"),
     Payload,
-    [this, OnUpdate](auto Response) {
+    [this, Username, bRememberMe, OnUpdate](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
       PlayerId = MessageObject->GetStringField(TEXT("playerId"));
@@ -297,6 +330,18 @@ void URedwoodTitleInterface::Login(
       if (Error.IsEmpty()) {
         Update.Type = ERedwoodAuthUpdateType::Success;
         Update.Message = TEXT("");
+
+        URedwoodSaveGame *SaveGame =
+          Cast<URedwoodSaveGame>(UGameplayStatics::CreateSaveGameObject(
+            URedwoodSaveGame::StaticClass()
+          ));
+
+        if (bRememberMe) {
+          SaveGame->Username = Username;
+          SaveGame->AuthToken = AuthToken;
+        }
+
+        UGameplayStatics::SaveGameToSlot(SaveGame, TEXT("RedwoodSaveGame"), 0);
       } else if (Error == "Must verify account") {
         OnAccountVerified = OnUpdate;
         Update.Type = ERedwoodAuthUpdateType::MustVerifyAccount;
@@ -304,6 +349,12 @@ void URedwoodTitleInterface::Login(
       } else {
         Update.Type = ERedwoodAuthUpdateType::Error;
         Update.Message = Error;
+
+        URedwoodSaveGame *SaveGame =
+          Cast<URedwoodSaveGame>(UGameplayStatics::CreateSaveGameObject(
+            URedwoodSaveGame::StaticClass()
+          ));
+        UGameplayStatics::SaveGameToSlot(SaveGame, TEXT("RedwoodSaveGame"), 0);
       }
 
       OnUpdate.ExecuteIfBound(Update);
@@ -769,6 +820,30 @@ void URedwoodTitleInterface::JoinTicketing(
   AttemptJoinTicketing();
 }
 
+void URedwoodTitleInterface::CancelTicketing(
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FString Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  Realm->Emit(
+    TEXT("realm:ticketing:cancel"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
 FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
   TSharedPtr<FJsonObject> ServerProxy
 ) {
@@ -798,6 +873,9 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
   Server.MapId = ServerProxy->GetStringField(TEXT("mapId"));
 
   Server.bPublic = ServerProxy->GetBoolField(TEXT("public"));
+
+  Server.bProxyEndsWhenInstanceEnds =
+    ServerProxy->GetBoolField(TEXT("proxyEndsWhenInstanceEnds"));
 
   Server.bContinuousPlay = ServerProxy->GetBoolField(TEXT("continuousPlay"));
 
@@ -948,6 +1026,10 @@ void URedwoodTitleInterface::CreateServer(
   Payload->SetStringField(TEXT("mapId"), Parameters.MapId);
 
   Payload->SetBoolField(TEXT("public"), Parameters.bPublic);
+
+  Payload->SetBoolField(
+    TEXT("proxyEndsWhenInstanceEnds"), Parameters.bProxyEndsWhenInstanceEnds
+  );
 
   Payload->SetBoolField(TEXT("continuousPlay"), Parameters.bContinuousPlay);
 
@@ -1147,7 +1229,9 @@ void URedwoodTitleInterface::AttemptJoinTicketing() {
   Payload->SetObjectField(TEXT("data"), Data);
 
   Realm->Emit(TEXT("realm:ticketing:join"), Payload, [this](auto Response) {
-    FString Error = Response[0]->AsString();
+    TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+    FString Error = MessageObject->GetStringField(TEXT("error"));
+
     FRedwoodTicketingUpdate Update;
     Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
     Update.Message = Error;

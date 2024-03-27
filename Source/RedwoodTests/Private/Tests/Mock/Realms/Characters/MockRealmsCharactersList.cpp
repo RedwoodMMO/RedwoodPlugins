@@ -20,6 +20,7 @@ void FMockRealmsCharactersListInitialize::Initialize() {
         Redwood->Login(
           "user",
           "password",
+          false,
           FRedwoodAuthUpdateDelegate::CreateLambda(
             [this](const FRedwoodAuthUpdate &Result) {
               Redwood->InitializeSingleRealmConnection(

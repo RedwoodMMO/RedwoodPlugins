@@ -58,12 +58,19 @@ bool URedwoodTitleGameSubsystem::IsLoggedIn() {
   return TitleInterface->IsLoggedIn();
 }
 
+void URedwoodTitleGameSubsystem::AttemptAutoLogin(
+  FRedwoodAuthUpdateDelegate OnUpdate
+) {
+  TitleInterface->AttemptAutoLogin(OnUpdate);
+}
+
 void URedwoodTitleGameSubsystem::Login(
   const FString &Username,
   const FString &PasswordOrToken,
+  bool bRememberMe,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  TitleInterface->Login(Username, PasswordOrToken, OnUpdate);
+  TitleInterface->Login(Username, PasswordOrToken, bRememberMe, OnUpdate);
 }
 
 void URedwoodTitleGameSubsystem::CancelWaitingForAccountVerification() {
@@ -148,6 +155,12 @@ void URedwoodTitleGameSubsystem::JoinTicketing(
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   TitleInterface->JoinTicketing(ModeIds, InRegions, OnUpdate);
+}
+
+void URedwoodTitleGameSubsystem::CancelTicketing(
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  TitleInterface->CancelTicketing(OnOutput);
 }
 
 FRedwoodGameServerProxy URedwoodTitleGameSubsystem::ParseServerProxy(

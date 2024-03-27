@@ -40,9 +40,12 @@ public:
     FRedwoodAuthUpdateDelegate OnUpdate
   );
 
+  void AttemptAutoLogin(FRedwoodAuthUpdateDelegate OnUpdate);
+
   void Login(
     const FString &Username,
     const FString &PasswordOrToken,
+    bool bRememberMe,
     FRedwoodAuthUpdateDelegate OnUpdate
   );
 
@@ -99,6 +102,8 @@ public:
     TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
+
+  void CancelTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
   static FRedwoodGameServerProxy ParseServerProxy(
     TSharedPtr<FJsonObject> ServerProxy

@@ -28,7 +28,8 @@ public:
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
     const FString &Username,
-    const FString &Password
+    const FString &Password,
+    bool bRememberMe
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -39,4 +40,6 @@ public:
   FString Username;
 
   FString Password;
+
+  bool bRememberMe;
 };

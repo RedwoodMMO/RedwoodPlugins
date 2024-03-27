@@ -6,10 +6,10 @@
 
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodJoinTicketingAsync.generated.h"
+#include "RedwoodCancelTicketingAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodJoinTicketingAsync
+class REDWOOD_API URedwoodCancelTicketingAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
@@ -20,22 +20,16 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Join Ticketing",
+       DisplayName = "Cancel Ticketing",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodJoinTicketingAsync *JoinTicketing(
-    URedwoodTitleGameSubsystem *Target,
-    UObject *WorldContextObject,
-    TArray<FString> ModeIds,
-    TArray<FString> Regions
+  static URedwoodCancelTicketingAsync *CancelTicketing(
+    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodTicketingUpdateDynamicDelegate OnUpdate;
+  FRedwoodErrorOutputDynamicDelegate OnOutput;
 
   URedwoodTitleGameSubsystem *Target;
-
-  TArray<FString> ModeIds;
-  TArray<FString> Regions;
 };

@@ -144,8 +144,7 @@ void URedwoodGameSubsystem::InitializeSidecar() {
         Name = ActualObject->GetStringField(TEXT("name"));
         MapId = ActualObject->GetStringField(TEXT("mapId"));
         ModeId = ActualObject->GetStringField(TEXT("modeId"));
-        bool bContinuousPlay =
-          ActualObject->GetBoolField(TEXT("continuousPlay"));
+        bContinuousPlay = ActualObject->GetBoolField(TEXT("continuousPlay"));
         ActualObject->TryGetStringField(TEXT("password"), Password);
         ActualObject->TryGetStringField(TEXT("shortCode"), ShortCode);
         MaxPlayers = ActualObject->GetIntegerField(TEXT("maxPlayers"));
@@ -158,7 +157,7 @@ void URedwoodGameSubsystem::InitializeSidecar() {
         UE_LOG(
           LogRedwood,
           Log,
-          TEXT("LoadMap message has valid map (%s) and mode (%s)"),
+          TEXT("LoadMap message has map (%s) and mode (%s)"),
           *MapId,
           *ModeId
         );
@@ -244,8 +243,14 @@ void URedwoodGameSubsystem::InitializeSidecar() {
       }
     };
 
-  // Sidecar will always be on the same host; 3020 is the default port
-  Sidecar->Connect(TEXT("ws://127.0.0.1:3020"));
+  FString SidecarPort = TEXT("3020"); // default port
+  FParse::Value(FCommandLine::Get(), TEXT("SidecarPort="), SidecarPort);
+
+  SidecarUri = TEXT("ws://127.0.0.1:") + SidecarPort;
+  UE_LOG(LogRedwood, Log, TEXT("Connecting to Sidecar at %s"), *SidecarUri);
+
+  // Sidecar will always be on the same host
+  Sidecar->Connect(SidecarUri);
 }
 
 void URedwoodGameSubsystem::SendUpdateToSidecar() {
@@ -309,9 +314,7 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
       TEXT("modeId"), World->URL.GetOption(TEXT("modeId="), TEXT(""))
     );
 
-    Sidecar->Emit(
-      TEXT("realm:servers:update-state:game-server-to-sidecar"), JsonObject
-    );
+    Sidecar->Emit(TEXT("realm:servers:update-state"), JsonObject);
   }
 }
 

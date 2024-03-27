@@ -20,6 +20,7 @@ void FMockRealmsListInitialize::Initialize() {
         Redwood->Login(
           "user",
           "password",
+          false,
           FRedwoodAuthUpdateDelegate::CreateLambda(
             [this](const FRedwoodAuthUpdate &Result) {
               Context->bIsCurrentTestComplete = true;

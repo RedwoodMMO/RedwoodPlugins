@@ -43,6 +43,7 @@ void FLogin::Initialize() {
   Redwood->Login(
     "user1",
     "password",
+    false,
     FRedwoodAuthUpdateDelegate::CreateLambda(
       [this](const FRedwoodAuthUpdate &Result) {
         CurrentTest->TestEqual(
@@ -236,6 +237,7 @@ void FCreatePublicServer::Initialize() {
   Parameters.ModeId = TEXT("match");
   Parameters.MapId = TEXT("map");
   Parameters.bPublic = true;
+  Parameters.bProxyEndsWhenInstanceEnds = true;
   Parameters.bContinuousPlay = false;
   Parameters.Password = TEXT("");
   Parameters.ShortCode = TEXT("");

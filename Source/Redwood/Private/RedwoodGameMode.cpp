@@ -1,6 +1,7 @@
 // Copyright Incanta Games. All rights reserved.
 
 #include "RedwoodGameMode.h"
+#include "RedwoodGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 
 #if WITH_EDITOR
@@ -33,8 +34,9 @@ void ARedwoodGameMode::InitGame(
   if (bConnectToSidecar) {
     Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
-    // Sidecar will always be on the same host; 3020 is the default port
-    Sidecar->Connect(TEXT("ws://127.0.0.1:3020"));
+    URedwoodGameSubsystem *RedwoodGameSubsystem =
+      GetGameInstance()->GetSubsystem<URedwoodGameSubsystem>();
+    Sidecar->Connect(RedwoodGameSubsystem->SidecarUri);
   }
 }
 
