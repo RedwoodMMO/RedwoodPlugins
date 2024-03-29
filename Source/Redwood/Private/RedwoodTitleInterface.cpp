@@ -11,6 +11,7 @@
 #include "LatencyCheckerLibrary.h"
 #include "Misc/DateTime.h"
 #include "SocketIOClient.h"
+#include "TimerManager.h"
 
 #include "JsonModern.h"
 
@@ -24,6 +25,14 @@ void URedwoodTitleInterface::Deinitialize() {
     ISocketIOClientModule::Get().ReleaseNativePointer(Realm);
     Realm = nullptr;
   }
+}
+
+void URedwoodTitleInterface::Tick(float DeltaTime) {
+  TimerManager.Tick(DeltaTime);
+}
+
+TStatId URedwoodTitleInterface::GetStatId() const {
+  RETURN_QUICK_DECLARE_CYCLE_STAT(URedwoodTitleInterface, STATGROUP_Tickables);
 }
 
 void URedwoodTitleInterface::InitializeDirectorConnection(
@@ -87,10 +96,12 @@ void URedwoodTitleInterface::HandleRegionsChanged(
     Regions.Add(RegionLatency->Id, RegionLatency);
   }
 
-  UWorld *World = GetWorld();
-  if (IsValid(World)) {
-    World->GetTimerManager().ClearTimer(PingTimer);
-  }
+  TimerManager.ClearTimer(PingTimer);
+
+  URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
+
+  PingAttemptsLeft = RedwoodSettings->PingAttempts;
+
   InitiatePings();
 }
 
@@ -149,16 +160,13 @@ void URedwoodTitleInterface::InitiatePings() {
     // queue the next set of pings
     PingAttemptsLeft = bHasWebsocketRegion ? 1 : PingAttempts;
 
-    UWorld *World = GetWorld();
-    if (IsValid(World)) {
-      World->GetTimerManager().SetTimer(
-        PingTimer,
-        this,
-        &URedwoodTitleInterface::InitiatePings,
-        RedwoodSettings->PingFrequency,
-        false
-      );
-    }
+    TimerManager.SetTimer(
+      PingTimer,
+      this,
+      &URedwoodTitleInterface::InitiatePings,
+      RedwoodSettings->PingFrequency,
+      false
+    );
   }
 }
 
@@ -1174,16 +1182,10 @@ void URedwoodTitleInterface::AttemptJoinTicketing() {
       PingAverages.Num(),
       Regions.Num()
     );
-    UWorld *World = GetWorld();
-    if (IsValid(World)) {
-      World->GetTimerManager().SetTimer(
-        PingTimer,
-        this,
-        &URedwoodTitleInterface::AttemptJoinTicketing,
-        2.f,
-        false
-      );
-    }
+
+    TimerManager.SetTimer(
+      PingTimer, this, &URedwoodTitleInterface::AttemptJoinTicketing, 2.f, false
+    );
     return;
   }
 

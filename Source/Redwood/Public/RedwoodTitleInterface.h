@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Tickable.h"
 
 #include "SocketIOFunctionLibrary.h"
 #include "SocketIONative.h"
@@ -17,12 +18,23 @@
 // so that we can use it in automated tests without instantiating
 // a whole world.
 
+class FTimerManager;
+
 UCLASS()
-class REDWOOD_API URedwoodTitleInterface : public UObject {
+class REDWOOD_API URedwoodTitleInterface : public UObject,
+                                           public FTickableGameObject {
   GENERATED_BODY()
 
 public:
   void Deinitialize();
+
+  // FTickableGameObject begin
+  virtual void Tick(float DeltaTime) override;
+  virtual TStatId GetStatId() const override;
+  virtual bool IsTickableInEditor() const override {
+    return true;
+  }
+  // FTickableGameObject end
 
   void InitializeDirectorConnection(
     FRedwoodSocketConnectedDelegate OnDirectorConnected
@@ -167,4 +179,6 @@ private:
   FString PlayerId;
   FString AuthToken;
   FString SelectedCharacterId;
+
+  FTimerManager TimerManager;
 };
