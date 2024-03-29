@@ -64,8 +64,8 @@ public:
   FString SidecarUri;
 
 private:
-  TMap<FName, TSubclassOf<AGameModeBase>> GameModeClasses;
-  TMap<FName, FPrimaryAssetId> Maps;
+  TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
+  TMap<FString, FPrimaryAssetId> Maps;
 
   void InitializeSidecar();
   void SendUpdateToSidecar();

@@ -19,10 +19,10 @@ class URedwoodGameModeAsset : public UPrimaryDataAsset {
 
 public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
-  FName RedwoodId;
+  FString RedwoodId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
-  FName GameModeName;
+  FText GameModeName;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
   ERedwoodGameMode GameModeType;

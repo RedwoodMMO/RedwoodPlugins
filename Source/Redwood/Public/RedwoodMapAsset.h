@@ -13,11 +13,16 @@ class URedwoodMapAsset : public UPrimaryDataAsset {
 
 public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
-  FName RedwoodId;
+  FString RedwoodId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Map)
-  FName MapName;
+  FText MapName;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Map, meta=(AllowedTypes="Map"))
-	FPrimaryAssetId MapId;
+  UPROPERTY(
+    BlueprintReadWrite,
+    EditAnywhere,
+    Category = Map,
+    meta = (AllowedTypes = "Map")
+  )
+  FPrimaryAssetId MapId;
 };

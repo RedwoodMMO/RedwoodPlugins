@@ -163,8 +163,8 @@ void URedwoodGameSubsystem::InitializeSidecar() {
         );
 
         TSubclassOf<AGameModeBase> *GameModeToLoad =
-          GameModeClasses.Find(FName(*ModeId));
-        FPrimaryAssetId *MapToLoad = Maps.Find(FName(*MapId));
+          GameModeClasses.Find(ModeId);
+        FPrimaryAssetId *MapToLoad = Maps.Find(MapId);
 
         if (GameModeToLoad == nullptr || MapToLoad == nullptr) {
           UE_LOG(
