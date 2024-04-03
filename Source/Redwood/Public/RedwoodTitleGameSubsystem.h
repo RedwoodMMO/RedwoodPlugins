@@ -61,6 +61,12 @@ public:
 
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
+  // This is a helper function for scenarios that only have a single realm
+  // (i.e. games that only have one realm or during dev/testing environments).
+  // It calls ListRealms and then InitializeRealmConnection for the first realm returned.
+  void InitializeConnectionForFirstRealm(
+    FRedwoodSocketConnectedDelegate OnRealmConnected
+  );
   void InitializeRealmConnection(
     FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
   );

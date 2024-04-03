@@ -23,30 +23,13 @@ void FMockRealmsServersListInitialize::Initialize() {
           false,
           FRedwoodAuthUpdateDelegate::CreateLambda(
             [this](const FRedwoodAuthUpdate &AuthResult) {
-              Redwood->ListRealms(
-                FRedwoodListRealmsOutputDelegate::CreateLambda(
-                  [this](const FRedwoodListRealmsOutput &Output) {
+              Redwood->InitializeConnectionForFirstRealm(
+                FRedwoodSocketConnectedDelegate::CreateLambda(
+                  [this](FRedwoodSocketConnected Output) {
                     CurrentTest->TestEqual(
-                      TEXT("ListRealms no error"), Output.Error, TEXT("")
+                      TEXT("Realm Connection Success"), Output.Error, TEXT("")
                     );
-                    CurrentTest->TestEqual(
-                      TEXT("ListRealms returns 1 realm"), Output.Realms.Num(), 1
-                    );
-
-                    Redwood->InitializeRealmConnection(
-                      Output.Realms[0],
-                      FRedwoodSocketConnectedDelegate::CreateLambda(
-                        [this](const FRedwoodSocketConnected &ConnectionResult
-                        ) {
-                          CurrentTest->TestEqual(
-                            TEXT("Realm Connection Success"),
-                            ConnectionResult.Error,
-                            TEXT("")
-                          );
-                          Context->bIsCurrentTestComplete = true;
-                        }
-                      )
-                    );
+                    Context->bIsCurrentTestComplete = true;
                   }
                 )
               );

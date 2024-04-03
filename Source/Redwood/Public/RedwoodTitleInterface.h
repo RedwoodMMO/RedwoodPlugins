@@ -71,6 +71,9 @@ public:
 
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
+  void InitializeConnectionForFirstRealm(
+    FRedwoodSocketConnectedDelegate OnRealmConnected
+  );
   void InitializeRealmConnection(
     FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
   );

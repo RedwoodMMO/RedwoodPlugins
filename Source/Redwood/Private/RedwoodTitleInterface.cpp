@@ -420,6 +420,37 @@ void URedwoodTitleInterface::ListRealms(
   });
 }
 
+void URedwoodTitleInterface::InitializeConnectionForFirstRealm(
+  FRedwoodSocketConnectedDelegate OnRealmConnected
+) {
+  ListRealms(FRedwoodListRealmsOutputDelegate::CreateLambda(
+    [this, OnRealmConnected](const FRedwoodListRealmsOutput &Output) {
+      if (!Output.Error.IsEmpty()) {
+        FRedwoodSocketConnected ConnectionResult;
+        ConnectionResult.Error = Output.Error;
+        OnRealmConnected.ExecuteIfBound(ConnectionResult);
+        return;
+      }
+
+      if (Output.Realms.Num() == 0) {
+        FRedwoodSocketConnected ConnectionResult;
+        ConnectionResult.Error = TEXT("No realms found.");
+        OnRealmConnected.ExecuteIfBound(ConnectionResult);
+        return;
+      }
+
+      InitializeRealmConnection(
+        Output.Realms[0],
+        FRedwoodSocketConnectedDelegate::CreateLambda(
+          [OnRealmConnected](const FRedwoodSocketConnected &ConnectionResult) {
+            OnRealmConnected.ExecuteIfBound(ConnectionResult);
+          }
+        )
+      );
+    }
+  ));
+}
+
 void URedwoodTitleInterface::InitializeRealmConnection(
   FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
