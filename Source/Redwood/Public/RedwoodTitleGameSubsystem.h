@@ -61,9 +61,6 @@ public:
 
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
-  void InitializeSingleRealmConnection(
-    FRedwoodSocketConnectedDelegate OnRealmConnected
-  );
   void InitializeRealmConnection(
     FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
   );

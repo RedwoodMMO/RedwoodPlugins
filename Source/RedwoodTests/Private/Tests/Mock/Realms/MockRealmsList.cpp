@@ -36,13 +36,7 @@ DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsListRun);
 void FMockRealmsListRun::Initialize() {
   Redwood->ListRealms(FRedwoodListRealmsOutputDelegate::CreateLambda(
     [this](const FRedwoodListRealmsOutput &Output) {
-      CurrentTest->TestEqual(
-        TEXT("mocked error"), Output.Error, TEXT("mock-realm-list-error")
-      );
-
-      CurrentTest->TestFalse(
-        TEXT("returns not single realm"), Output.bSingleRealm
-      );
+      CurrentTest->TestEqual(TEXT("No error"), Output.Error, TEXT(""));
 
       CurrentTest->TestEqual(TEXT("returns one realm"), Output.Realms.Num(), 1);
 
@@ -56,7 +50,7 @@ void FMockRealmsListRun::Initialize() {
       CurrentTest->TestEqual(
         TEXT("returns correct realm id"),
         Output.Realms[0].Id,
-        TEXT("mock-realm-id")
+        TEXT("e8ebaf6d-5454-4b9d-b2ee-b04404eebc0a")
       );
 
       CurrentTest->TestEqual(
@@ -66,7 +60,7 @@ void FMockRealmsListRun::Initialize() {
       );
 
       CurrentTest->TestEqual(
-        TEXT("returns correct realm created date"),
+        TEXT("returns correct realm updated date"),
         Output.Realms[0].UpdatedAt,
         FDateTime(2024, 1, 2, 11, 42, 24)
       );
@@ -74,25 +68,17 @@ void FMockRealmsListRun::Initialize() {
       CurrentTest->TestEqual(
         TEXT("returns correct realm name"),
         Output.Realms[0].Name,
-        TEXT("mock-realm-name")
+        TEXT("Default")
       );
 
       CurrentTest->TestEqual(
         TEXT("returns correct realm uri"),
         Output.Realms[0].Uri,
-        TEXT("mock-realm-uri")
+        TEXT("ws://127.0.0.1:3011")
       );
 
       CurrentTest->TestEqual(
-        TEXT("returns correct realm ping host"),
-        Output.Realms[0].PingHost,
-        TEXT("mock-realm-ping-host")
-      );
-
-      CurrentTest->TestEqual(
-        TEXT("returns correct realm secret"),
-        Output.Realms[0].Secret,
-        TEXT("mock-realm-secret")
+        TEXT("returns censored realm secret"), Output.Realms[0].Secret, TEXT("")
       );
 
       Context->bIsCurrentTestComplete = true;

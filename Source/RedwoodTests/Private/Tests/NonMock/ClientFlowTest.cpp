@@ -55,36 +55,30 @@ void FLogin::Initialize() {
   );
 }
 
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListRealms);
-void FListRealms::Initialize() {
+DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FInitializeRealm);
+void FInitializeRealm::Initialize() {
   Redwood->ListRealms(FRedwoodListRealmsOutputDelegate::CreateLambda(
     [this](const FRedwoodListRealmsOutput &Output) {
       CurrentTest->TestEqual(
         TEXT("ListRealms no error"), Output.Error, TEXT("")
       );
       CurrentTest->TestEqual(
-        TEXT("ListRealms returns no realms"), Output.Realms.Num(), 0
+        TEXT("ListRealms returns 1 realm"), Output.Realms.Num(), 1
       );
-      CurrentTest->TestTrue(
-        TEXT("ListRealms specifies single realm"), Output.bSingleRealm
+
+      Redwood->InitializeRealmConnection(
+        Output.Realms[0],
+        FRedwoodSocketConnectedDelegate::CreateLambda(
+          [this](const FRedwoodSocketConnected &Result) {
+            CurrentTest->TestEqual(
+              TEXT("Realm Connection Success"), Result.Error, TEXT("")
+            );
+            Context->bIsCurrentTestComplete = true;
+          }
+        )
       );
-      Context->bIsCurrentTestComplete = true;
     }
   ));
-}
-
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FInitializeSingleRealm);
-void FInitializeSingleRealm::Initialize() {
-  Redwood->InitializeSingleRealmConnection(
-    FRedwoodSocketConnectedDelegate::CreateLambda(
-      [this](const FRedwoodSocketConnected &Result) {
-        CurrentTest->TestEqual(
-          TEXT("Single Realm Connection Success"), Result.Error, TEXT("")
-        );
-        Context->bIsCurrentTestComplete = true;
-      }
-    )
-  );
 }
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListNoCharacters);
@@ -301,20 +295,19 @@ bool FClientFlowTest::RunTest(const FString &Parameters) {
   ADD_LATENT_AUTOMATION_COMMAND(FInitialize(Redwood, Context, 0));
   ADD_LATENT_AUTOMATION_COMMAND(FRegister(Redwood, Context, 1));
   ADD_LATENT_AUTOMATION_COMMAND(FLogin(Redwood, Context, 2));
-  ADD_LATENT_AUTOMATION_COMMAND(FListRealms(Redwood, Context, 3));
-  ADD_LATENT_AUTOMATION_COMMAND(FInitializeSingleRealm(Redwood, Context, 4));
-  ADD_LATENT_AUTOMATION_COMMAND(FListNoCharacters(Redwood, Context, 5));
-  ADD_LATENT_AUTOMATION_COMMAND(FCreateCharacter(Redwood, Context, 6));
-  ADD_LATENT_AUTOMATION_COMMAND(FListCharacters(Redwood, Context, 7));
-  ADD_LATENT_AUTOMATION_COMMAND(FSetCharacter(Redwood, Context, 8));
-  ADD_LATENT_AUTOMATION_COMMAND(FGetCharacter(Redwood, Context, 9));
-  ADD_LATENT_AUTOMATION_COMMAND(FListNoServers(Redwood, Context, 10));
-  ADD_LATENT_AUTOMATION_COMMAND(FCreatePublicServer(Redwood, Context, 11));
-  ADD_LATENT_AUTOMATION_COMMAND(FListServers(Redwood, Context, 12));
-  ADD_LATENT_AUTOMATION_COMMAND(FStopServer(Redwood, Context, 13));
-  ADD_LATENT_AUTOMATION_COMMAND(FListNoServers(Redwood, Context, 14));
+  ADD_LATENT_AUTOMATION_COMMAND(FInitializeRealm(Redwood, Context, 3));
+  ADD_LATENT_AUTOMATION_COMMAND(FListNoCharacters(Redwood, Context, 4));
+  ADD_LATENT_AUTOMATION_COMMAND(FCreateCharacter(Redwood, Context, 5));
+  ADD_LATENT_AUTOMATION_COMMAND(FListCharacters(Redwood, Context, 6));
+  ADD_LATENT_AUTOMATION_COMMAND(FSetCharacter(Redwood, Context, 7));
+  ADD_LATENT_AUTOMATION_COMMAND(FGetCharacter(Redwood, Context, 8));
+  ADD_LATENT_AUTOMATION_COMMAND(FListNoServers(Redwood, Context, 9));
+  ADD_LATENT_AUTOMATION_COMMAND(FCreatePublicServer(Redwood, Context, 10));
+  ADD_LATENT_AUTOMATION_COMMAND(FListServers(Redwood, Context, 11));
+  ADD_LATENT_AUTOMATION_COMMAND(FStopServer(Redwood, Context, 12));
+  ADD_LATENT_AUTOMATION_COMMAND(FListNoServers(Redwood, Context, 13));
 
-  ADD_LATENT_AUTOMATION_COMMAND(FWaitForEnd(Redwood, Context, 15));
+  ADD_LATENT_AUTOMATION_COMMAND(FWaitForEnd(Redwood, Context, 14));
 
   Context->Start();
 

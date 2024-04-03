@@ -25,9 +25,6 @@ struct FRedwoodRealm {
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Uri;
 
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString PingHost;
-
   // This is always an empty string from the ListRealms API call
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Secret;
@@ -39,9 +36,6 @@ struct FRedwoodListRealmsOutput {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Error;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bSingleRealm = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<FRedwoodRealm> Realms;

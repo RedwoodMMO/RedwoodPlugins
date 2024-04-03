@@ -22,17 +22,31 @@ void FMockRealmsCharactersListInitialize::Initialize() {
           "password",
           false,
           FRedwoodAuthUpdateDelegate::CreateLambda(
-            [this](const FRedwoodAuthUpdate &Result) {
-              Redwood->InitializeSingleRealmConnection(
-                FRedwoodSocketConnectedDelegate::CreateLambda(
-                  [this](const FRedwoodSocketConnected &RealmResult) {
+            [this](const FRedwoodAuthUpdate &AuthResult) {
+              Redwood->ListRealms(
+                FRedwoodListRealmsOutputDelegate::CreateLambda(
+                  [this](const FRedwoodListRealmsOutput &Output) {
                     CurrentTest->TestEqual(
-                      TEXT("Single Realm Connection Success"),
-                      RealmResult.Error,
-                      TEXT("")
+                      TEXT("ListRealms no error"), Output.Error, TEXT("")
+                    );
+                    CurrentTest->TestEqual(
+                      TEXT("ListRealms returns 1 realm"), Output.Realms.Num(), 1
                     );
 
-                    Context->bIsCurrentTestComplete = true;
+                    Redwood->InitializeRealmConnection(
+                      Output.Realms[0],
+                      FRedwoodSocketConnectedDelegate::CreateLambda(
+                        [this](const FRedwoodSocketConnected &ConnectionResult
+                        ) {
+                          CurrentTest->TestEqual(
+                            TEXT("Realm Connection Success"),
+                            ConnectionResult.Error,
+                            TEXT("")
+                          );
+                          Context->bIsCurrentTestComplete = true;
+                        }
+                      )
+                    );
                   }
                 )
               );

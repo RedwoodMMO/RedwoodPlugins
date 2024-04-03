@@ -395,7 +395,6 @@ void URedwoodTitleInterface::ListRealms(
     FRedwoodListRealmsOutput Output;
 
     Output.Error = MessageObject->GetStringField(TEXT("error"));
-    Output.bSingleRealm = MessageObject->GetBoolField(TEXT("isSingleRealm"));
 
     const TArray<TSharedPtr<FJsonValue>> &Realms =
       MessageObject->GetArrayField(TEXT("realms"));
@@ -412,7 +411,6 @@ void URedwoodTitleInterface::ListRealms(
       );
       OutRealm.Name = RealmObj->GetStringField(TEXT("name"));
       OutRealm.Uri = RealmObj->GetStringField(TEXT("uri"));
-      OutRealm.PingHost = RealmObj->GetStringField(TEXT("pingHost"));
       OutRealm.Secret = RealmObj->GetStringField(TEXT("secret"));
 
       Output.Realms.Add(OutRealm);
@@ -420,14 +418,6 @@ void URedwoodTitleInterface::ListRealms(
 
     OnOutput.ExecuteIfBound(Output);
   });
-}
-
-void URedwoodTitleInterface::InitializeSingleRealmConnection(
-  FRedwoodSocketConnectedDelegate OnRealmConnected
-) {
-  FRedwoodRealm SingleRealm;
-  SingleRealm.Id = TEXT("single-realm");
-  InitiateRealmHandshake(SingleRealm, OnRealmConnected);
 }
 
 void URedwoodTitleInterface::InitializeRealmConnection(
@@ -451,7 +441,7 @@ void URedwoodTitleInterface::InitiateRealmHandshake(
   Payload->SetStringField(TEXT("realmId"), InRealm.Id);
 
   Director->Emit(
-    TEXT("realm:request-connection:client-to-director"),
+    TEXT("realm:auth:player:connect:client-to-director"),
     Payload,
     [this, InRealm, OnRealmConnected](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -465,19 +455,14 @@ void URedwoodTitleInterface::InitiateRealmHandshake(
         return;
       }
 
-      if (InRealm.Id == TEXT("single-realm")) {
-        Realm = Director;
-        FinalizeRealmHandshake(Token, OnRealmConnected);
-      } else {
-        Realm = ISocketIOClientModule::Get().NewValidNativePointer();
+      Realm = ISocketIOClientModule::Get().NewValidNativePointer();
 
-        Realm->OnConnectedCallback =
-          [this, Token, OnRealmConnected](
-            const FString &InSocketId, const FString &InSessionId
-          ) { FinalizeRealmHandshake(Token, OnRealmConnected); };
+      Realm->OnConnectedCallback =
+        [this, Token, OnRealmConnected](
+          const FString &InSocketId, const FString &InSessionId
+        ) { FinalizeRealmHandshake(Token, OnRealmConnected); };
 
-        Realm->Connect(*InRealm.Uri);
-      }
+      Realm->Connect(*InRealm.Uri);
     }
   );
 }
@@ -492,7 +477,7 @@ void URedwoodTitleInterface::FinalizeRealmHandshake(
   Payload->SetStringField(TEXT("token"), Token);
 
   Realm->Emit(
-    TEXT("realm:request-connection:client-to-realm"),
+    TEXT("realm:auth:player:connect:client-to-realm"),
     Payload,
     [this, OnRealmConnected](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();

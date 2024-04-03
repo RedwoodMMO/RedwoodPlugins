@@ -83,12 +83,6 @@ void URedwoodTitleGameSubsystem::ListRealms(
   TitleInterface->ListRealms(OnOutput);
 }
 
-void URedwoodTitleGameSubsystem::InitializeSingleRealmConnection(
-  FRedwoodSocketConnectedDelegate OnRealmConnected
-) {
-  TitleInterface->InitializeSingleRealmConnection(OnRealmConnected);
-}
-
 void URedwoodTitleGameSubsystem::InitializeRealmConnection(
   FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
