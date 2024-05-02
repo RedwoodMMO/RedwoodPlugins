@@ -898,8 +898,8 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
 
   Server.bPublic = ServerProxy->GetBoolField(TEXT("public"));
 
-  Server.bProxyEndsWhenInstanceEnds =
-    ServerProxy->GetBoolField(TEXT("proxyEndsWhenInstanceEnds"));
+  Server.bProxyEndsWhenCollectionEnds =
+    ServerProxy->GetBoolField(TEXT("proxyEndsWhenCollectionEnds"));
 
   Server.bContinuousPlay = ServerProxy->GetBoolField(TEXT("continuousPlay"));
 
@@ -1052,7 +1052,7 @@ void URedwoodTitleInterface::CreateServer(
   Payload->SetBoolField(TEXT("public"), Parameters.bPublic);
 
   Payload->SetBoolField(
-    TEXT("proxyEndsWhenInstanceEnds"), Parameters.bProxyEndsWhenInstanceEnds
+    TEXT("proxyEndsWhenCollectionEnds"), Parameters.bProxyEndsWhenCollectionEnds
   );
 
   Payload->SetBoolField(TEXT("continuousPlay"), Parameters.bContinuousPlay);

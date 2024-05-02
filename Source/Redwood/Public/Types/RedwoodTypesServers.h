@@ -38,7 +38,7 @@ struct FRedwoodGameServerProxy {
   bool bPublic = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bProxyEndsWhenInstanceEnds = false;
+  bool bProxyEndsWhenCollectionEnds = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bContinuousPlay = false;
@@ -120,7 +120,7 @@ struct FRedwoodCreateServerInput {
   bool bPublic = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bProxyEndsWhenInstanceEnds = true;
+  bool bProxyEndsWhenCollectionEnds = true;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bContinuousPlay = false;

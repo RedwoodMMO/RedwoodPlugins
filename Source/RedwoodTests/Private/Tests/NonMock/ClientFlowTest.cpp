@@ -231,7 +231,7 @@ void FCreatePublicServer::Initialize() {
   Parameters.ModeId = TEXT("match");
   Parameters.MapId = TEXT("map");
   Parameters.bPublic = true;
-  Parameters.bProxyEndsWhenInstanceEnds = true;
+  Parameters.bProxyEndsWhenCollectionEnds = true;
   Parameters.bContinuousPlay = false;
   Parameters.Password = TEXT("");
   Parameters.ShortCode = TEXT("");
