@@ -844,8 +844,7 @@ void URedwoodTitleInterface::JoinTicketing(
   AttemptJoinTicketing();
 }
 
-void URedwoodTitleInterface::CancelTicketing(
-  FRedwoodErrorOutputDelegate OnOutput
+void URedwoodTitleInterface::LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
     FString Error = TEXT("Not connected to Realm.");
@@ -857,7 +856,7 @@ void URedwoodTitleInterface::CancelTicketing(
   Payload->SetStringField(TEXT("playerId"), PlayerId);
 
   Realm->Emit(
-    TEXT("realm:ticketing:cancel"),
+    TEXT("realm:ticketing:leave"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();

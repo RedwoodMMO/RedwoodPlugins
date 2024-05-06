@@ -1,20 +1,20 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "BlueprintAsync/RedwoodCancelTicketingAsync.h"
+#include "BlueprintAsync/RedwoodLeaveTicketingAsync.h"
 
-URedwoodCancelTicketingAsync *URedwoodCancelTicketingAsync::CancelTicketing(
+URedwoodLeaveTicketingAsync *URedwoodLeaveTicketingAsync::LeaveTicketing(
   URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
 ) {
-  URedwoodCancelTicketingAsync *Action =
-    NewObject<URedwoodCancelTicketingAsync>();
+  URedwoodLeaveTicketingAsync *Action =
+    NewObject<URedwoodLeaveTicketingAsync>();
   Action->Target = Target;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
 }
 
-void URedwoodCancelTicketingAsync::Activate() {
-  Target->CancelTicketing(
+void URedwoodLeaveTicketingAsync::Activate() {
+  Target->LeaveTicketing(
     FRedwoodErrorOutputDelegate::CreateLambda([this](FString Output) {
       OnOutput.Broadcast(Output);
 

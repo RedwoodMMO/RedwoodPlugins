@@ -157,10 +157,10 @@ void URedwoodTitleGameSubsystem::JoinTicketing(
   TitleInterface->JoinTicketing(ModeIds, InRegions, OnUpdate);
 }
 
-void URedwoodTitleGameSubsystem::CancelTicketing(
+void URedwoodTitleGameSubsystem::LeaveTicketing(
   FRedwoodErrorOutputDelegate OnOutput
 ) {
-  TitleInterface->CancelTicketing(OnOutput);
+  TitleInterface->LeaveTicketing(OnOutput);
 }
 
 FRedwoodGameServerProxy URedwoodTitleGameSubsystem::ParseServerProxy(

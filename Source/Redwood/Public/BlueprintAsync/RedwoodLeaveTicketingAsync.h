@@ -6,10 +6,10 @@
 
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodCancelTicketingAsync.generated.h"
+#include "RedwoodLeaveTicketingAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodCancelTicketingAsync
+class REDWOOD_API URedwoodLeaveTicketingAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
@@ -24,7 +24,7 @@ public:
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodCancelTicketingAsync *CancelTicketing(
+  static URedwoodLeaveTicketingAsync *LeaveTicketing(
     URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
   );
 

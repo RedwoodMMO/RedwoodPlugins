@@ -115,7 +115,7 @@ public:
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
-  void CancelTicketing(FRedwoodErrorOutputDelegate OnOutput);
+  void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
   static FRedwoodGameServerProxy ParseServerProxy(
     TSharedPtr<FJsonObject> ServerProxy
