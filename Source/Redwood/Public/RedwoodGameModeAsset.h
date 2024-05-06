@@ -11,7 +11,7 @@
 #include "RedwoodGameModeAsset.generated.h"
 
 UENUM(BlueprintType)
-enum class ERedwoodGameMode { GameModeBase, GameMode };
+enum class ERedwoodGameMode : uint8 { GameModeBase, GameMode };
 
 UCLASS(BlueprintType)
 class URedwoodGameModeAsset : public UPrimaryDataAsset {
