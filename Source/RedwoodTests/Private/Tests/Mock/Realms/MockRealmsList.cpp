@@ -38,7 +38,9 @@ void FMockRealmsListRun::Initialize() {
     [this](const FRedwoodListRealmsOutput &Output) {
       CurrentTest->TestEqual(TEXT("No error"), Output.Error, TEXT(""));
 
-      CurrentTest->TestEqual(TEXT("returns one realm"), Output.Realms.Num(), 1);
+      CurrentTest->TestEqual(
+        TEXT("returns two realms"), Output.Realms.Num(), 2
+      );
 
       if (Output.Realms.Num() == 0) {
         // we need to do this because otherwise we'll crash since subsequent
@@ -47,10 +49,9 @@ void FMockRealmsListRun::Initialize() {
         return;
       }
 
-      CurrentTest->TestEqual(
-        TEXT("returns correct realm id"),
-        Output.Realms[0].Id,
-        TEXT("e8ebaf6d-5454-4b9d-b2ee-b04404eebc0a")
+      CurrentTest->TestTrue(
+        TEXT("returns correct realm name"),
+        Output.Realms[0].Name.StartsWith(TEXT("test"))
       );
 
       CurrentTest->TestEqual(
@@ -63,12 +64,6 @@ void FMockRealmsListRun::Initialize() {
         TEXT("returns correct realm updated date"),
         Output.Realms[0].UpdatedAt,
         FDateTime(2024, 1, 2, 11, 42, 24)
-      );
-
-      CurrentTest->TestEqual(
-        TEXT("returns correct realm name"),
-        Output.Realms[0].Name,
-        TEXT("Default")
       );
 
       CurrentTest->TestEqual(

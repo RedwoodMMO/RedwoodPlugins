@@ -103,7 +103,7 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetSelectedCharacter(FString CharacterId);
 
-  void JoinTicketing(
+  void JoinMatchmaking(
     TArray<FString> ModeIds,
     TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
@@ -126,11 +126,10 @@ public:
     FRedwoodCreateServerInput Parameters,
     FRedwoodCreateServerOutputDelegate OnOutput
   );
-  void GetServerInstance(
+  void JoinServerInstance(
     FString ServerReference,
     FString Password,
-    bool bJoinSession,
-    FRedwoodGetServerOutputDelegate OnOutput
+    FRedwoodJoinServerOutputDelegate OnOutput
   );
   void StopServer(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
 

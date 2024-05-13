@@ -1,14 +1,15 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "BlueprintAsync/RedwoodJoinTicketingAsync.h"
+#include "BlueprintAsync/RedwoodJoinMatchmakingAsync.h"
 
-URedwoodJoinTicketingAsync *URedwoodJoinTicketingAsync::JoinTicketing(
+URedwoodJoinMatchmakingAsync *URedwoodJoinMatchmakingAsync::JoinMatchmaking(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
   TArray<FString> ModeIds,
   TArray<FString> Regions
 ) {
-  URedwoodJoinTicketingAsync *Action = NewObject<URedwoodJoinTicketingAsync>();
+  URedwoodJoinMatchmakingAsync *Action =
+    NewObject<URedwoodJoinMatchmakingAsync>();
   Action->Target = Target;
   Action->ModeIds = ModeIds;
   Action->Regions = Regions;
@@ -17,8 +18,8 @@ URedwoodJoinTicketingAsync *URedwoodJoinTicketingAsync::JoinTicketing(
   return Action;
 }
 
-void URedwoodJoinTicketingAsync::Activate() {
-  Target->JoinTicketing(
+void URedwoodJoinMatchmakingAsync::Activate() {
+  Target->JoinMatchmaking(
     ModeIds,
     Regions,
     FRedwoodTicketingUpdateDelegate::CreateLambda(

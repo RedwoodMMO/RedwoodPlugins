@@ -4,12 +4,15 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
+#include "SIOJsonObject.h"
+
+#include "RedwoodAsyncCommon.h"
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodJoinTicketingAsync.generated.h"
+#include "RedwoodJoinServerInstanceAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodJoinTicketingAsync
+class REDWOOD_API URedwoodJoinServerInstanceAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
@@ -20,22 +23,22 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Join Ticketing",
+       DisplayName = "Join Server Instance",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodJoinTicketingAsync *JoinTicketing(
+  static URedwoodJoinServerInstanceAsync *JoinServerInstance(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    TArray<FString> ModeIds,
-    TArray<FString> Regions
+    FString ServerReference,
+    FString Password
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodTicketingUpdateDynamicDelegate OnUpdate;
+  FRedwoodJoinServerOutputDynamicDelegate OnOutput;
 
   URedwoodTitleGameSubsystem *Target;
 
-  TArray<FString> ModeIds;
-  TArray<FString> Regions;
+  FString ServerReference;
+  FString Password;
 };

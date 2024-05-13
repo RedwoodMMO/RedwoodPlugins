@@ -149,12 +149,12 @@ void URedwoodTitleGameSubsystem::SetSelectedCharacter(FString CharacterId) {
   TitleInterface->SetSelectedCharacter(CharacterId);
 }
 
-void URedwoodTitleGameSubsystem::JoinTicketing(
+void URedwoodTitleGameSubsystem::JoinMatchmaking(
   TArray<FString> ModeIds,
   TArray<FString> InRegions,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
-  TitleInterface->JoinTicketing(ModeIds, InRegions, OnUpdate);
+  TitleInterface->JoinMatchmaking(ModeIds, InRegions, OnUpdate);
 }
 
 void URedwoodTitleGameSubsystem::LeaveTicketing(
@@ -190,21 +190,12 @@ void URedwoodTitleGameSubsystem::CreateServer(
   TitleInterface->CreateServer(bJoinSession, Parameters, OnOutput);
 }
 
-void URedwoodTitleGameSubsystem::GetServerInstance(
+void URedwoodTitleGameSubsystem::JoinServerInstance(
   FString ServerReference,
   FString Password,
-  bool bJoinSession,
-  FRedwoodGetServerOutputDelegate OnOutput
+  FRedwoodJoinServerOutputDelegate OnOutput
 ) {
-  UE_LOG(
-    LogRedwood,
-    Log,
-    TEXT("GetServerInstance: %s"),
-    bJoinSession ? TEXT("true") : TEXT("false")
-  );
-  TitleInterface->GetServerInstance(
-    ServerReference, Password, bJoinSession, OnOutput
-  );
+  TitleInterface->JoinServerInstance(ServerReference, Password, OnOutput);
 }
 
 void URedwoodTitleGameSubsystem::StopServer(

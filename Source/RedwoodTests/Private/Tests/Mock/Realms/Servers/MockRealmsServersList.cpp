@@ -157,8 +157,38 @@ void FMockRealmsServersListRun::Initialize() {
 
         CurrentTest->TestEqual(
           TEXT("returns correct server max players"),
-          Output.Servers[0].ActiveInstanceId,
-          TEXT("mock-instance-id")
+          Output.Servers[0].ActiveCollectionId,
+          TEXT("mock-collection-id")
+        );
+
+        CurrentTest->TestEqual(
+          TEXT("returns correct server num zones"),
+          Output.Servers[0].Zones.Num(),
+          2
+        );
+
+        CurrentTest->TestEqual(
+          TEXT("returns correct server zone name"),
+          Output.Servers[0].Zones[0],
+          TEXT("mock-zone-1")
+        );
+
+        CurrentTest->TestEqual(
+          TEXT("returns correct server zone name"),
+          Output.Servers[0].Zones[1],
+          TEXT("mock-zone-2")
+        );
+
+        CurrentTest->TestEqual(
+          TEXT("returns correct server numPlayersToAddLayer"),
+          Output.Servers[0].NumPlayersToAddLayer,
+          10
+        );
+
+        CurrentTest->TestEqual(
+          TEXT("returns correct server channel provider"),
+          Output.Servers[0].ChannelProvider,
+          TEXT("random")
         );
 
         Context->bIsCurrentTestComplete = true;

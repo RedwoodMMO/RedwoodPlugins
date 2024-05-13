@@ -20,7 +20,7 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Cancel Ticketing",
+       DisplayName = "Leave Ticketing",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )

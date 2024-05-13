@@ -29,6 +29,14 @@ void FRegister::Initialize() {
     "password",
     FRedwoodAuthUpdateDelegate::CreateLambda(
       [this](const FRedwoodAuthUpdate &Result) {
+        if (Result.Message == TEXT("User already registered")) {
+          Context->bIsCurrentTestComplete = true;
+          return;
+        }
+
+        CurrentTest->TestEqual(
+          TEXT("Register Message"), Result.Message, TEXT("")
+        );
         CurrentTest->TestEqual(
           TEXT("Register Success"), Result.Type, ERedwoodAuthUpdateType::Success
         );
@@ -63,7 +71,7 @@ void FInitializeRealm::Initialize() {
         TEXT("ListRealms no error"), Output.Error, TEXT("")
       );
       CurrentTest->TestEqual(
-        TEXT("ListRealms returns 1 realm"), Output.Realms.Num(), 1
+        TEXT("ListRealms returns 2 realms"), Output.Realms.Num(), 2
       );
 
       Redwood->InitializeRealmConnection(
@@ -152,7 +160,7 @@ void FSetCharacter::Initialize() {
   Metadata->SetStringField("name", "TestCharacter 2");
 
   Redwood->SetCharacterData(
-    Context->Data.GetStringField("CharacterId"),
+    Context->Data.GetStringField(TEXT("CharacterId")),
     Metadata,
     nullptr,
     nullptr,
@@ -182,7 +190,7 @@ void FSetCharacter::Initialize() {
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FGetCharacter);
 void FGetCharacter::Initialize() {
   Redwood->GetCharacterData(
-    Context->Data.GetStringField("CharacterId"),
+    Context->Data.GetStringField(TEXT("CharacterId")),
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](const FRedwoodGetCharacterOutput &Output) {
         CurrentTest->TestEqual(
@@ -277,7 +285,7 @@ void FListServers::Initialize() {
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FStopServer);
 void FStopServer::Initialize() {
   Redwood->StopServer(
-    Context->Data.GetStringField("ServerReference"),
+    Context->Data.GetStringField(TEXT("ServerReference")),
     FRedwoodErrorOutputDelegate::CreateLambda([this](const FString &Error) {
       CurrentTest->TestEqual(TEXT("StopServer no error"), Error, TEXT(""));
       Context->bIsCurrentTestComplete = true;

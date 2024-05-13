@@ -109,7 +109,7 @@ public:
 
   void SetSelectedCharacter(FString CharacterId);
 
-  void JoinTicketing(
+  void JoinMatchmaking(
     TArray<FString> ProfileTypes,
     TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
@@ -132,11 +132,10 @@ public:
     FRedwoodCreateServerInput Parameters,
     FRedwoodCreateServerOutputDelegate OnOutput
   );
-  void GetServerInstance(
+  void JoinServerInstance(
     FString ServerReference,
     FString Password,
-    bool bJoinSession,
-    FRedwoodGetServerOutputDelegate OnOutput
+    FRedwoodJoinServerOutputDelegate OnOutput
   );
   void StopServer(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
 
@@ -167,7 +166,7 @@ private:
   FTimerHandle PingTimer;
   int PingAttemptsLeft;
 
-  void AttemptJoinTicketing();
+  void AttemptJoinMatchmaking();
   FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
   TArray<FString> TicketingProfileTypes;
   TArray<FString> TicketingRegions;

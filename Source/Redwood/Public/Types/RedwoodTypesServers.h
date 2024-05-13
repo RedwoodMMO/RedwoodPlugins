@@ -22,11 +22,10 @@ struct FRedwoodGameServerProxy {
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FDateTime EndedAt;
 
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Name;
+  // Start common properties for GameServerInstance loading details
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Region;
+  FString Name;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ModeId;
@@ -35,25 +34,13 @@ struct FRedwoodGameServerProxy {
   FString MapId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bPublic = false;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bProxyEndsWhenCollectionEnds = false;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bContinuousPlay = false;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bHasPassword = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Password;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ShortCode;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 CurrentPlayers = 0;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   int32 MaxPlayers = 0;
@@ -64,8 +51,37 @@ struct FRedwoodGameServerProxy {
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString OwnerPlayerId;
 
+  // End common properties for GameServerInstance loading details
+
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString ActiveInstanceId;
+  FString Region;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  TArray<FString> Zones;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  int32 NumPlayersToAddLayer;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ChannelProvider;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *ChannelData = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bPublic = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bProxyEndsWhenCollectionEnds = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  int32 CurrentPlayers = 0;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bHasPassword = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ActiveCollectionId;
 };
 
 USTRUCT(BlueprintType)
@@ -94,10 +110,13 @@ struct FRedwoodGameServerInstance {
   FString Connection;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Channel;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ContainerId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString ProxyId;
+  FString CollectionId;
 };
 
 USTRUCT(BlueprintType)
@@ -177,25 +196,25 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 );
 
 USTRUCT(BlueprintType)
-struct FRedwoodGetServerOutput {
+struct FRedwoodJoinServerOutput {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FRedwoodGameServerInstance Instance;
+  FString ConnectionUri;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Token;
 };
 
-typedef TDelegate<void(const FRedwoodGetServerOutput &)>
-  FRedwoodGetServerOutputDelegate;
+typedef TDelegate<void(const FRedwoodJoinServerOutput &)>
+  FRedwoodJoinServerOutputDelegate;
 
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-  FRedwoodGetServerOutputDynamicDelegate, FRedwoodGetServerOutput, Data
+  FRedwoodJoinServerOutputDynamicDelegate, FRedwoodJoinServerOutput, Data
 );
 
 UDELEGATE()
