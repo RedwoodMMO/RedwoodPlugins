@@ -5,13 +5,13 @@
 URedwoodJoinMatchmakingAsync *URedwoodJoinMatchmakingAsync::JoinMatchmaking(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
-  TArray<FString> ModeIds,
+  FString ProfileId,
   TArray<FString> Regions
 ) {
   URedwoodJoinMatchmakingAsync *Action =
     NewObject<URedwoodJoinMatchmakingAsync>();
   Action->Target = Target;
-  Action->ModeIds = ModeIds;
+  Action->ProfileId = ProfileId;
   Action->Regions = Regions;
   Action->RegisterWithGameInstance(WorldContextObject);
 
@@ -20,7 +20,7 @@ URedwoodJoinMatchmakingAsync *URedwoodJoinMatchmakingAsync::JoinMatchmaking(
 
 void URedwoodJoinMatchmakingAsync::Activate() {
   Target->JoinMatchmaking(
-    ModeIds,
+    ProfileId,
     Regions,
     FRedwoodTicketingUpdateDelegate::CreateLambda(
       [this](FRedwoodTicketingUpdate Update) {

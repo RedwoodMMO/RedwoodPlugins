@@ -27,7 +27,7 @@ public:
   static URedwoodJoinMatchmakingAsync *JoinMatchmaking(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
-    TArray<FString> ModeIds,
+    FString ProfileId,
     TArray<FString> Regions
   );
 
@@ -36,6 +36,6 @@ public:
 
   URedwoodTitleGameSubsystem *Target;
 
-  TArray<FString> ModeIds;
+  FString ProfileId;
   TArray<FString> Regions;
 };

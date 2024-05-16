@@ -832,7 +832,7 @@ void URedwoodTitleInterface::SetSelectedCharacter(FString CharacterId) {
 }
 
 void URedwoodTitleInterface::JoinMatchmaking(
-  TArray<FString> ProfileTypes,
+  FString ProfileId,
   TArray<FString> InRegions,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
@@ -845,7 +845,7 @@ void URedwoodTitleInterface::JoinMatchmaking(
     return;
   }
 
-  TicketingProfileTypes = ProfileTypes;
+  TicketingProfileId = ProfileId;
   TicketingRegions = InRegions;
   OnTicketingUpdate = OnUpdate;
   AttemptJoinMatchmaking();
@@ -1243,13 +1243,7 @@ void URedwoodTitleInterface::AttemptJoinMatchmaking() {
 
   TSharedPtr<FJsonObject> MatchmakingData = MakeShareable(new FJsonObject);
 
-  TArray<TSharedPtr<FJsonValue>> DesiredProfileTypes;
-  for (FString ProfileType : TicketingProfileTypes) {
-    TSharedPtr<FJsonValueString> Value =
-      MakeShareable(new FJsonValueString(ProfileType));
-    DesiredProfileTypes.Add(Value);
-  }
-  MatchmakingData->SetArrayField(TEXT("profileTypes"), DesiredProfileTypes);
+  MatchmakingData->SetStringField(TEXT("profileId"), TicketingProfileId);
 
   TArray<TSharedPtr<FJsonValue>> DesiredRegions;
   for (FString RegionName : TicketingRegions) {

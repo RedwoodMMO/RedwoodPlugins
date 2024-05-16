@@ -150,11 +150,11 @@ void URedwoodTitleGameSubsystem::SetSelectedCharacter(FString CharacterId) {
 }
 
 void URedwoodTitleGameSubsystem::JoinMatchmaking(
-  TArray<FString> ModeIds,
+  FString ProfileId,
   TArray<FString> InRegions,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
-  TitleInterface->JoinMatchmaking(ModeIds, InRegions, OnUpdate);
+  TitleInterface->JoinMatchmaking(ProfileId, InRegions, OnUpdate);
 }
 
 void URedwoodTitleGameSubsystem::LeaveTicketing(

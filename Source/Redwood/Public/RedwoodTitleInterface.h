@@ -110,7 +110,7 @@ public:
   void SetSelectedCharacter(FString CharacterId);
 
   void JoinMatchmaking(
-    TArray<FString> ProfileTypes,
+    FString ProfileId,
     TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
@@ -168,7 +168,7 @@ private:
 
   void AttemptJoinMatchmaking();
   FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
-  TArray<FString> TicketingProfileTypes;
+  FString TicketingProfileId;
   TArray<FString> TicketingRegions;
 
   FString ServerConnection;

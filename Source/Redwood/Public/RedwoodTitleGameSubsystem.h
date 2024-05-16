@@ -104,7 +104,7 @@ public:
   void SetSelectedCharacter(FString CharacterId);
 
   void JoinMatchmaking(
-    TArray<FString> ModeIds,
+    FString ProfileId,
     TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
