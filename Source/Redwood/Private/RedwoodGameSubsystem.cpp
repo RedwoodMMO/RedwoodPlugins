@@ -75,15 +75,18 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
       }
     }
 
+    URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
+    if (RedwoodSettings->bServersAutoConnectToSidecar) {
 #if WITH_EDITOR
-    URedwoodEditorSettings *RedwoodEditorSettings =
-      GetMutableDefault<URedwoodEditorSettings>();
-    if (!GIsEditor || RedwoodEditorSettings->bConnectToSidecarInPIE) {
-      InitializeSidecar();
-    }
+      URedwoodEditorSettings *RedwoodEditorSettings =
+        GetMutableDefault<URedwoodEditorSettings>();
+      if (!GIsEditor || RedwoodEditorSettings->bConnectToSidecarInPIE) {
+        InitializeSidecar();
+      }
 #else
-    InitializeSidecar();
+      InitializeSidecar();
 #endif
+    }
 
     UGameplayMessageSubsystem &MessageSubsystem =
       UGameplayMessageSubsystem::Get(this);

@@ -16,6 +16,10 @@ public:
     SectionName = TEXT("Redwood");
   }
 
+  /** Whether or DedicatedServers automatically connect to the Redwood sidecar. */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  bool bServersAutoConnectToSidecar = true;
+
   /** The full URI to connect to the Director service */
   UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
   FString DirectorUri = "ws://localhost:3001";
