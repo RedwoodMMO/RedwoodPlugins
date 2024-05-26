@@ -545,11 +545,11 @@ void URedwoodTitleInterface::BindRealmEvents() {
   );
 
   Realm->OnEvent(
-    TEXT("realm:ticketing:ticket-stale"),
+    TEXT("realm:ticketing:ticket-error"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       FRedwoodTicketingUpdate Update;
-      Update.Type = ERedwoodTicketingUpdateType::TicketStale;
-      Update.Message = TEXT("Could not find a match. Please try again.");
+      Update.Type = ERedwoodTicketingUpdateType::TicketError;
+      Update.Message = Message->AsObject()->GetStringField(TEXT("error"));
       OnTicketingUpdate.ExecuteIfBound(Update);
     },
     TEXT("/"),

@@ -27,7 +27,7 @@ void URedwoodJoinMatchmakingAsync::Activate() {
         OnUpdate.Broadcast(Update);
 
         if (
-          Update.Type == ERedwoodTicketingUpdateType::TicketStale ||
+          Update.Type == ERedwoodTicketingUpdateType::TicketError ||
           (
             Update.Type == ERedwoodTicketingUpdateType::JoinResponse &&
             !Update.Message.IsEmpty()
