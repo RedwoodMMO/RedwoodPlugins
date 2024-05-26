@@ -11,7 +11,7 @@
 #include "RedwoodGameModeAsset.generated.h"
 
 UENUM(BlueprintType)
-enum class ERedwoodGameMode : uint8 { GameModeBase, GameMode };
+enum class ERedwoodGameModeType : uint8 { GameModeBase, GameMode };
 
 UCLASS(BlueprintType)
 class URedwoodGameModeAsset : public UPrimaryDataAsset {
@@ -25,14 +25,14 @@ public:
   FText GameModeName;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
-  ERedwoodGameMode GameModeType;
+  ERedwoodGameModeType GameModeType;
 
   UPROPERTY(
     BlueprintReadWrite,
     EditAnywhere,
     Category = GameMode,
     meta =
-      (EditCondition = "GameModeType == ERedwoodGameMode::GameModeBase",
+      (EditCondition = "GameModeType == ERedwoodGameModeType::GameModeBase",
        EditConditionHides)
   )
   TSubclassOf<ARedwoodGameModeBase> GameModeBaseClass;
@@ -42,7 +42,7 @@ public:
     EditAnywhere,
     Category = GameMode,
     meta =
-      (EditCondition = "GameModeType == ERedwoodGameMode::GameMode",
+      (EditCondition = "GameModeType == ERedwoodGameModeType::GameMode",
        EditConditionHides)
   )
   TSubclassOf<ARedwoodGameMode> GameModeClass;

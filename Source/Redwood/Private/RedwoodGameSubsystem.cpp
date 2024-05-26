@@ -56,7 +56,7 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
       URedwoodGameModeAsset *RedwoodGameMode =
         Cast<URedwoodGameModeAsset>(Object);
       if (ensure(RedwoodGameMode)) {
-        if (RedwoodGameMode->GameModeType == ERedwoodGameMode::GameModeBase) {
+        if (RedwoodGameMode->GameModeType == ERedwoodGameModeType::GameModeBase) {
           GameModeClasses.Add(
             RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeBaseClass
           );
