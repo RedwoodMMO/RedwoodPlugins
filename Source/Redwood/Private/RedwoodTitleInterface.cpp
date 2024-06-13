@@ -66,8 +66,7 @@ void URedwoodTitleInterface::InitializeDirectorConnection(
     OnDirectorConnected.ExecuteIfBound(Details);
   };
 
-  URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
-  Director->Connect(*RedwoodSettings->DirectorUri);
+  Director->Connect(*URedwoodSettings::GetDirectorUri());
 }
 
 bool URedwoodTitleInterface::IsDirectorConnected() {

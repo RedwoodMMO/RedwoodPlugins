@@ -24,6 +24,27 @@ public:
   UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
   FString DirectorUri = "ws://localhost:3001";
 
+  static FString GetDirectorUri() {
+    URedwoodSettings *Settings = GetMutableDefault<URedwoodSettings>();
+    FString Uri = Settings->DirectorUri;
+
+    // read from `redwood.json` if it exists
+    FString JsonPath = FPaths::ProjectDir() / TEXT("redwood.json");
+    if (FPaths::FileExists(JsonPath)) {
+      FString Json;
+      FFileHelper::LoadFileToString(Json, *JsonPath);
+      TSharedPtr<FJsonObject> JsonObject;
+      TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+      if (FJsonSerializer::Deserialize(Reader, JsonObject)) {
+        if (JsonObject->HasField("directorUri")) {
+          Uri = JsonObject->GetStringField("directorUri");
+        }
+      }
+    }
+
+    return Uri;
+  }
+
   /**
    * If set to true, Redwood will automatically connect clients to servers
    * when they receive a request from the Realm service. This will happen
