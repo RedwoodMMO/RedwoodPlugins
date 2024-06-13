@@ -30,12 +30,19 @@ public class RedwoodEditor : ModuleRules {
       new string[] {
         "CoreUObject",
         "Engine",
+        "HTTP",
       }
     );
 
 
     DynamicallyLoadedModuleNames.AddRange(
       new string[] {
+      }
+    );
+
+    PublicDefinitions.AddRange(
+      new string[] {
+        "RW_SEND_ANALYTICS=1",
       }
     );
   }
