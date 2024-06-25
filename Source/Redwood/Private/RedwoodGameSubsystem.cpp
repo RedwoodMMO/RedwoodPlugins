@@ -36,15 +36,24 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
     UAssetManager &AssetManager = UAssetManager::Get();
 
     // Load Redwood GameMode and Map assets so we can know which underlying GameMode and Map to load later
-    TSharedPtr<FStreamableHandle> Handle =
+    TSharedPtr<FStreamableHandle> HandleModes =
       AssetManager.LoadPrimaryAssetsWithType(GameModeAssetType);
-    if (ensure(Handle.IsValid())) {
-      Handle->WaitUntilComplete();
+    TSharedPtr<FStreamableHandle> HandleMaps =
+      AssetManager.LoadPrimaryAssetsWithType(MapAssetType);
+
+    if (!HandleModes.IsValid() || !HandleMaps.IsValid()) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "Failed to load RedwoodGameModeAsset or RedwoodMapAsset asset types; not initializing RedwoodGameSubsystem"
+        )
+      );
+      return;
     }
-    Handle = AssetManager.LoadPrimaryAssetsWithType(MapAssetType);
-    if (ensure(Handle.IsValid())) {
-      Handle->WaitUntilComplete();
-    }
+
+    HandleModes->WaitUntilComplete();
+    HandleMaps->WaitUntilComplete();
 
     TArray<UObject *> GameModesAssets;
     TArray<UObject *> MapsAssets;
