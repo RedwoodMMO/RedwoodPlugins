@@ -9,7 +9,7 @@
 
 #include "RedwoodGameModeBase.generated.h"
 
-UCLASS()
+UCLASS(Blueprintable, BlueprintType, ClassGroup = (Redwood))
 class REDWOOD_API ARedwoodGameModeBase : public AGameModeBase {
   GENERATED_BODY()
 

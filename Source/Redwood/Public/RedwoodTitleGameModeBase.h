@@ -7,7 +7,7 @@
 
 #include "RedwoodTitleGameModeBase.generated.h"
 
-UCLASS()
+UCLASS(Blueprintable, BlueprintType, ClassGroup = (Redwood))
 class REDWOOD_API ARedwoodTitleGameModeBase : public AGameModeBase {
   GENERATED_UCLASS_BODY()
 
