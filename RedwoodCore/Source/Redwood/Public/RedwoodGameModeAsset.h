@@ -21,8 +21,17 @@ public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
   FString RedwoodId;
 
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
-  FText GameModeName;
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = FrontEnd)
+  bool bShowInFrontEnd;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = FrontEnd)
+  FText DisplayName;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = FrontEnd)
+  FText DisplayDescription;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = FrontEnd)
+  TObjectPtr<UTexture2D> DisplayIcon;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
   ERedwoodGameModeType GameModeType;
