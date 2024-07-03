@@ -9,6 +9,7 @@
 #endif
 
 #include "Dom/JsonObject.h"
+#include "GameFramework/GameSession.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Guid.h"
 #include "Net/OnlineEngineInterface.h"
@@ -120,7 +121,13 @@ APlayerController *ARedwoodGameModeBase::Login(
             );
           } else {
             // kick the player
-            PlayerController->ClientWasKicked(FText::FromString(Error));
+            UE_LOG(
+              LogRedwood,
+              Error,
+              TEXT("Player failed to authenticate, kicking them now: %s"),
+              *Error
+            );
+            GameSession->KickPlayer(PlayerController, FText::FromString(Error));
           }
         }
       );
