@@ -203,3 +203,30 @@ APlayerController *ARedwoodGameModeBase::Login(
 
   return PlayerController;
 }
+
+TArray<FString> ARedwoodGameModeBase::GetExpectedCharacterIds() const {
+  TArray<FString> ExpectedCharacterIds;
+
+  TArray<FString> Options = GetWorld()->URL.Op;
+  for (const FString &Option : Options) {
+    if (Option.StartsWith(TEXT("redwoodExpectedCharacterIds="))) {
+      FString AllIds = Option.RightChop(28);
+
+      for (int32 IdStart = 0, IdEnd = 0; IdEnd != INDEX_NONE;
+           IdStart = IdEnd + 1) {
+        IdEnd = AllIds.Find(
+          TEXT(","), ESearchCase::IgnoreCase, ESearchDir::FromStart, IdStart
+        );
+        if (IdEnd == INDEX_NONE) {
+          ExpectedCharacterIds.Add(AllIds.RightChop(IdStart));
+          break;
+        }
+        ExpectedCharacterIds.Add(AllIds.Mid(IdStart, IdEnd - IdStart));
+      }
+
+      break;
+    }
+  }
+
+  return ExpectedCharacterIds;
+}

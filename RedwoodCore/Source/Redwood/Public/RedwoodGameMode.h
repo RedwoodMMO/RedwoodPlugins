@@ -28,6 +28,9 @@ public:
   ) override;
   //~End of AGameModeBase interface
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood|GameMode")
+  TArray<FString> GetExpectedCharacterIds() const;
+
 private:
   TSharedPtr<FSocketIONative> Sidecar;
 };
