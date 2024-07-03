@@ -3,6 +3,7 @@
 #include "RedwoodGameMode.h"
 #include "RedwoodGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
+#include "RedwoodPlayerState.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -93,6 +94,29 @@ APlayerController *ARedwoodGameMode::Login(
             TSharedPtr<FJsonObject> Character =
               MessageStruct->GetObjectField(TEXT("character"));
             FString CharacterId = Character->GetStringField(TEXT("id"));
+
+            TSharedPtr<FJsonObject> CharacterMetadata =
+              Character->GetObjectField(TEXT("metadata"));
+            USIOJsonObject *CharacterJsonMetadata =
+              USIOJsonObject::ConstructJsonObject(this);
+            CharacterJsonMetadata->SetRootObject(CharacterMetadata);
+
+            TSharedPtr<FJsonObject> CharacterEquippedInventory =
+              Character->GetObjectField(TEXT("equippedInventory"));
+            USIOJsonObject *CharacterJsonEquippedInventory =
+              USIOJsonObject::ConstructJsonObject(this);
+            CharacterJsonEquippedInventory->SetRootObject(
+              CharacterEquippedInventory
+            );
+
+            TSharedPtr<FJsonObject> CharacterNonequippedInventory =
+              Character->GetObjectField(TEXT("nonequippedInventory"));
+            USIOJsonObject *CharacterJsonNonequippedInventory =
+              USIOJsonObject::ConstructJsonObject(this);
+            CharacterJsonNonequippedInventory->SetRootObject(
+              CharacterNonequippedInventory
+            );
+
             TSharedPtr<FJsonObject> CharacterData =
               Character->GetObjectField(TEXT("data"));
             USIOJsonObject *CharacterJsonData =
@@ -110,6 +134,37 @@ APlayerController *ARedwoodGameMode::Login(
             FString Name;
             if (CharacterData->TryGetStringField(TEXT("name"), Name)) {
               PlayerController->PlayerState->SetPlayerName(Name);
+            }
+
+            ARedwoodPlayerState *RedwoodPlayerState =
+              Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
+            if (IsValid(RedwoodPlayerState)) {
+              UE_LOG(
+                LogRedwood,
+                Log,
+                TEXT("Player joined as character %s"),
+                *CharacterId
+              );
+
+              RedwoodPlayerState->RedwoodPlayerId =
+                Character->GetStringField(TEXT("playerId"));
+              RedwoodPlayerState->CharacterId = CharacterId;
+
+              RedwoodPlayerState->CharacterMetadata = CharacterJsonMetadata;
+              RedwoodPlayerState->CharacterEquippedInventory =
+                CharacterJsonEquippedInventory;
+              RedwoodPlayerState->CharacterNonequippedInventory =
+                CharacterJsonNonequippedInventory;
+              RedwoodPlayerState->CharacterData = CharacterJsonData;
+            } else {
+              UE_LOG(
+                LogRedwood,
+                Log,
+                TEXT(
+                  "Player joined as character %s, but we're not using RedwoodPlayerState"
+                ),
+                *CharacterId
+              );
             }
 
             UGameplayMessageSubsystem &MessageSubsystem =
