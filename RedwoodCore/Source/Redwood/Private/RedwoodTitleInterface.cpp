@@ -66,7 +66,10 @@ void URedwoodTitleInterface::InitializeDirectorConnection(
     OnDirectorConnected.ExecuteIfBound(Details);
   };
 
-  Director->Connect(*URedwoodSettings::GetDirectorUri());
+  FString Uri = *URedwoodSettings::GetDirectorUri();
+  UE_LOG(LogRedwood, Log, TEXT("Connecting to Director at %s"), *Uri);
+
+  Director->Connect(*Uri);
 }
 
 bool URedwoodTitleInterface::IsDirectorConnected() {
@@ -1306,6 +1309,7 @@ FString URedwoodTitleInterface::GetConnectionConsoleCommand() {
   TMap<FString, FString> Options;
   Options.Add("RedwoodAuth", "1");
   Options.Add("CharacterId", SelectedCharacterId);
+  Options.Add("PlayerId", PlayerId);
   Options.Add("Token", ServerToken);
 
   TArray<FString> JoinedOptions;

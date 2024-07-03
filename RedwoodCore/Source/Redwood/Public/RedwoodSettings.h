@@ -36,8 +36,8 @@ public:
       TSharedPtr<FJsonObject> JsonObject;
       TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
       if (FJsonSerializer::Deserialize(Reader, JsonObject)) {
-        if (JsonObject->HasField("directorUri")) {
-          Uri = JsonObject->GetStringField("directorUri");
+        if (JsonObject->HasField(TEXT("directorUri"))) {
+          Uri = JsonObject->GetStringField(TEXT("directorUri"));
         }
       }
     }
