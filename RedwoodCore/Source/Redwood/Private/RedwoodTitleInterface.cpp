@@ -333,6 +333,7 @@ void URedwoodTitleInterface::Login(
       FString Error = MessageObject->GetStringField(TEXT("error"));
       PlayerId = MessageObject->GetStringField(TEXT("playerId"));
       AuthToken = MessageObject->GetStringField(TEXT("token"));
+      Nickname = MessageObject->GetStringField(TEXT("nickname"));
 
       FRedwoodAuthUpdate Update;
 
@@ -369,6 +370,10 @@ void URedwoodTitleInterface::Login(
       OnUpdate.ExecuteIfBound(Update);
     }
   );
+}
+
+FString URedwoodTitleInterface::GetNickname() {
+  return Nickname;
 }
 
 void URedwoodTitleInterface::CancelWaitingForAccountVerification() {

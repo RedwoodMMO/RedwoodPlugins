@@ -52,6 +52,9 @@ public:
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
+  FString GetNickname();
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void Logout();
 
   UFUNCTION(BlueprintPure, Category = "Redwood")

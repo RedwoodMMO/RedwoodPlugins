@@ -62,6 +62,8 @@ public:
     FRedwoodAuthUpdateDelegate OnUpdate
   );
 
+  FString GetNickname();
+
   void Logout();
 
   bool IsLoggedIn();
@@ -179,6 +181,7 @@ private:
   FString PlayerId;
   FString AuthToken;
   FString SelectedCharacterId;
+  FString Nickname;
 
   FTimerManager TimerManager;
 };

@@ -76,6 +76,10 @@ void URedwoodTitleGameSubsystem::Login(
   );
 }
 
+FString URedwoodTitleGameSubsystem::GetNickname() {
+  return TitleInterface->GetNickname();
+}
+
 void URedwoodTitleGameSubsystem::CancelWaitingForAccountVerification() {
   TitleInterface->CancelWaitingForAccountVerification();
 }
