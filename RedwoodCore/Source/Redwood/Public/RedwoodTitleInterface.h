@@ -57,6 +57,7 @@ public:
   void Login(
     const FString &Username,
     const FString &PasswordOrToken,
+    const FString &Provider,
     bool bRememberMe,
     FRedwoodAuthUpdateDelegate OnUpdate
   );

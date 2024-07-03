@@ -67,10 +67,13 @@ void URedwoodTitleGameSubsystem::AttemptAutoLogin(
 void URedwoodTitleGameSubsystem::Login(
   const FString &Username,
   const FString &PasswordOrToken,
+  const FString &Provider,
   bool bRememberMe,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  TitleInterface->Login(Username, PasswordOrToken, bRememberMe, OnUpdate);
+  TitleInterface->Login(
+    Username, PasswordOrToken, Provider, bRememberMe, OnUpdate
+  );
 }
 
 void URedwoodTitleGameSubsystem::CancelWaitingForAccountVerification() {

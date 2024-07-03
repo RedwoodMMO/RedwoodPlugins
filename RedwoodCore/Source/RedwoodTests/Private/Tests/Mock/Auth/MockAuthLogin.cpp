@@ -27,6 +27,7 @@ void FMockAuthLoginRun::Initialize() {
   Redwood->Login(
     "user",
     "password",
+    "local",
     false,
     FRedwoodAuthUpdateDelegate::CreateLambda([this](
                                                const FRedwoodAuthUpdate &Result

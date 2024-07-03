@@ -46,6 +46,7 @@ public:
   void Login(
     const FString &Username,
     const FString &PasswordOrToken,
+    const FString &Provider,
     bool bRememberMe,
     FRedwoodAuthUpdateDelegate OnUpdate
   );
@@ -135,6 +136,10 @@ public:
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionConsoleCommand();
+
+  URedwoodTitleInterface *GetTitleInterface() {
+    return TitleInterface;
+  }
 
 private:
   UPROPERTY()

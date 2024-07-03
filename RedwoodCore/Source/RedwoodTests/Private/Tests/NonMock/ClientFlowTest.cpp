@@ -51,6 +51,7 @@ void FLogin::Initialize() {
   Redwood->Login(
     "user1",
     "password",
+    "local",
     false,
     FRedwoodAuthUpdateDelegate::CreateLambda(
       [this](const FRedwoodAuthUpdate &Result) {

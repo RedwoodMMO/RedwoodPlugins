@@ -23,6 +23,7 @@ void URedwoodLoginAsync::Activate() {
   Target->Login(
     Username,
     Password,
+    "local",
     bRememberMe,
     FRedwoodAuthUpdateDelegate::CreateLambda([this](FRedwoodAuthUpdate Update) {
       OnUpdate.Broadcast(Update);

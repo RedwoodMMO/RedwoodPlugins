@@ -293,7 +293,7 @@ void URedwoodTitleInterface::AttemptAutoLogin(
   );
 
   if (SaveGame && !SaveGame->Username.IsEmpty() && !SaveGame->AuthToken.IsEmpty()) {
-    Login(SaveGame->Username, SaveGame->AuthToken, true, OnUpdate);
+    Login(SaveGame->Username, SaveGame->AuthToken, "local", true, OnUpdate);
   } else {
     FRedwoodAuthUpdate Update;
     Update.Type = ERedwoodAuthUpdateType::Error;
@@ -305,6 +305,7 @@ void URedwoodTitleInterface::AttemptAutoLogin(
 void URedwoodTitleInterface::Login(
   const FString &Username,
   const FString &PasswordOrToken,
+  const FString &Provider,
   bool bRememberMe,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
@@ -322,6 +323,7 @@ void URedwoodTitleInterface::Login(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("username"), Username);
   Payload->SetStringField(TEXT("secret"), PasswordOrToken);
+  Payload->SetStringField(TEXT("provider"), Provider);
 
   Director->Emit(
     TEXT("player:login:username"),
