@@ -31,4 +31,16 @@ public:
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
   USIOJsonObject *CharacterData;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
+  bool bClientReady = false;
+
+  UFUNCTION(
+    BlueprintCallable,
+    Server,
+    Reliable,
+    WithValidation,
+    Category = "Redwood|PlayerState"
+  )
+  void SetClientReady();
 };
