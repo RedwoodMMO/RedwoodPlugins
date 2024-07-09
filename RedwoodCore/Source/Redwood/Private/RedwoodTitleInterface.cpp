@@ -503,6 +503,7 @@ void URedwoodTitleInterface::InitiateRealmHandshake(
           const FString &InSocketId, const FString &InSessionId
         ) { FinalizeRealmHandshake(Token, OnRealmConnected); };
 
+      UE_LOG(LogRedwood, Log, TEXT("Connecting to Realm at %s"), *InRealm.Uri);
       Realm->Connect(*InRealm.Uri);
     }
   );
