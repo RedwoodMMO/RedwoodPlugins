@@ -9,29 +9,26 @@
 #include "RedwoodAsyncCommon.h"
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodInitiateConnectionForFirstRealmAsync.generated.h"
+#include "RedwoodInitializeDirectorConnectionAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodInitiateConnectionForFirstRealmAsync
+class REDWOOD_API URedwoodInitializeDirectorConnectionAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
   virtual void Activate() override;
 
-  // This is a helper function for scenarios that only have a single realm
-  // (i.e. games that only have one realm or during dev/testing environments).
-  // It calls ListRealms and then InitializeRealmConnection for the first realm returned.
   UFUNCTION(
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Initiate Connection For First Realm",
+       DisplayName = "Initialize Director Connection",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodInitiateConnectionForFirstRealmAsync *
-  InitializeConnectionForFirstRealm(
+  static URedwoodInitializeDirectorConnectionAsync *
+  InitializeDirectorConnection(
     URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
   );
 

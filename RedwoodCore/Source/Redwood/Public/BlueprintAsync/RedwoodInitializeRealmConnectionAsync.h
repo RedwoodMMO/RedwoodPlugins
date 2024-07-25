@@ -9,10 +9,10 @@
 #include "RedwoodAsyncCommon.h"
 #include "RedwoodTitleGameSubsystem.h"
 
-#include "RedwoodInitiateRealmConnectionAsync.generated.h"
+#include "RedwoodInitializeRealmConnectionAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodInitiateRealmConnectionAsync
+class REDWOOD_API URedwoodInitializeRealmConnectionAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
@@ -23,11 +23,11 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Initiate Realm Connection",
+       DisplayName = "Initialize Realm Connection",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodInitiateRealmConnectionAsync *InitializeRealmConnection(
+  static URedwoodInitializeRealmConnectionAsync *InitializeRealmConnection(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
     FRedwoodRealm Realm

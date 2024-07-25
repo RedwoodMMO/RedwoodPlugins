@@ -1,15 +1,15 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "BlueprintAsync/RedwoodInitiateRealmConnectionAsync.h"
+#include "BlueprintAsync/RedwoodInitializeRealmConnectionAsync.h"
 
-URedwoodInitiateRealmConnectionAsync *
-URedwoodInitiateRealmConnectionAsync::InitializeRealmConnection(
+URedwoodInitializeRealmConnectionAsync *
+URedwoodInitializeRealmConnectionAsync::InitializeRealmConnection(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
   FRedwoodRealm Realm
 ) {
-  URedwoodInitiateRealmConnectionAsync *Action =
-    NewObject<URedwoodInitiateRealmConnectionAsync>();
+  URedwoodInitializeRealmConnectionAsync *Action =
+    NewObject<URedwoodInitializeRealmConnectionAsync>();
   Action->Target = Target;
   Action->Realm = Realm;
   Action->RegisterWithGameInstance(WorldContextObject);
@@ -17,7 +17,7 @@ URedwoodInitiateRealmConnectionAsync::InitializeRealmConnection(
   return Action;
 }
 
-void URedwoodInitiateRealmConnectionAsync::Activate() {
+void URedwoodInitializeRealmConnectionAsync::Activate() {
   Target->InitializeRealmConnection(
     Realm,
     FRedwoodSocketConnectedDelegate::CreateLambda(

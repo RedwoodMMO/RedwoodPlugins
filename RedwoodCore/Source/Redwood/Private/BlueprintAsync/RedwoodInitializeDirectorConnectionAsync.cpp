@@ -1,20 +1,20 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "BlueprintAsync/RedwoodInitiateDirectorConnectionAsync.h"
+#include "BlueprintAsync/RedwoodInitializeDirectorConnectionAsync.h"
 
-URedwoodInitiateDirectorConnectionAsync *
-URedwoodInitiateDirectorConnectionAsync::ListRealms(
+URedwoodInitializeDirectorConnectionAsync *
+URedwoodInitializeDirectorConnectionAsync::InitializeDirectorConnection(
   URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
 ) {
-  URedwoodInitiateDirectorConnectionAsync *Action =
-    NewObject<URedwoodInitiateDirectorConnectionAsync>();
+  URedwoodInitializeDirectorConnectionAsync *Action =
+    NewObject<URedwoodInitializeDirectorConnectionAsync>();
   Action->Target = Target;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
 }
 
-void URedwoodInitiateDirectorConnectionAsync::Activate() {
+void URedwoodInitializeDirectorConnectionAsync::Activate() {
   Target->InitializeDirectorConnection(
     FRedwoodSocketConnectedDelegate::CreateLambda(
       [this](FRedwoodSocketConnected Output) {
