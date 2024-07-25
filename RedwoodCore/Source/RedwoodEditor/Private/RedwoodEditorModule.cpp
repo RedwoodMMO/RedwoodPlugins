@@ -21,17 +21,22 @@ void FRedwoodEditorModule::StartupModule() {
 
   // Make an analytics request to track Redwood users
 #if RW_SEND_ANALYTICS
-  TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest =
-    FHttpModule::Get().CreateRequest();
+  FString SkipAnalytics =
+    FPlatformMisc::GetEnvironmentVariable(TEXT("RW_SKIP_ANALYTICS"));
 
-  // Download the installer for the suggested IDE
-  HttpRequest->SetVerb(TEXT("GET"));
+  if (SkipAnalytics != "true") {
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest =
+      FHttpModule::Get().CreateRequest();
 
-  FString URLBase = TEXT("https://license.redwoodmmo.com/engine?page=");
-  FString URLVersion = RW_MACRO_TO_STRING(RW_VERSION);
-  FString URL = URLBase + URLVersion;
-  HttpRequest->SetURL(URL);
-  HttpRequest->ProcessRequest();
+    // Download the installer for the suggested IDE
+    HttpRequest->SetVerb(TEXT("GET"));
+
+    FString URLBase = TEXT("https://license.redwoodmmo.com/engine?page=");
+    FString URLVersion = RW_MACRO_TO_STRING(RW_VERSION);
+    FString URL = URLBase + URLVersion;
+    HttpRequest->SetURL(URL);
+    HttpRequest->ProcessRequest();
+  }
 #endif
 }
 
