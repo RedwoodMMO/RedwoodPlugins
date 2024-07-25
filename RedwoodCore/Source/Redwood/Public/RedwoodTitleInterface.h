@@ -46,6 +46,13 @@ public:
 
   FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;
 
+  FRedwoodDynamicDelegate OnDirectorConnectionLost;
+  FRedwoodDynamicDelegate OnDirectorConnectionReestablished;
+
+  // There is no realm established delegate; you'll have to reinitialize
+  // the realm connection from the director to restart the handshake.
+  FRedwoodDynamicDelegate OnRealmConnectionLost;
+
   void Register(
     const FString &Username,
     const FString &Password,
@@ -145,6 +152,8 @@ public:
   FString GetConnectionConsoleCommand();
 
 private:
+  bool bSentDirectorConnected;
+  bool bSentRealmConnected;
   TSharedPtr<FSocketIONative> Director;
   TSharedPtr<FSocketIONative> Realm;
 

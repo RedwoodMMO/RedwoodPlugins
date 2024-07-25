@@ -24,6 +24,15 @@ void URedwoodTitleGameSubsystem::Initialize(FSubsystemCollectionBase &Collection
   TitleInterface->OnRequestToJoinServer.AddDynamic(
     this, &URedwoodTitleGameSubsystem::HandleRequestToJoinServer
   );
+  TitleInterface->OnDirectorConnectionLost.AddDynamic(
+    this, &URedwoodTitleGameSubsystem::HandleOnDirectorConnectionLost
+  );
+  TitleInterface->OnDirectorConnectionReestablished.AddDynamic(
+    this, &URedwoodTitleGameSubsystem::HandleOnDirectorConnectionReestablished
+  );
+  TitleInterface->OnRealmConnectionLost.AddDynamic(
+    this, &URedwoodTitleGameSubsystem::HandleOnRealmConnectionLost
+  );
 }
 
 void URedwoodTitleGameSubsystem::Deinitialize() {
@@ -235,4 +244,16 @@ void URedwoodTitleGameSubsystem::HandleRequestToJoinServer(
   } else {
     OnRequestToJoinServer.Broadcast(ConsoleCommand);
   }
+}
+
+void URedwoodTitleGameSubsystem::HandleOnDirectorConnectionLost() {
+  OnDirectorConnectionLost.Broadcast();
+}
+
+void URedwoodTitleGameSubsystem::HandleOnDirectorConnectionReestablished() {
+  OnDirectorConnectionReestablished.Broadcast();
+}
+
+void URedwoodTitleGameSubsystem::HandleOnRealmConnectionLost() {
+  OnRealmConnectionLost.Broadcast();
 }

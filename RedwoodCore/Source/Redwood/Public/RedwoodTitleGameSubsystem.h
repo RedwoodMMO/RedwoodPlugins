@@ -35,6 +35,17 @@ public:
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;
 
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnDirectorConnectionLost;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnDirectorConnectionReestablished;
+
+  // There is no realm established delegate; you'll have to reinitialize
+  // the realm connection from the director to restart the handshake.
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnRealmConnectionLost;
+
   void Register(
     const FString &Username,
     const FString &Password,
@@ -150,6 +161,15 @@ private:
 
   UFUNCTION()
   void HandlePingsReceived();
+
+  UFUNCTION()
+  void HandleOnDirectorConnectionLost();
+
+  UFUNCTION()
+  void HandleOnDirectorConnectionReestablished();
+
+  UFUNCTION()
+  void HandleOnRealmConnectionLost();
 
   UFUNCTION()
   void HandleRequestToJoinServer(FString ConsoleCommand);

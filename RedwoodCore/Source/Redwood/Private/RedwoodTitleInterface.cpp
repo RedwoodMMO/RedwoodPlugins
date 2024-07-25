@@ -39,6 +39,7 @@ void URedwoodTitleInterface::InitializeDirectorConnection(
   FRedwoodSocketConnectedDelegate OnDirectorConnected
 ) {
   Director = ISocketIOClientModule::Get().NewValidNativePointer();
+  bSentDirectorConnected = false;
 
   Director->OnEvent(
     TEXT("player:account-verified"),
@@ -57,16 +58,39 @@ void URedwoodTitleInterface::InitializeDirectorConnection(
     ESIOThreadOverrideOption::USE_GAME_THREAD
   );
 
-  Director->OnConnectedCallback = [OnDirectorConnected](
-                                    const FString &InSocketId,
-                                    const FString &InSessionId
-                                  ) {
-    FRedwoodSocketConnected Details;
-    Details.Error = TEXT("");
-    OnDirectorConnected.ExecuteIfBound(Details);
-  };
-
   FString Uri = *URedwoodSettings::GetDirectorUri();
+
+  Director->OnDisconnectedCallback =
+    [Uri, this](const ESIOConnectionCloseReason Reason) {
+      if (Reason == ESIOConnectionCloseReason::CLOSE_REASON_DROP) {
+        UE_LOG(
+          LogRedwood, Error, TEXT("Lost connection to Director at %s"), *Uri
+        );
+        OnDirectorConnectionLost.Broadcast();
+      }
+    };
+
+  Director->OnConnectedCallback =
+    [Uri,
+     OnDirectorConnected,
+     this](const FString &InSocketId, const FString &InSessionId) {
+      if (!bSentDirectorConnected) {
+        bSentDirectorConnected = true;
+        FRedwoodSocketConnected Details;
+        Details.Error = TEXT("");
+        OnDirectorConnected.ExecuteIfBound(Details);
+        UE_LOG(LogRedwood, Log, TEXT("Connected to Director at %s"), *Uri);
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Log,
+          TEXT("Reestablished connection to Director at %s"),
+          *Uri
+        );
+        OnDirectorConnectionReestablished.Broadcast();
+      }
+    };
+
   UE_LOG(LogRedwood, Log, TEXT("Connecting to Director at %s"), *Uri);
 
   Director->Connect(*Uri);
@@ -497,11 +521,37 @@ void URedwoodTitleInterface::InitiateRealmHandshake(
       }
 
       Realm = ISocketIOClientModule::Get().NewValidNativePointer();
+      Realm->MaxReconnectionAttempts = 0; // don't reattempt a realm connection
+      bSentRealmConnected = false;
 
-      Realm->OnConnectedCallback =
-        [this, Token, OnRealmConnected](
-          const FString &InSocketId, const FString &InSessionId
-        ) { FinalizeRealmHandshake(Token, OnRealmConnected); };
+      Realm->OnDisconnectedCallback = [InRealm, this](
+                                        const ESIOConnectionCloseReason Reason
+                                      ) {
+        if (Reason == ESIOConnectionCloseReason::CLOSE_REASON_DROP) {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "Lost connection to Realm at %s; you will need to reinitialize the connection to restart the handshake."
+            ),
+            *InRealm.Uri
+          );
+          OnRealmConnectionLost.Broadcast();
+        }
+      };
+
+      Realm->OnConnectedCallback = [this, Token, OnRealmConnected, InRealm](
+                                     const FString &InSocketId,
+                                     const FString &InSessionId
+                                   ) {
+        if (!bSentRealmConnected) {
+          UE_LOG(
+            LogRedwood, Log, TEXT("Connected to Realm at %s"), *InRealm.Uri
+          );
+          bSentRealmConnected = true;
+          FinalizeRealmHandshake(Token, OnRealmConnected);
+        }
+      };
 
       UE_LOG(LogRedwood, Log, TEXT("Connecting to Realm at %s"), *InRealm.Uri);
       Realm->Connect(*InRealm.Uri);
