@@ -1,0 +1,37 @@
+{
+  "FileVersion": 3,
+  "Version": 0,
+  "VersionName": "1.0",
+  "FriendlyName": "Redwood MMO Framework - Steam Auth Support",
+  "Description": "Steam authentication for Redwood",
+  "Category": "Code Plugins",
+  "CreatedBy": "Incanta Games",
+  "CreatedByURL": "https://redwoodmmo.com",
+  "DocsURL": "https://docs.redwoodmmo.com",
+  "SupportURL": "https://forums.redwoodmmo.com",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "RedwoodSteam",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "OnlineSubsystem",
+      "Enabled": true
+    },
+    {
+      "Name": "OnlineSubsystemSteam",
+      "Enabled": true
+    },
+    {
+      "Name": "RedwoodCore",
+      "Enabled": true
+    }
+  ]
+}
