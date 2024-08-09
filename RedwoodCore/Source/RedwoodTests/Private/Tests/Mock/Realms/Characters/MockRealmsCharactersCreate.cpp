@@ -45,7 +45,6 @@ void FMockRealmsCharactersCreateInitialize::Initialize() {
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsCharactersCreateRun);
 void FMockRealmsCharactersCreateRun::Initialize() {
   USIOJsonObject *Metadata = NewObject<USIOJsonObject>();
-  Metadata->SetStringField(TEXT("name"), TEXT("mock-character-new-name"));
   Metadata->SetNumberField(TEXT("level"), 2.0f);
 
   USIOJsonObject *EquippedInventory = NewObject<USIOJsonObject>();
@@ -67,6 +66,7 @@ void FMockRealmsCharactersCreateRun::Initialize() {
   Data->SetStringField(TEXT("lastLocation"), TEXT("mock-new-location"));
 
   Redwood->CreateCharacter(
+    TEXT("mock-character-new-name"),
     Metadata,
     EquippedInventory,
     NonequippedInventory,
@@ -111,9 +111,9 @@ void FMockRealmsCharactersCreateRun::Initialize() {
         );
 
         CurrentTest->TestEqual(
-          TEXT("returns character metadata name"),
-          Output.Character.Metadata->GetStringField(TEXT("name")),
-          Metadata->GetStringField(TEXT("name"))
+          TEXT("returns character name"),
+          Output.Character.Name,
+          TEXT("mock-character-new-name")
         );
 
         CurrentTest->TestEqual(

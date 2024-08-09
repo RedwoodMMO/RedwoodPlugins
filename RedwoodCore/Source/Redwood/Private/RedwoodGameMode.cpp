@@ -94,6 +94,8 @@ APlayerController *ARedwoodGameMode::Login(
             TSharedPtr<FJsonObject> Character =
               MessageStruct->GetObjectField(TEXT("character"));
             FString CharacterId = Character->GetStringField(TEXT("id"));
+            FString PlayerNickname =
+              Character->GetStringField(TEXT("playerNickname"));
 
             TSharedPtr<FJsonObject> CharacterMetadata =
               Character->GetObjectField(TEXT("metadata"));
@@ -132,8 +134,10 @@ APlayerController *ARedwoodGameMode::Login(
             PlayerController->PlayerState->SetUniqueId(UniqueId);
 
             FString Name;
-            if (CharacterData->TryGetStringField(TEXT("name"), Name)) {
+            if (CharacterMetadata->TryGetStringField(TEXT("name"), Name)) {
               PlayerController->PlayerState->SetPlayerName(Name);
+            } else {
+              PlayerController->PlayerState->SetPlayerName(PlayerNickname);
             }
 
             ARedwoodPlayerState *RedwoodPlayerState =

@@ -26,6 +26,9 @@ struct FRedwoodCharacter {
   USIOJsonObject *ChannelData = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Name;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Metadata = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")

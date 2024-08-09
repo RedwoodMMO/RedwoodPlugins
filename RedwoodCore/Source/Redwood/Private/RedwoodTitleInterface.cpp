@@ -656,6 +656,8 @@ FRedwoodCharacter URedwoodTitleInterface::ParseCharacter(
 
   Character.PlayerId = CharacterObj->GetStringField(TEXT("playerId"));
 
+  Character.Name = CharacterObj->GetStringField(TEXT("name"));
+
   const TSharedPtr<FJsonObject> *CharacterChannelData = nullptr;
   if (CharacterObj->TryGetObjectField(TEXT("metadata"), CharacterChannelData)) {
     Character.ChannelData = NewObject<USIOJsonObject>();
@@ -731,6 +733,7 @@ void URedwoodTitleInterface::ListCharacters(
 }
 
 void URedwoodTitleInterface::CreateCharacter(
+  FString Name,
   USIOJsonObject *Metadata,
   USIOJsonObject *EquippedInventory,
   USIOJsonObject *NonequippedInventory,
@@ -746,6 +749,8 @@ void URedwoodTitleInterface::CreateCharacter(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  Payload->SetStringField(TEXT("name"), Name);
 
   if (IsValid(Metadata)) {
     Payload->SetObjectField(TEXT("metadata"), Metadata->GetRootObject());

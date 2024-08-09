@@ -107,11 +107,9 @@ void FListNoCharacters::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FCreateCharacter);
 void FCreateCharacter::Initialize() {
-  USIOJsonObject *Metadata = NewObject<USIOJsonObject>();
-  Metadata->SetStringField("name", "TestCharacter");
-
   Redwood->CreateCharacter(
-    Metadata,
+    TEXT("TestCharacter"),
+    nullptr,
     nullptr,
     nullptr,
     nullptr,
@@ -126,9 +124,7 @@ void FCreateCharacter::Initialize() {
         );
         CurrentTest->TestEqual(
           TEXT("CreateCharacter has correct name"),
-          IsValid(Output.Character.Metadata)
-            ? Output.Character.Metadata->GetStringField("name")
-            : TEXT(""),
+          Output.Character.Name,
           TEXT("TestCharacter")
         );
 

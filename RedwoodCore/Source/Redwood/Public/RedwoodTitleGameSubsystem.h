@@ -62,7 +62,7 @@ public:
     FRedwoodAuthUpdateDelegate OnUpdate
   );
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  UFUNCTION(BlueprintPure, Category = "Redwood")
   FString GetNickname();
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
@@ -95,6 +95,7 @@ public:
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
   void CreateCharacter(
+    FString Name,
     USIOJsonObject *Metadata,
     USIOJsonObject *EquippedInventory,
     USIOJsonObject *NonequippedInventory,

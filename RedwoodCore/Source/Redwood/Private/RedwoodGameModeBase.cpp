@@ -131,10 +131,8 @@ APlayerController *ARedwoodGameModeBase::Login(
 
             PlayerController->PlayerState->SetUniqueId(UniqueId);
 
-            FString Name;
-            if (CharacterData->TryGetStringField(TEXT("name"), Name)) {
-              PlayerController->PlayerState->SetPlayerName(Name);
-            }
+            FString CharacterName = Character->GetStringField(TEXT("name"));
+            PlayerController->PlayerState->SetPlayerName(CharacterName);
 
             ARedwoodPlayerState *RedwoodPlayerState =
               Cast<ARedwoodPlayerState>(PlayerController->PlayerState);

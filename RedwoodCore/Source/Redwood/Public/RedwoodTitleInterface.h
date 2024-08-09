@@ -97,6 +97,7 @@ public:
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
   void CreateCharacter(
+    FString Name,
     USIOJsonObject *Metadata,
     USIOJsonObject *EquippedInventory,
     USIOJsonObject *NonequippedInventory,

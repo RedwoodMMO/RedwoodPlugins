@@ -126,6 +126,7 @@ void URedwoodTitleGameSubsystem::ListCharacters(
 }
 
 void URedwoodTitleGameSubsystem::CreateCharacter(
+  FString Name,
   USIOJsonObject *Metadata,
   USIOJsonObject *EquippedInventory,
   USIOJsonObject *NonequippedInventory,
@@ -133,7 +134,7 @@ void URedwoodTitleGameSubsystem::CreateCharacter(
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   TitleInterface->CreateCharacter(
-    Metadata, EquippedInventory, NonequippedInventory, Data, OnOutput
+    Name, Metadata, EquippedInventory, NonequippedInventory, Data, OnOutput
   );
 }
 

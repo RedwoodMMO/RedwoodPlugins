@@ -30,6 +30,7 @@ public:
   static URedwoodCreateCharacterAsync *CreateCharacter(
     URedwoodTitleGameSubsystem *Target,
     UObject *WorldContextObject,
+    FString Name,
     USIOJsonObject *Metadata,
     USIOJsonObject *EquippedInventory,
     USIOJsonObject *NonequippedInventory,
@@ -40,6 +41,8 @@ public:
   FRedwoodGetCharacterOutputDynamicDelegate OnOutput;
 
   URedwoodTitleGameSubsystem *Target;
+
+  FString Name;
 
   UPROPERTY()
   USIOJsonObject *Metadata;

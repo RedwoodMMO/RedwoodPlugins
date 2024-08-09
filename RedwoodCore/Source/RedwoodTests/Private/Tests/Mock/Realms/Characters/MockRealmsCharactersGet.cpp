@@ -85,7 +85,7 @@ void FMockRealmsCharactersGetRun::Initialize() {
 
         CurrentTest->TestEqual(
           TEXT("returns character metadata name"),
-          Output.Character.Metadata->GetStringField(TEXT("name")),
+          Output.Character.Name,
           TEXT("mock-character-name")
         );
 
