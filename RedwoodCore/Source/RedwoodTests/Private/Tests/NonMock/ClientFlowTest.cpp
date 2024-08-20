@@ -107,11 +107,9 @@ void FListNoCharacters::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FCreateCharacter);
 void FCreateCharacter::Initialize() {
-  USIOJsonObject *Metadata = NewObject<USIOJsonObject>();
-
   Redwood->CreateCharacter(
     TEXT("TestCharacter"),
-    Metadata,
+    nullptr,
     nullptr,
     nullptr,
     nullptr,
@@ -155,8 +153,6 @@ void FListCharacters::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FSetCharacter);
 void FSetCharacter::Initialize() {
-  USIOJsonObject *Metadata = NewObject<USIOJsonObject>();
-
   Redwood->SetCharacterData(
     Context->Data.GetStringField(TEXT("CharacterId")),
     TEXT("TestCharacter 2"),

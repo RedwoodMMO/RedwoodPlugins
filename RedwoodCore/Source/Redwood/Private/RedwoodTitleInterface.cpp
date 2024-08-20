@@ -754,13 +754,6 @@ void URedwoodTitleInterface::CreateCharacter(
 
   if (IsValid(Metadata)) {
     Payload->SetObjectField(TEXT("metadata"), Metadata->GetRootObject());
-  } else {
-    FRedwoodGetCharacterOutput Output;
-    Output.Error = TEXT(
-      "Metadata must be a valid non-null object; it can be an empty object but it must exist. Other USIOJsonObject parameters can be null."
-    );
-    OnOutput.ExecuteIfBound(Output);
-    return;
   }
 
   if (IsValid(EquippedInventory)) {
