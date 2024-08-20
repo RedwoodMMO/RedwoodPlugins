@@ -140,7 +140,7 @@ void FMockRealmsServersListRun::Initialize() {
 
         CurrentTest->TestEqual(
           TEXT("returns correct server max players"),
-          Output.Servers[0].MaxPlayers,
+          Output.Servers[0].MaxPlayersPerInstance,
           100
         );
 
@@ -181,8 +181,8 @@ void FMockRealmsServersListRun::Initialize() {
         );
 
         CurrentTest->TestEqual(
-          TEXT("returns correct server numPlayersToAddLayer"),
-          Output.Servers[0].NumPlayersToAddLayer,
+          TEXT("returns correct server numPlayersToAddInstance"),
+          Output.Servers[0].NumPlayersToAddInstance,
           10
         );
 

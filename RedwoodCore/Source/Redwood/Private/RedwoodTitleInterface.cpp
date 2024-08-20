@@ -978,7 +978,8 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
 
   ServerProxy->TryGetStringField(TEXT("shortCode"), Server.ShortCode);
 
-  Server.MaxPlayers = ServerProxy->GetIntegerField(TEXT("maxPlayers"));
+  Server.MaxPlayersPerInstance =
+    ServerProxy->GetIntegerField(TEXT("maxPlayersPerInstance"));
 
   const TSharedPtr<FJsonObject> *Data;
   if (ServerProxy->TryGetObjectField(TEXT("data"), Data)) {
@@ -993,13 +994,24 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
 
   Server.Region = ServerProxy->GetStringField(TEXT("region"));
 
+  Server.bStartOnBoot = ServerProxy->GetBoolField(TEXT("startOnBoot"));
+
   FString ZonesCSV;
   if (ServerProxy->TryGetStringField(TEXT("zones"), ZonesCSV)) {
     ZonesCSV.ParseIntoArray(Server.Zones, TEXT(","), true);
   }
 
   ServerProxy->TryGetNumberField(
-    TEXT("numPlayersToAddLayer"), Server.NumPlayersToAddLayer
+    TEXT("numPlayersToAddInstance"), Server.NumPlayersToAddInstance
+  );
+
+  ServerProxy->TryGetNumberField(
+    TEXT("numMinutesToDestroyEmptyInstance"),
+    Server.NumMinutesToDestroyEmptyInstance
+  );
+
+  ServerProxy->TryGetNumberField(
+    TEXT("maxInstancesPerZone"), Server.MaxInstancesPerZone
   );
 
   ServerProxy->TryGetStringField(
@@ -1059,6 +1071,21 @@ FRedwoodGameServerInstance URedwoodTitleInterface::ParseServerInstance(
   ServerInstance->TryGetStringField(TEXT("connection"), Instance.Connection);
 
   ServerInstance->TryGetStringField(TEXT("channel"), Instance.Channel);
+
+  if (Instance.Channel.Contains(":")) {
+    TArray<FString> ChannelParts;
+    Instance.Channel.ParseIntoArray(ChannelParts, TEXT(":"), true);
+
+    if (ChannelParts.Num() > 0) {
+      Instance.ZoneName = ChannelParts[0];
+    }
+
+    if (ChannelParts.Num() > 1) {
+      int32 ZoneInstanceIndex;
+      TTypeFromString<int32>::FromString(ZoneInstanceIndex, *ChannelParts[1]);
+      Instance.ZoneInstanceIndex = ZoneInstanceIndex;
+    }
+  }
 
   Instance.ContainerId = ServerInstance->GetStringField(TEXT("containerId"));
 
@@ -1149,7 +1176,13 @@ void URedwoodTitleInterface::CreateServer(
   Payload->SetStringField(TEXT("region"), Parameters.Region);
 
   Payload->SetStringField(TEXT("modeId"), Parameters.ModeId);
-  Payload->SetStringField(TEXT("mapId"), Parameters.MapId);
+
+  if (!Parameters.MapId.IsEmpty()) {
+    Payload->SetStringField(TEXT("mapId"), Parameters.MapId);
+  } else {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+    Payload->SetField(TEXT("mapId"), NullValue);
+  }
 
   Payload->SetBoolField(TEXT("public"), Parameters.bPublic);
 
@@ -1172,8 +1205,6 @@ void URedwoodTitleInterface::CreateServer(
     TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
     Payload->SetField(TEXT("shortCode"), NullValue);
   }
-
-  Payload->SetNumberField(TEXT("maxPlayers"), Parameters.MaxPlayers);
 
   if (Parameters.Data) {
     Payload->SetObjectField(TEXT("data"), Parameters.Data->GetRootObject());

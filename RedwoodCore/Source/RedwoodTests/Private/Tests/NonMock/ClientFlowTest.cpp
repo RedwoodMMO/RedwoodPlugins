@@ -238,7 +238,6 @@ void FCreatePublicServer::Initialize() {
   Parameters.bContinuousPlay = false;
   Parameters.Password = TEXT("");
   Parameters.ShortCode = TEXT("");
-  Parameters.MaxPlayers = 1;
 
   Redwood->CreateServer(
     false,

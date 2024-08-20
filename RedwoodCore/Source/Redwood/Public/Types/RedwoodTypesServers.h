@@ -43,7 +43,7 @@ struct FRedwoodGameServerProxy {
   FString ShortCode;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 MaxPlayers = 0;
+  int32 MaxPlayersPerInstance = 0;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;
@@ -57,10 +57,19 @@ struct FRedwoodGameServerProxy {
   FString Region;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bStartOnBoot = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<FString> Zones;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 NumPlayersToAddLayer;
+  int32 NumPlayersToAddInstance = -1;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  int32 NumMinutesToDestroyEmptyInstance = -1;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  int32 MaxInstancesPerZone = -1;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ChannelProvider;
@@ -113,6 +122,13 @@ struct FRedwoodGameServerInstance {
   FString Channel;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ZoneName;
+
+  // 1-based index
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  int32 ZoneInstanceIndex = 0;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ContainerId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -149,9 +165,6 @@ struct FRedwoodCreateServerInput {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ShortCode;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 MaxPlayers = 0;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;

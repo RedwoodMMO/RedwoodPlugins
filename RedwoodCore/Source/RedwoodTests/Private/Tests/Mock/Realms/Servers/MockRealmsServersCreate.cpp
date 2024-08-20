@@ -50,7 +50,6 @@ void FMockRealmsServersCreateRun::Initialize() {
   Parameters.Region = "mock-server-region";
   Parameters.ModeId = "mock-server-mode-id";
   Parameters.MapId = "mock-server-map-id";
-  Parameters.MaxPlayers = 100;
 
   Redwood->CreateServer(
     false,
