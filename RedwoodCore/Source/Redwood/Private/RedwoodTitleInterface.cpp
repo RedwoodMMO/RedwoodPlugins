@@ -835,6 +835,7 @@ void URedwoodTitleInterface::GetCharacterData(
 
 void URedwoodTitleInterface::SetCharacterData(
   FString CharacterId,
+  FString Name,
   USIOJsonObject *Metadata,
   USIOJsonObject *EquippedInventory,
   USIOJsonObject *NonequippedInventory,
@@ -851,6 +852,10 @@ void URedwoodTitleInterface::SetCharacterData(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("characterId"), CharacterId);
+
+  if (!Name.IsEmpty()) {
+    Payload->SetStringField(TEXT("name"), Name);
+  }
 
   if (IsValid(Metadata)) {
     Payload->SetObjectField(TEXT("metadata"), Metadata->GetRootObject());

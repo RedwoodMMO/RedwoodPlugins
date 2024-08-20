@@ -111,6 +111,7 @@ public:
 
   void SetCharacterData(
     FString CharacterId,
+    FString Name,
     USIOJsonObject *Metadata,
     USIOJsonObject *EquippedInventory,
     USIOJsonObject *NonequippedInventory,

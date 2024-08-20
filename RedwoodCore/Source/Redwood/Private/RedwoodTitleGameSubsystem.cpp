@@ -146,6 +146,7 @@ void URedwoodTitleGameSubsystem::GetCharacterData(
 
 void URedwoodTitleGameSubsystem::SetCharacterData(
   FString CharacterId,
+  FString Name,
   USIOJsonObject *Metadata,
   USIOJsonObject *EquippedInventory,
   USIOJsonObject *NonequippedInventory,
@@ -154,6 +155,7 @@ void URedwoodTitleGameSubsystem::SetCharacterData(
 ) {
   TitleInterface->SetCharacterData(
     CharacterId,
+    Name,
     Metadata,
     EquippedInventory,
     NonequippedInventory,

@@ -113,7 +113,7 @@ void FMockRealmsCharactersCreateRun::Initialize() {
         CurrentTest->TestEqual(
           TEXT("returns character name"),
           Output.Character.Name,
-          TEXT("mock-character-new-name")
+          TEXT("mock-character-name")
         );
 
         CurrentTest->TestEqual(

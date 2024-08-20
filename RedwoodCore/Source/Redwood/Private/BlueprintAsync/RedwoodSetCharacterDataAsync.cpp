@@ -6,6 +6,7 @@ URedwoodSetCharacterDataAsync *URedwoodSetCharacterDataAsync::SetCharacterData(
   URedwoodTitleGameSubsystem *Target,
   UObject *WorldContextObject,
   FString CharacterId,
+  FString Name,
   USIOJsonObject *Metadata,
   USIOJsonObject *EquippedInventory,
   USIOJsonObject *NonequippedInventory,
@@ -15,6 +16,7 @@ URedwoodSetCharacterDataAsync *URedwoodSetCharacterDataAsync::SetCharacterData(
     NewObject<URedwoodSetCharacterDataAsync>();
   Action->Target = Target;
   Action->CharacterId = CharacterId;
+  Action->Name = Name;
   Action->Metadata = Metadata;
   Action->EquippedInventory = EquippedInventory;
   Action->NonequippedInventory = NonequippedInventory;
@@ -27,6 +29,7 @@ URedwoodSetCharacterDataAsync *URedwoodSetCharacterDataAsync::SetCharacterData(
 void URedwoodSetCharacterDataAsync::Activate() {
   Target->SetCharacterData(
     CharacterId,
+    Name,
     Metadata,
     EquippedInventory,
     NonequippedInventory,

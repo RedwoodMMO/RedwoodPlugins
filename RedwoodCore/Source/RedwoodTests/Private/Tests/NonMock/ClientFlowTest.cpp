@@ -107,9 +107,11 @@ void FListNoCharacters::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FCreateCharacter);
 void FCreateCharacter::Initialize() {
+  USIOJsonObject *Metadata = NewObject<USIOJsonObject>();
+
   Redwood->CreateCharacter(
     TEXT("TestCharacter"),
-    nullptr,
+    Metadata,
     nullptr,
     nullptr,
     nullptr,
@@ -154,11 +156,11 @@ void FListCharacters::Initialize() {
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FSetCharacter);
 void FSetCharacter::Initialize() {
   USIOJsonObject *Metadata = NewObject<USIOJsonObject>();
-  Metadata->SetStringField("name", "TestCharacter 2");
 
   Redwood->SetCharacterData(
     Context->Data.GetStringField(TEXT("CharacterId")),
-    Metadata,
+    TEXT("TestCharacter 2"),
+    nullptr,
     nullptr,
     nullptr,
     nullptr,
@@ -173,9 +175,7 @@ void FSetCharacter::Initialize() {
         );
         CurrentTest->TestEqual(
           TEXT("SetCharacter has correct name"),
-          IsValid(Output.Character.Metadata)
-            ? Output.Character.Metadata->GetStringField("name")
-            : TEXT(""),
+          Output.Character.Name,
           TEXT("TestCharacter 2")
         );
         Context->bIsCurrentTestComplete = true;
@@ -199,9 +199,7 @@ void FGetCharacter::Initialize() {
         );
         CurrentTest->TestEqual(
           TEXT("GetCharacter has correct name"),
-          IsValid(Output.Character.Metadata)
-            ? Output.Character.Metadata->GetStringField("name")
-            : TEXT(""),
+          Output.Character.Name,
           TEXT("TestCharacter 2")
         );
         Context->bIsCurrentTestComplete = true;
