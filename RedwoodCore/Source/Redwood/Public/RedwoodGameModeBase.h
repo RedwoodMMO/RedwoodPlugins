@@ -18,6 +18,7 @@ public:
   virtual void InitGame(
     const FString &MapName, const FString &Options, FString &ErrorMessage
   ) override;
+
   virtual APlayerController *Login(
     UPlayer *NewPlayer,
     ENetRole InRemoteRole,
@@ -25,6 +26,13 @@ public:
     const FString &Options,
     const FUniqueNetIdRepl &UniqueId,
     FString &ErrorMessage
+  ) override;
+
+  virtual bool PlayerCanRestart_Implementation(APlayerController *Player
+  ) override;
+
+  virtual void FinishRestartPlayer(
+    AController *NewPlayer, const FRotator &StartRotation
   ) override;
   //~End of AGameModeBase interface
 

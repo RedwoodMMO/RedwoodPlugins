@@ -168,6 +168,10 @@ struct FRedwoodCreateServerInput {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;
+
+  // Setting this to true is only available for admins
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bStartOnBoot = false;
 };
 
 USTRUCT(BlueprintType)

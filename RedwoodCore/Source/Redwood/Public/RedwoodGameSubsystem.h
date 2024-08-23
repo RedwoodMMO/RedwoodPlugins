@@ -61,7 +61,24 @@ public:
   FString OwnerPlayerId;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString Channel;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ZoneName;
+
+  // 1-based index of which instance of the zone this server is running
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  int32 ZoneInstanceIndex = 0;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString SidecarUri;
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void TravelPlayerToZone(
+    APlayerController *PlayerController,
+    const FString &InZoneName,
+    const FTransform &InTransform
+  );
 
 private:
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
@@ -79,5 +96,5 @@ private:
 
   bool bIsShuttingDown = false;
   FGameplayMessageListenerHandle ListenerHandle;
-  void OnShutdownMessage(FGameplayTag Channel, const FRedwoodReason &Message);
+  void OnShutdownMessage(FGameplayTag InChannel, const FRedwoodReason &Message);
 };

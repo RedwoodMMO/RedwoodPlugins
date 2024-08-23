@@ -35,6 +35,9 @@ public:
   UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
   bool bClientReady = false;
 
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
+  bool bServerReady = false;
+
   UFUNCTION(
     BlueprintCallable,
     Server,
@@ -43,4 +46,7 @@ public:
     Category = "Redwood|PlayerState"
   )
   void SetClientReady();
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
+  void SetServerReady();
 };

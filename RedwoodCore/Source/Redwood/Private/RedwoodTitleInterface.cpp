@@ -914,6 +914,47 @@ void URedwoodTitleInterface::JoinMatchmaking(
   AttemptJoinMatchmaking();
 }
 
+void URedwoodTitleInterface::JoinQueue(
+  FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+) {
+  if (SelectedCharacterId.IsEmpty()) {
+    FRedwoodTicketingUpdate Update;
+    Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Update.Message =
+      TEXT("Please select a character before joining a server queue.");
+    OnUpdate.ExecuteIfBound(Update);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+
+  TSharedPtr<FJsonObject> QueueData = MakeShareable(new FJsonObject);
+
+  QueueData->SetStringField(TEXT("proxyId"), ProxyId);
+  QueueData->SetStringField(TEXT("zoneName"), ZoneName);
+
+  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+  QueueData->SetField(TEXT("priorZoneName"), NullValue);
+  QueueData->SetField(TEXT("zoneInstanceIndex"), NullValue);
+
+  Payload->SetObjectField(TEXT("data"), QueueData);
+
+  OnTicketingUpdate = OnUpdate;
+
+  Realm
+    ->Emit(TEXT("realm:ticketing:join:queue"), Payload, [this](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      FRedwoodTicketingUpdate Update;
+      Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+      Update.Message = Error;
+      OnTicketingUpdate.ExecuteIfBound(Update);
+    });
+}
+
 void URedwoodTitleInterface::LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
@@ -1074,9 +1115,7 @@ FRedwoodGameServerInstance URedwoodTitleInterface::ParseServerInstance(
     }
 
     if (ChannelParts.Num() > 1) {
-      int32 ZoneInstanceIndex;
-      TTypeFromString<int32>::FromString(ZoneInstanceIndex, *ChannelParts[1]);
-      Instance.ZoneInstanceIndex = ZoneInstanceIndex;
+      Instance.ZoneInstanceIndex = FCString::Atoi(*ChannelParts[1]);
     }
   }
 
@@ -1202,6 +1241,8 @@ void URedwoodTitleInterface::CreateServer(
   if (Parameters.Data) {
     Payload->SetObjectField(TEXT("data"), Parameters.Data->GetRootObject());
   }
+
+  Payload->SetBoolField(TEXT("startOnBoot"), Parameters.bStartOnBoot);
 
   Realm->Emit(
     TEXT("realm:servers:create"),
@@ -1364,20 +1405,21 @@ void URedwoodTitleInterface::AttemptJoinMatchmaking() {
   }
   MatchmakingData->SetArrayField(TEXT("regions"), DesiredRegions);
 
-  TSharedPtr<FJsonObject> Data = MakeShareable(new FJsonObject);
-  Data->SetObjectField(TEXT("matchmaking"), MatchmakingData);
+  Payload->SetObjectField(TEXT("data"), MatchmakingData);
 
-  Payload->SetObjectField(TEXT("data"), Data);
+  Realm->Emit(
+    TEXT("realm:ticketing:join:matchmaking"),
+    Payload,
+    [this](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
 
-  Realm->Emit(TEXT("realm:ticketing:join"), Payload, [this](auto Response) {
-    TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
-    FString Error = MessageObject->GetStringField(TEXT("error"));
-
-    FRedwoodTicketingUpdate Update;
-    Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
-    Update.Message = Error;
-    OnTicketingUpdate.ExecuteIfBound(Update);
-  });
+      FRedwoodTicketingUpdate Update;
+      Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+      Update.Message = Error;
+      OnTicketingUpdate.ExecuteIfBound(Update);
+    }
+  );
 }
 
 FString URedwoodTitleInterface::GetConnectionConsoleCommand() {

@@ -3,6 +3,7 @@
 #include "RedwoodGameModeBase.h"
 #include "RedwoodGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
+#include "RedwoodPlayerController.h"
 #include "RedwoodPlayerState.h"
 
 #if WITH_EDITOR
@@ -86,7 +87,7 @@ APlayerController *ARedwoodGameModeBase::Login(
       Sidecar->Emit(
         TEXT("realm:servers:player-auth:game-server-to-sidecar"),
         JsonObject,
-        [this, PlayerController](auto Response) {
+        [this, PlayerId, PlayerController](auto Response) {
           TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
           FString Error = MessageStruct->GetStringField(TEXT("error"));
 
@@ -125,7 +126,7 @@ APlayerController *ARedwoodGameModeBase::Login(
 
             FUniqueNetIdWrapper UniqueNetIdWrapper =
               UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(
-                CharacterId, FName(TEXT("RedwoodMMO"))
+                PlayerId + TEXT(":") + CharacterId, FName(TEXT("RedwoodMMO"))
               );
             FUniqueNetIdRepl UniqueId(UniqueNetIdWrapper.GetUniqueNetId());
 
@@ -154,6 +155,10 @@ APlayerController *ARedwoodGameModeBase::Login(
               RedwoodPlayerState->CharacterNonequippedInventory =
                 CharacterJsonNonequippedInventory;
               RedwoodPlayerState->CharacterData = CharacterJsonData;
+
+              RedwoodPlayerState->SetServerReady();
+
+              HandleStartingNewPlayer(PlayerController);
             } else {
               UE_LOG(
                 LogRedwood,
@@ -227,4 +232,67 @@ TArray<FString> ARedwoodGameModeBase::GetExpectedCharacterIds() const {
   }
 
   return ExpectedCharacterIds;
+}
+
+bool ARedwoodGameModeBase::PlayerCanRestart_Implementation(
+  APlayerController *Player
+) {
+  ARedwoodPlayerState *RedwoodPlayerState =
+    Cast<ARedwoodPlayerState>(Player->PlayerState);
+  if (IsValid(RedwoodPlayerState)) {
+    if (!RedwoodPlayerState->bServerReady) {
+      return false;
+    }
+  }
+
+  return Super::PlayerCanRestart_Implementation(Player);
+}
+
+void ARedwoodGameModeBase::FinishRestartPlayer(
+  AController *NewPlayer, const FRotator &StartRotation
+) {
+  NewPlayer->Possess(NewPlayer->GetPawn());
+
+  // If the Pawn is destroyed as part of possession we have to abort
+  if (!IsValid(NewPlayer->GetPawn())) {
+    FailedToRestartPlayer(NewPlayer);
+  } else {
+    ARedwoodPlayerState *RedwoodPlayerState =
+      Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+
+    FRotator NewControlRotation = NewPlayer->GetPawn()->GetActorRotation();
+
+    if (IsValid(RedwoodPlayerState)) {
+      if (RedwoodPlayerState->CharacterData) {
+        USIOJsonObject *LastTransform =
+          RedwoodPlayerState->CharacterData->GetObjectField(TEXT("lastTransform"
+          ));
+        if (IsValid(LastTransform)) {
+          USIOJsonObject *ControlRotation =
+            LastTransform->GetObjectField(TEXT("controlRotation"));
+          if (ControlRotation) {
+            float Roll = ControlRotation->GetNumberField(TEXT("x"));
+            float Pitch = ControlRotation->GetNumberField(TEXT("y"));
+            float Yaw = ControlRotation->GetNumberField(TEXT("z"));
+
+            NewControlRotation = FRotator(Pitch, Yaw, Roll);
+          }
+        }
+      }
+    }
+
+    ARedwoodPlayerController *RedwoodPlayerController =
+      Cast<ARedwoodPlayerController>(NewPlayer);
+    if (IsValid(RedwoodPlayerController)) {
+      RedwoodPlayerController->bSkipPawnFaceRotation = true;
+    }
+
+    NewPlayer->ClientSetRotation(NewControlRotation, true);
+
+    NewPlayer->SetControlRotation(NewControlRotation);
+
+    SetPlayerDefaults(NewPlayer->GetPawn());
+
+    K2_OnRestartPlayer(NewPlayer);
+  }
 }

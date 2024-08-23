@@ -13,6 +13,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
+#include "Kismet/KismetStringLibrary.h"
 
 #include "SocketIOClient.h"
 
@@ -28,12 +29,22 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
       World->GetNetMode() == ENetMode::NM_ListenServer
     )
   ) {
+    UE_LOG(
+      LogRedwood, Log, TEXT("Initializing RedwoodGameSubsystem for server")
+    );
+
     FPrimaryAssetType GameModeAssetType =
       URedwoodGameModeAsset::StaticClass()->GetFName();
     FPrimaryAssetType MapAssetType =
       URedwoodMapAsset::StaticClass()->GetFName();
 
     UAssetManager &AssetManager = UAssetManager::Get();
+
+    UE_LOG(
+      LogRedwood,
+      Log,
+      TEXT("Waiting for RedwoodGameModeAsset and RedwoodMapAsset to load")
+    );
 
     // Load Redwood GameMode and Map assets so we can know which underlying GameMode and Map to load later
     TSharedPtr<FStreamableHandle> HandleModes =
@@ -84,6 +95,14 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
       }
     }
 
+    UE_LOG(
+      LogRedwood,
+      Log,
+      TEXT("Loaded %d GameMode assets and %d Map assets"),
+      GameModeClasses.Num(),
+      Maps.Num()
+    );
+
     URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
     if (RedwoodSettings->bServersAutoConnectToSidecar) {
 #if WITH_EDITOR
@@ -104,11 +123,13 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
       this,
       &URedwoodGameSubsystem::OnShutdownMessage
     );
+
+    UE_LOG(LogRedwood, Log, TEXT("Finished initializing RedwoodGameSubsystem"));
   }
 }
 
 void URedwoodGameSubsystem::OnShutdownMessage(
-  FGameplayTag Channel, const FRedwoodReason &Message
+  FGameplayTag InChannel, const FRedwoodReason &Message
 ) {
   UE_LOG(
     LogRedwood,
@@ -165,14 +186,29 @@ void URedwoodGameSubsystem::InitializeSidecar() {
         Data = NewObject<USIOJsonObject>();
         Data->SetRootObject(DataObj);
         ActualObject->TryGetStringField(TEXT("ownerPlayerId"), OwnerPlayerId);
+        Channel = ActualObject->GetStringField(TEXT("channel"));
 
         UE_LOG(
           LogRedwood,
           Log,
-          TEXT("LoadMap message has map (%s) and mode (%s)"),
+          TEXT("LoadMap message has map (%s), mode (%s), and channel (%s)"),
           *MapId,
-          *ModeId
+          *ModeId,
+          *Channel
         );
+
+        if (Channel.Contains(":")) {
+          TArray<FString> ChannelParts;
+          Channel.ParseIntoArray(ChannelParts, TEXT(":"), true);
+
+          if (ChannelParts.Num() > 0) {
+            ZoneName = ChannelParts[0];
+          }
+
+          if (ChannelParts.Num() > 1) {
+            ZoneInstanceIndex = FCString::Atoi(*ChannelParts[1]);
+          }
+        }
 
         TSubclassOf<AGameModeBase> *GameModeToLoad =
           GameModeClasses.Find(ModeId);
@@ -346,4 +382,123 @@ void URedwoodGameSubsystem::CallExecCommandOnAllClients(const FString &Command
       UGameplayStatics::FinishSpawningActor(ExecCommand, FTransform());
     }
   }
+}
+
+void URedwoodGameSubsystem::TravelPlayerToZone(
+  APlayerController *PlayerController,
+  const FString &InZoneName,
+  const FTransform &InTransform
+) {
+  FString UniqueId = PlayerController->PlayerState->GetUniqueId().ToString();
+
+  FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));
+  FString CharacterId = UniqueId.RightChop(UniqueId.Find(TEXT(":")) + 1);
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  Payload->SetStringField(TEXT("priorZoneName"), ZoneName);
+  Payload->SetStringField(TEXT("zoneName"), InZoneName);
+
+  TSharedPtr<FJsonObject> Transform = MakeShareable(new FJsonObject);
+
+  TSharedPtr<FJsonObject> Position = MakeShareable(new FJsonObject);
+  Position->SetNumberField(TEXT("x"), InTransform.GetLocation().X);
+  Position->SetNumberField(TEXT("y"), InTransform.GetLocation().Y);
+  Position->SetNumberField(TEXT("z"), InTransform.GetLocation().Z);
+  Transform->SetObjectField(TEXT("position"), Position);
+
+  TSharedPtr<FJsonObject> Rotation = MakeShareable(new FJsonObject);
+  auto RotationEuler = InTransform.GetRotation().Euler();
+  Rotation->SetNumberField(TEXT("x"), RotationEuler.X);
+  Rotation->SetNumberField(TEXT("y"), RotationEuler.Y);
+  Rotation->SetNumberField(TEXT("z"), RotationEuler.Z);
+  Transform->SetObjectField(TEXT("rotation"), Rotation);
+
+  TSharedPtr<FJsonObject> ControlRotation = MakeShareable(new FJsonObject);
+  ControlRotation->SetNumberField(
+    TEXT("x"), PlayerController->GetControlRotation().Roll
+  );
+  ControlRotation->SetNumberField(
+    TEXT("y"), PlayerController->GetControlRotation().Pitch
+  );
+  ControlRotation->SetNumberField(
+    TEXT("z"), PlayerController->GetControlRotation().Yaw
+  );
+  Transform->SetObjectField(TEXT("controlRotation"), ControlRotation);
+
+  Payload->SetObjectField(TEXT("transform"), Transform);
+
+  if (!Sidecar.IsValid() && !Sidecar->bIsConnected) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Sidecar is not connected; cannot travel player to new zone")
+    );
+    return;
+  }
+
+  UE_LOG(
+    LogRedwood,
+    Log,
+    TEXT("Traveling player %s to zone %s"),
+    *PlayerId,
+    *InZoneName
+  );
+
+  Sidecar->Emit(
+    TEXT("realm:servers:transfer-zone:game-server-to-sidecar"),
+    Payload,
+    [this, PlayerId, CharacterId, PlayerController](auto Response) {
+      TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+      FString Error = MessageStruct->GetStringField(TEXT("error"));
+
+      if (Error.IsEmpty()) {
+        FString Connection;
+        FString ServerToken;
+        if (MessageStruct->TryGetStringField(TEXT("connection"), Connection) &&
+            MessageStruct->TryGetStringField(TEXT("token"), ServerToken)) {
+          // TODO: the sameMap property will be used later on when we implement
+          // a truly seamless travel where the map doesn't have to be reloaded
+          bool bSameMap = MessageStruct->GetBoolField(TEXT("sameMap"));
+
+          TMap<FString, FString> Options;
+          Options.Add("RedwoodAuth", "1");
+          Options.Add("CharacterId", CharacterId);
+          Options.Add("PlayerId", PlayerId);
+          Options.Add("Token", ServerToken);
+
+          TArray<FString> JoinedOptions;
+          for (const TPair<FString, FString> &Option : Options) {
+            JoinedOptions.Add(Option.Key + "=" + Option.Value);
+          }
+
+          FString OptionsString =
+            UKismetStringLibrary::JoinStringArray(JoinedOptions, "?");
+          FString ConnectionString = Connection + "?" + OptionsString;
+
+          PlayerController->ClientTravel(
+            ConnectionString, ETravelType::TRAVEL_Absolute
+          );
+        } else {
+          Error = TEXT("Missing connection URL in zone transfer response");
+        }
+      }
+
+      if (!Error.IsEmpty()) {
+        // kick the player
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Failed to transfer player to new zone, kicking them now: %s"),
+          *Error
+        );
+        GetGameInstance()
+          ->GetWorld()
+          ->GetAuthGameMode()
+          ->GameSession->KickPlayer(PlayerController, FText::FromString(Error));
+      }
+    }
+  );
 }

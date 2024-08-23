@@ -176,6 +176,12 @@ void URedwoodTitleGameSubsystem::JoinMatchmaking(
   TitleInterface->JoinMatchmaking(ProfileId, InRegions, OnUpdate);
 }
 
+void URedwoodTitleGameSubsystem::JoinQueue(
+  FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+) {
+  TitleInterface->JoinQueue(ProxyId, ZoneName, OnUpdate);
+}
+
 void URedwoodTitleGameSubsystem::LeaveTicketing(
   FRedwoodErrorOutputDelegate OnOutput
 ) {

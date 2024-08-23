@@ -127,6 +127,10 @@ public:
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
+  void JoinQueue(
+    FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+  );
+
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
   static FRedwoodGameServerProxy ParseServerProxy(

@@ -33,6 +33,7 @@ public class Redwood : ModuleRules {
     PrivateDependencyModuleNames.AddRange(
       new string[] {
         "CoreUObject",
+        "CoreOnline",
         "Engine",
         "LatencyChecker",
       }

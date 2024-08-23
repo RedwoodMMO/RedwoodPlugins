@@ -11,3 +11,9 @@ void ARedwoodPlayerState::SetClientReady_Implementation() {
 bool ARedwoodPlayerState::SetClientReady_Validate() {
   return true;
 }
+
+void ARedwoodPlayerState::SetServerReady() {
+  if (GetLocalRole() == ROLE_Authority) {
+    bServerReady = true;
+  }
+}
