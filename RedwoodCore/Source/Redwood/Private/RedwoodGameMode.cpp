@@ -3,6 +3,7 @@
 #include "RedwoodGameMode.h"
 #include "RedwoodGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
+#include "RedwoodPlayerController.h"
 #include "RedwoodPlayerState.h"
 
 #if WITH_EDITOR
@@ -40,6 +41,25 @@ void ARedwoodGameMode::InitGame(
       GetGameInstance()->GetSubsystem<URedwoodGameSubsystem>();
     Sidecar->Connect(RedwoodGameSubsystem->SidecarUri);
   }
+
+  FGameModeEvents::GameModeLogoutEvent.AddUObject(
+    this, &ARedwoodGameMode::OnGameModeLogout
+  );
+}
+
+void ARedwoodGameMode::OnGameModeLogout(
+  AGameModeBase *GameMode, AController *Controller
+) {
+  APlayerController *PlayerController = Cast<APlayerController>(Controller);
+  if (PlayerController == nullptr) {
+    return;
+  }
+
+  UGameplayMessageSubsystem &MessageSubsystem =
+    UGameplayMessageSubsystem::Get(this);
+  MessageSubsystem.BroadcastMessage(
+    TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
+  );
 }
 
 APlayerController *ARedwoodGameMode::Login(
@@ -86,7 +106,7 @@ APlayerController *ARedwoodGameMode::Login(
       Sidecar->Emit(
         TEXT("realm:servers:player-auth:game-server-to-sidecar"),
         JsonObject,
-        [this, PlayerController](auto Response) {
+        [this, PlayerId, PlayerController](auto Response) {
           TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
           FString Error = MessageStruct->GetStringField(TEXT("error"));
 
@@ -94,51 +114,17 @@ APlayerController *ARedwoodGameMode::Login(
             TSharedPtr<FJsonObject> Character =
               MessageStruct->GetObjectField(TEXT("character"));
             FString CharacterId = Character->GetStringField(TEXT("id"));
-            FString PlayerNickname =
-              Character->GetStringField(TEXT("playerNickname"));
-
-            TSharedPtr<FJsonObject> CharacterMetadata =
-              Character->GetObjectField(TEXT("metadata"));
-            USIOJsonObject *CharacterJsonMetadata =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonMetadata->SetRootObject(CharacterMetadata);
-
-            TSharedPtr<FJsonObject> CharacterEquippedInventory =
-              Character->GetObjectField(TEXT("equippedInventory"));
-            USIOJsonObject *CharacterJsonEquippedInventory =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonEquippedInventory->SetRootObject(
-              CharacterEquippedInventory
-            );
-
-            TSharedPtr<FJsonObject> CharacterNonequippedInventory =
-              Character->GetObjectField(TEXT("nonequippedInventory"));
-            USIOJsonObject *CharacterJsonNonequippedInventory =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonNonequippedInventory->SetRootObject(
-              CharacterNonequippedInventory
-            );
-
-            TSharedPtr<FJsonObject> CharacterData =
-              Character->GetObjectField(TEXT("data"));
-            USIOJsonObject *CharacterJsonData =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonData->SetRootObject(CharacterData);
+            FString CharacterName = Character->GetStringField(TEXT("name"));
 
             FUniqueNetIdWrapper UniqueNetIdWrapper =
               UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(
-                CharacterId, FName(TEXT("RedwoodMMO"))
+                PlayerId + TEXT(":") + CharacterId, FName(TEXT("RedwoodMMO"))
               );
             FUniqueNetIdRepl UniqueId(UniqueNetIdWrapper.GetUniqueNetId());
 
             PlayerController->PlayerState->SetUniqueId(UniqueId);
 
-            FString Name;
-            if (CharacterMetadata->TryGetStringField(TEXT("name"), Name)) {
-              PlayerController->PlayerState->SetPlayerName(Name);
-            } else {
-              PlayerController->PlayerState->SetPlayerName(PlayerNickname);
-            }
+            PlayerController->PlayerState->SetPlayerName(CharacterName);
 
             ARedwoodPlayerState *RedwoodPlayerState =
               Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
@@ -150,16 +136,14 @@ APlayerController *ARedwoodGameMode::Login(
                 *CharacterId
               );
 
-              RedwoodPlayerState->RedwoodPlayerId =
-                Character->GetStringField(TEXT("playerId"));
-              RedwoodPlayerState->CharacterId = CharacterId;
+              RedwoodPlayerState->RedwoodCharacter =
+                URedwoodTitleInterface::ParseCharacter(Character);
 
-              RedwoodPlayerState->CharacterMetadata = CharacterJsonMetadata;
-              RedwoodPlayerState->CharacterEquippedInventory =
-                CharacterJsonEquippedInventory;
-              RedwoodPlayerState->CharacterNonequippedInventory =
-                CharacterJsonNonequippedInventory;
-              RedwoodPlayerState->CharacterData = CharacterJsonData;
+              RedwoodPlayerState->OnRedwoodCharacterUpdated.Broadcast();
+
+              RedwoodPlayerState->SetServerReady();
+
+              HandleStartingNewPlayer(PlayerController);
             } else {
               UE_LOG(
                 LogRedwood,
@@ -170,14 +154,6 @@ APlayerController *ARedwoodGameMode::Login(
                 *CharacterId
               );
             }
-
-            UGameplayMessageSubsystem &MessageSubsystem =
-              UGameplayMessageSubsystem::Get(this);
-            MessageSubsystem.BroadcastMessage(
-              TAG_Redwood_Player_Joined,
-              FRedwoodPlayerJoined{
-                PlayerController->PlayerState, CharacterJsonData}
-            );
           } else {
             // kick the player
             UE_LOG(
@@ -194,15 +170,6 @@ APlayerController *ARedwoodGameMode::Login(
       ErrorMessage =
         TEXT("Invalid authentication request: missing RedwoodAuth option");
     }
-  } else {
-    UGameplayMessageSubsystem &MessageSubsystem =
-      UGameplayMessageSubsystem::Get(this);
-    USIOJsonObject *CharacterJsonData =
-      USIOJsonObject::ConstructJsonObject(this);
-    MessageSubsystem.BroadcastMessage(
-      TAG_Redwood_Player_Joined,
-      FRedwoodPlayerJoined{PlayerController->PlayerState, CharacterJsonData}
-    );
   }
 
   return PlayerController;
@@ -233,4 +200,151 @@ TArray<FString> ARedwoodGameMode::GetExpectedCharacterIds() const {
   }
 
   return ExpectedCharacterIds;
+}
+
+bool ARedwoodGameMode::PlayerCanRestart_Implementation(APlayerController *Player
+) {
+  ARedwoodPlayerState *RedwoodPlayerState =
+    Cast<ARedwoodPlayerState>(Player->PlayerState);
+  if (IsValid(RedwoodPlayerState)) {
+    if (!RedwoodPlayerState->bServerReady) {
+      return false;
+    }
+  }
+
+  return Super::PlayerCanRestart_Implementation(Player);
+}
+
+void ARedwoodGameMode::FinishRestartPlayer(
+  AController *NewPlayer, const FRotator &StartRotation
+) {
+  NewPlayer->Possess(NewPlayer->GetPawn());
+
+  // If the Pawn is destroyed as part of possession we have to abort
+  if (!IsValid(NewPlayer->GetPawn())) {
+    FailedToRestartPlayer(NewPlayer);
+  } else {
+    ARedwoodPlayerState *RedwoodPlayerState =
+      Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+
+    FRotator NewControlRotation = NewPlayer->GetPawn()->GetActorRotation();
+
+    if (IsValid(RedwoodPlayerState)) {
+      if (RedwoodPlayerState->RedwoodCharacter.Data) {
+        USIOJsonObject *LastTransform =
+          RedwoodPlayerState->RedwoodCharacter.Data->GetObjectField(
+            TEXT("lastTransform")
+          );
+        if (IsValid(LastTransform)) {
+          USIOJsonObject *ControlRotation =
+            LastTransform->GetObjectField(TEXT("controlRotation"));
+          if (ControlRotation) {
+            float Roll = ControlRotation->GetNumberField(TEXT("x"));
+            float Pitch = ControlRotation->GetNumberField(TEXT("y"));
+            float Yaw = ControlRotation->GetNumberField(TEXT("z"));
+
+            NewControlRotation = FRotator(Pitch, Yaw, Roll);
+          }
+        }
+      }
+    }
+
+    ARedwoodPlayerController *RedwoodPlayerController =
+      Cast<ARedwoodPlayerController>(NewPlayer);
+    if (IsValid(RedwoodPlayerController)) {
+      RedwoodPlayerController->bSkipPawnFaceRotation = true;
+    }
+
+    NewPlayer->ClientSetRotation(NewControlRotation, true);
+
+    NewPlayer->SetControlRotation(NewControlRotation);
+
+    SetPlayerDefaults(NewPlayer->GetPawn());
+
+    K2_OnRestartPlayer(NewPlayer);
+  }
+}
+
+APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
+  AController *NewPlayer, const FTransform &SpawnTransform
+) {
+  URedwoodGameSubsystem *RedwoodGameSubsystem =
+    NewPlayer->GetWorld()
+      ->GetGameInstance()
+      ->GetSubsystem<URedwoodGameSubsystem>();
+
+  ARedwoodPlayerState *RedwoodPlayerState =
+    Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+
+  if (IsValid(RedwoodPlayerState)) {
+    if (IsValid(RedwoodPlayerState->RedwoodCharacter.Data)) {
+      USIOJsonObject *LastTransform =
+        RedwoodPlayerState->RedwoodCharacter.Data->GetObjectField(
+          TEXT("lastTransform")
+        );
+      if (IsValid(LastTransform)) {
+        USIOJsonObject *Position =
+          LastTransform->GetObjectField(TEXT("position"));
+        USIOJsonObject *Rotation =
+          LastTransform->GetObjectField(TEXT("rotation"));
+        if (IsValid(Position) && IsValid(Rotation)) {
+          float PosX = Position->GetNumberField(TEXT("x"));
+          float PosY = Position->GetNumberField(TEXT("y"));
+          float PosZ = Position->GetNumberField(TEXT("z"));
+
+          float RotX = Rotation->GetNumberField(TEXT("x"));
+          float RotY = Rotation->GetNumberField(TEXT("y"));
+          float RotZ = Rotation->GetNumberField(TEXT("z"));
+
+          FTransform Transform =
+            FTransform(FRotator(RotX, RotY, RotZ), FVector(PosX, PosY, PosZ));
+
+          return Super::SpawnDefaultPawnAtTransform_Implementation(
+            NewPlayer, Transform
+          );
+        }
+      }
+    }
+
+    UE_LOG(
+      LogRedwood, Log, TEXT("No valid last transform found, using zone spawn")
+    );
+
+    // get all actors of the ARedwoodZoneSpawn class
+    TArray<AActor *> ZoneSpawns;
+    UGameplayStatics::GetAllActorsOfClass(
+      NewPlayer->GetWorld(), ARedwoodZoneSpawn::StaticClass(), ZoneSpawns
+    );
+
+    for (AActor *ZoneSpawn : ZoneSpawns) {
+      ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
+      if (IsValid(RedwoodZoneSpawn)) {
+        if (RedwoodZoneSpawn->ZoneName == RedwoodGameSubsystem->ZoneName) {
+          UE_LOG(
+            LogRedwood,
+            Log,
+            TEXT("Found zone spawn for current zone %s"),
+            *RedwoodZoneSpawn->ZoneName
+          );
+
+          return Super::SpawnDefaultPawnAtTransform_Implementation(
+            NewPlayer, RedwoodZoneSpawn->GetSpawnTransform()
+          );
+        }
+      }
+    }
+  }
+
+  UE_LOG(
+    LogRedwood,
+    Error,
+    TEXT(
+      "Could not find a lastTransform for the character and there's no valid ARedwoodZoneSpawn found for this zone (%s). Using default transform."
+    ),
+    *RedwoodGameSubsystem->ZoneName
+  );
+
+  return Super::SpawnDefaultPawnAtTransform_Implementation(
+    NewPlayer, SpawnTransform
+  );
 }

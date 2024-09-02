@@ -22,6 +22,9 @@ struct FRedwoodGameServerProxy {
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FDateTime EndedAt;
 
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bEnded = false;
+
   // Start common properties for GameServerInstance loading details
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -43,7 +46,7 @@ struct FRedwoodGameServerProxy {
   FString ShortCode;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 MaxPlayersPerInstance = 0;
+  int32 MaxPlayersPerShard = 0;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;
@@ -63,19 +66,10 @@ struct FRedwoodGameServerProxy {
   TArray<FString> Zones;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 NumPlayersToAddInstance = -1;
+  int32 NumPlayersToAddShard = -1;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 NumMinutesToDestroyEmptyInstance = -1;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 MaxInstancesPerZone = -1;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString ChannelProvider;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject *ChannelData = nullptr;
+  int32 NumMinutesToDestroyEmptyShard = -1;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bPublic = false;
@@ -84,10 +78,13 @@ struct FRedwoodGameServerProxy {
   bool bProxyEndsWhenCollectionEnds = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 CurrentPlayers = 0;
+  bool bCollectionEndsWhenAnyShardEnds = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bHasPassword = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  int32 CurrentPlayers = 0;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ActiveCollectionId;
@@ -116,6 +113,9 @@ struct FRedwoodGameServerInstance {
   FDateTime EndedAt;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bEnded = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Connection;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -124,9 +124,8 @@ struct FRedwoodGameServerInstance {
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ZoneName;
 
-  // 1-based index
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 ZoneInstanceIndex = 0;
+  FString ShardName;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ContainerId;

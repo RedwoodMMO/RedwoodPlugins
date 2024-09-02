@@ -9,28 +9,15 @@
 
 class USIOJsonObject;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodCharacterUpdated);
+
 UCLASS(BlueprintType, Blueprintable)
 class REDWOOD_API ARedwoodPlayerState : public APlayerState {
   GENERATED_BODY()
 
 public:
   UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
-  FString RedwoodPlayerId;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
-  FString CharacterId;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
-  USIOJsonObject *CharacterMetadata;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
-  USIOJsonObject *CharacterEquippedInventory;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
-  USIOJsonObject *CharacterNonequippedInventory;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
-  USIOJsonObject *CharacterData;
+  FRedwoodCharacter RedwoodCharacter;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
   bool bClientReady = false;
@@ -49,4 +36,7 @@ public:
 
   UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
   void SetServerReady();
+
+  UPROPERTY(BlueprintAssignable, Category = "Events")
+  FOnRedwoodCharacterUpdated OnRedwoodCharacterUpdated;
 };

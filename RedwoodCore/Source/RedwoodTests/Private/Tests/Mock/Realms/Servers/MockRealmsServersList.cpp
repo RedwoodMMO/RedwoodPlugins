@@ -140,7 +140,7 @@ void FMockRealmsServersListRun::Initialize() {
 
         CurrentTest->TestEqual(
           TEXT("returns correct server max players"),
-          Output.Servers[0].MaxPlayersPerInstance,
+          Output.Servers[0].MaxPlayersPerShard,
           100
         );
 
@@ -182,14 +182,8 @@ void FMockRealmsServersListRun::Initialize() {
 
         CurrentTest->TestEqual(
           TEXT("returns correct server numPlayersToAddInstance"),
-          Output.Servers[0].NumPlayersToAddInstance,
+          Output.Servers[0].NumPlayersToAddShard,
           10
-        );
-
-        CurrentTest->TestEqual(
-          TEXT("returns correct server channel provider"),
-          Output.Servers[0].ChannelProvider,
-          TEXT("random")
         );
 
         Context->bIsCurrentTestComplete = true;

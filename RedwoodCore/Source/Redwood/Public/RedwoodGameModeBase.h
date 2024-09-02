@@ -34,10 +34,17 @@ public:
   virtual void FinishRestartPlayer(
     AController *NewPlayer, const FRotator &StartRotation
   ) override;
+
+  virtual APawn *SpawnDefaultPawnAtTransform_Implementation(
+    AController *NewPlayer, const FTransform &SpawnTransform
+  );
   //~End of AGameModeBase interface
 
   UFUNCTION(BlueprintCallable, Category = "Redwood|GameMode")
   TArray<FString> GetExpectedCharacterIds() const;
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood|GameMode")
+  void OnGameModeLogout(AGameModeBase *GameMode, AController *Controller);
 
 private:
   TSharedPtr<FSocketIONative> Sidecar;

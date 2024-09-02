@@ -321,17 +321,25 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
           if (bIsShuttingDown) {
             JsonObject->SetStringField(TEXT("state"), TEXT("Stopping"));
           } else {
-            if (GameMode->HasMatchStarted()) {
-              if (GameMode->HasMatchEnded()) {
-                JsonObject->SetStringField(TEXT("state"), TEXT("Ended"));
+            ARedwoodGameModeBase *RedwoodGameModeBase =
+              Cast<ARedwoodGameModeBase>(GameMode);
 
-              } else {
-                JsonObject->SetStringField(TEXT("state"), TEXT("Started"));
-              }
+            if (RedwoodGameModeBase) {
+              // We're not inheriting from AGameMode so we're not match based (theoretically)
+              // so we just assume we're in a started state
+              JsonObject->SetStringField(TEXT("state"), TEXT("Started"));
             } else {
-              JsonObject->SetStringField(
-                TEXT("state"), TEXT("WaitingForPlayers")
-              );
+              if (GameMode->HasMatchStarted()) {
+                if (GameMode->HasMatchEnded()) {
+                  JsonObject->SetStringField(TEXT("state"), TEXT("Ended"));
+                } else {
+                  JsonObject->SetStringField(TEXT("state"), TEXT("Started"));
+                }
+              } else {
+                JsonObject->SetStringField(
+                  TEXT("state"), TEXT("WaitingForPlayers")
+                );
+              }
             }
           }
         }
@@ -453,38 +461,6 @@ void URedwoodGameSubsystem::TravelPlayerToZone(
     [this, PlayerId, CharacterId, PlayerController](auto Response) {
       TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
       FString Error = MessageStruct->GetStringField(TEXT("error"));
-
-      if (Error.IsEmpty()) {
-        FString Connection;
-        FString ServerToken;
-        if (MessageStruct->TryGetStringField(TEXT("connection"), Connection) &&
-            MessageStruct->TryGetStringField(TEXT("token"), ServerToken)) {
-          // TODO: the sameMap property will be used later on when we implement
-          // a truly seamless travel where the map doesn't have to be reloaded
-          bool bSameMap = MessageStruct->GetBoolField(TEXT("sameMap"));
-
-          TMap<FString, FString> Options;
-          Options.Add("RedwoodAuth", "1");
-          Options.Add("CharacterId", CharacterId);
-          Options.Add("PlayerId", PlayerId);
-          Options.Add("Token", ServerToken);
-
-          TArray<FString> JoinedOptions;
-          for (const TPair<FString, FString> &Option : Options) {
-            JoinedOptions.Add(Option.Key + "=" + Option.Value);
-          }
-
-          FString OptionsString =
-            UKismetStringLibrary::JoinStringArray(JoinedOptions, "?");
-          FString ConnectionString = Connection + "?" + OptionsString;
-
-          PlayerController->ClientTravel(
-            ConnectionString, ETravelType::TRAVEL_Absolute
-          );
-        } else {
-          Error = TEXT("Missing connection URL in zone transfer response");
-        }
-      }
 
       if (!Error.IsEmpty()) {
         // kick the player

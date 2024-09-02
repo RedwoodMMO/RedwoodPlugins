@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "NativeGameplayTags.h"
 #include "SIOJsonObject.h"
@@ -18,14 +19,11 @@ struct REDWOOD_API FRedwoodReason {
   FString Reason;
 };
 
-REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Player_Joined);
+REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Player_Left);
 USTRUCT(BlueprintType)
-struct REDWOOD_API FRedwoodPlayerJoined {
+struct REDWOOD_API FRedwoodPlayerLeft {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  APlayerState *PlayerState;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject *CharacterData;
+  APlayerController *PlayerController;
 };

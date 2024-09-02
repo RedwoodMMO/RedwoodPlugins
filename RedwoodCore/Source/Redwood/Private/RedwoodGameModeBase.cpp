@@ -41,6 +41,25 @@ void ARedwoodGameModeBase::InitGame(
       GetGameInstance()->GetSubsystem<URedwoodGameSubsystem>();
     Sidecar->Connect(RedwoodGameSubsystem->SidecarUri);
   }
+
+  FGameModeEvents::GameModeLogoutEvent.AddUObject(
+    this, &ARedwoodGameModeBase::OnGameModeLogout
+  );
+}
+
+void ARedwoodGameModeBase::OnGameModeLogout(
+  AGameModeBase *GameMode, AController *Controller
+) {
+  APlayerController *PlayerController = Cast<APlayerController>(Controller);
+  if (PlayerController == nullptr) {
+    return;
+  }
+
+  UGameplayMessageSubsystem &MessageSubsystem =
+    UGameplayMessageSubsystem::Get(this);
+  MessageSubsystem.BroadcastMessage(
+    TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
+  );
 }
 
 APlayerController *ARedwoodGameModeBase::Login(
@@ -95,34 +114,7 @@ APlayerController *ARedwoodGameModeBase::Login(
             TSharedPtr<FJsonObject> Character =
               MessageStruct->GetObjectField(TEXT("character"));
             FString CharacterId = Character->GetStringField(TEXT("id"));
-
-            TSharedPtr<FJsonObject> CharacterMetadata =
-              Character->GetObjectField(TEXT("metadata"));
-            USIOJsonObject *CharacterJsonMetadata =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonMetadata->SetRootObject(CharacterMetadata);
-
-            TSharedPtr<FJsonObject> CharacterEquippedInventory =
-              Character->GetObjectField(TEXT("equippedInventory"));
-            USIOJsonObject *CharacterJsonEquippedInventory =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonEquippedInventory->SetRootObject(
-              CharacterEquippedInventory
-            );
-
-            TSharedPtr<FJsonObject> CharacterNonequippedInventory =
-              Character->GetObjectField(TEXT("nonequippedInventory"));
-            USIOJsonObject *CharacterJsonNonequippedInventory =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonNonequippedInventory->SetRootObject(
-              CharacterNonequippedInventory
-            );
-
-            TSharedPtr<FJsonObject> CharacterData =
-              Character->GetObjectField(TEXT("data"));
-            USIOJsonObject *CharacterJsonData =
-              USIOJsonObject::ConstructJsonObject(this);
-            CharacterJsonData->SetRootObject(CharacterData);
+            FString CharacterName = Character->GetStringField(TEXT("name"));
 
             FUniqueNetIdWrapper UniqueNetIdWrapper =
               UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(
@@ -132,7 +124,6 @@ APlayerController *ARedwoodGameModeBase::Login(
 
             PlayerController->PlayerState->SetUniqueId(UniqueId);
 
-            FString CharacterName = Character->GetStringField(TEXT("name"));
             PlayerController->PlayerState->SetPlayerName(CharacterName);
 
             ARedwoodPlayerState *RedwoodPlayerState =
@@ -145,16 +136,10 @@ APlayerController *ARedwoodGameModeBase::Login(
                 *CharacterId
               );
 
-              RedwoodPlayerState->RedwoodPlayerId =
-                Character->GetStringField(TEXT("playerId"));
-              RedwoodPlayerState->CharacterId = CharacterId;
+              RedwoodPlayerState->RedwoodCharacter =
+                URedwoodTitleInterface::ParseCharacter(Character);
 
-              RedwoodPlayerState->CharacterMetadata = CharacterJsonMetadata;
-              RedwoodPlayerState->CharacterEquippedInventory =
-                CharacterJsonEquippedInventory;
-              RedwoodPlayerState->CharacterNonequippedInventory =
-                CharacterJsonNonequippedInventory;
-              RedwoodPlayerState->CharacterData = CharacterJsonData;
+              RedwoodPlayerState->OnRedwoodCharacterUpdated.Broadcast();
 
               RedwoodPlayerState->SetServerReady();
 
@@ -169,14 +154,6 @@ APlayerController *ARedwoodGameModeBase::Login(
                 *CharacterId
               );
             }
-
-            UGameplayMessageSubsystem &MessageSubsystem =
-              UGameplayMessageSubsystem::Get(this);
-            MessageSubsystem.BroadcastMessage(
-              TAG_Redwood_Player_Joined,
-              FRedwoodPlayerJoined{
-                PlayerController->PlayerState, CharacterJsonData}
-            );
           } else {
             // kick the player
             UE_LOG(
@@ -193,15 +170,6 @@ APlayerController *ARedwoodGameModeBase::Login(
       ErrorMessage =
         TEXT("Invalid authentication request: missing RedwoodAuth option");
     }
-  } else {
-    UGameplayMessageSubsystem &MessageSubsystem =
-      UGameplayMessageSubsystem::Get(this);
-    USIOJsonObject *CharacterJsonData =
-      USIOJsonObject::ConstructJsonObject(this);
-    MessageSubsystem.BroadcastMessage(
-      TAG_Redwood_Player_Joined,
-      FRedwoodPlayerJoined{PlayerController->PlayerState, CharacterJsonData}
-    );
   }
 
   return PlayerController;
@@ -263,10 +231,11 @@ void ARedwoodGameModeBase::FinishRestartPlayer(
     FRotator NewControlRotation = NewPlayer->GetPawn()->GetActorRotation();
 
     if (IsValid(RedwoodPlayerState)) {
-      if (RedwoodPlayerState->CharacterData) {
+      if (RedwoodPlayerState->RedwoodCharacter.Data) {
         USIOJsonObject *LastTransform =
-          RedwoodPlayerState->CharacterData->GetObjectField(TEXT("lastTransform"
-          ));
+          RedwoodPlayerState->RedwoodCharacter.Data->GetObjectField(
+            TEXT("lastTransform")
+          );
         if (IsValid(LastTransform)) {
           USIOJsonObject *ControlRotation =
             LastTransform->GetObjectField(TEXT("controlRotation"));
@@ -295,4 +264,88 @@ void ARedwoodGameModeBase::FinishRestartPlayer(
 
     K2_OnRestartPlayer(NewPlayer);
   }
+}
+
+APawn *ARedwoodGameModeBase::SpawnDefaultPawnAtTransform_Implementation(
+  AController *NewPlayer, const FTransform &SpawnTransform
+) {
+  URedwoodGameSubsystem *RedwoodGameSubsystem =
+    NewPlayer->GetWorld()
+      ->GetGameInstance()
+      ->GetSubsystem<URedwoodGameSubsystem>();
+
+  ARedwoodPlayerState *RedwoodPlayerState =
+    Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+
+  if (IsValid(RedwoodPlayerState)) {
+    if (IsValid(RedwoodPlayerState->RedwoodCharacter.Data)) {
+      USIOJsonObject *LastTransform =
+        RedwoodPlayerState->RedwoodCharacter.Data->GetObjectField(
+          TEXT("lastTransform")
+        );
+      if (IsValid(LastTransform)) {
+        USIOJsonObject *Position =
+          LastTransform->GetObjectField(TEXT("position"));
+        USIOJsonObject *Rotation =
+          LastTransform->GetObjectField(TEXT("rotation"));
+        if (IsValid(Position) && IsValid(Rotation)) {
+          float PosX = Position->GetNumberField(TEXT("x"));
+          float PosY = Position->GetNumberField(TEXT("y"));
+          float PosZ = Position->GetNumberField(TEXT("z"));
+
+          float RotX = Rotation->GetNumberField(TEXT("x"));
+          float RotY = Rotation->GetNumberField(TEXT("y"));
+          float RotZ = Rotation->GetNumberField(TEXT("z"));
+
+          FTransform Transform =
+            FTransform(FRotator(RotX, RotY, RotZ), FVector(PosX, PosY, PosZ));
+
+          return Super::SpawnDefaultPawnAtTransform_Implementation(
+            NewPlayer, Transform
+          );
+        }
+      }
+    }
+
+    UE_LOG(
+      LogRedwood, Log, TEXT("No valid last transform found, using zone spawn")
+    );
+
+    // get all actors of the ARedwoodZoneSpawn class
+    TArray<AActor *> ZoneSpawns;
+    UGameplayStatics::GetAllActorsOfClass(
+      NewPlayer->GetWorld(), ARedwoodZoneSpawn::StaticClass(), ZoneSpawns
+    );
+
+    for (AActor *ZoneSpawn : ZoneSpawns) {
+      ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
+      if (IsValid(RedwoodZoneSpawn)) {
+        if (RedwoodZoneSpawn->ZoneName == RedwoodGameSubsystem->ZoneName) {
+          UE_LOG(
+            LogRedwood,
+            Log,
+            TEXT("Found zone spawn for current zone %s"),
+            *RedwoodZoneSpawn->ZoneName
+          );
+
+          return Super::SpawnDefaultPawnAtTransform_Implementation(
+            NewPlayer, RedwoodZoneSpawn->GetSpawnTransform()
+          );
+        }
+      }
+    }
+  }
+
+  UE_LOG(
+    LogRedwood,
+    Error,
+    TEXT(
+      "Could not find a lastTransform for the character and there's no valid ARedwoodZoneSpawn found for this zone (%s). Using default transform."
+    ),
+    *RedwoodGameSubsystem->ZoneName
+  );
+
+  return Super::SpawnDefaultPawnAtTransform_Implementation(
+    NewPlayer, SpawnTransform
+  );
 }

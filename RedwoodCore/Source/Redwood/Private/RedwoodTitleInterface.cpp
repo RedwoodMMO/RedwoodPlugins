@@ -658,12 +658,6 @@ FRedwoodCharacter URedwoodTitleInterface::ParseCharacter(
 
   Character.Name = CharacterObj->GetStringField(TEXT("name"));
 
-  const TSharedPtr<FJsonObject> *CharacterChannelData = nullptr;
-  if (CharacterObj->TryGetObjectField(TEXT("metadata"), CharacterChannelData)) {
-    Character.ChannelData = NewObject<USIOJsonObject>();
-    Character.ChannelData->SetRootObject(*CharacterChannelData);
-  }
-
   const TSharedPtr<FJsonObject> *CharacterMetadata = nullptr;
   if (CharacterObj->TryGetObjectField(TEXT("metadata"), CharacterMetadata)) {
     Character.Metadata = NewObject<USIOJsonObject>();
@@ -937,7 +931,7 @@ void URedwoodTitleInterface::JoinQueue(
 
   TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
   QueueData->SetField(TEXT("priorZoneName"), NullValue);
-  QueueData->SetField(TEXT("zoneInstanceIndex"), NullValue);
+  QueueData->SetField(TEXT("shardName"), NullValue);
 
   Payload->SetObjectField(TEXT("data"), QueueData);
 
@@ -996,6 +990,7 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
   FString EndedAt;
   if (ServerProxy->TryGetStringField(TEXT("endedAt"), EndedAt)) {
     FDateTime::ParseIso8601(*EndedAt, Server.EndedAt);
+    Server.bEnded = true;
   }
 
   // Start common properties for GameServerInstance loading details
@@ -1012,8 +1007,8 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
 
   ServerProxy->TryGetStringField(TEXT("shortCode"), Server.ShortCode);
 
-  Server.MaxPlayersPerInstance =
-    ServerProxy->GetIntegerField(TEXT("maxPlayersPerInstance"));
+  Server.MaxPlayersPerShard =
+    ServerProxy->GetIntegerField(TEXT("maxPlayersPerShard"));
 
   const TSharedPtr<FJsonObject> *Data;
   if (ServerProxy->TryGetObjectField(TEXT("data"), Data)) {
@@ -1036,28 +1031,12 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
   }
 
   ServerProxy->TryGetNumberField(
-    TEXT("numPlayersToAddInstance"), Server.NumPlayersToAddInstance
+    TEXT("numPlayersToAddShard"), Server.NumPlayersToAddShard
   );
 
   ServerProxy->TryGetNumberField(
-    TEXT("numMinutesToDestroyEmptyInstance"),
-    Server.NumMinutesToDestroyEmptyInstance
+    TEXT("numMinutesToDestroyEmptyShard"), Server.NumMinutesToDestroyEmptyShard
   );
-
-  ServerProxy->TryGetNumberField(
-    TEXT("maxInstancesPerZone"), Server.MaxInstancesPerZone
-  );
-
-  ServerProxy->TryGetStringField(
-    TEXT("channelProvider"), Server.ChannelProvider
-  );
-
-  const TSharedPtr<FJsonObject> *ChannelData;
-  if (ServerProxy->TryGetObjectField(TEXT("channelData"), ChannelData)) {
-    USIOJsonObject *DataObject = NewObject<USIOJsonObject>();
-    DataObject->SetRootObject(*ChannelData);
-    Server.ChannelData = DataObject;
-  }
 
   Server.bPublic = ServerProxy->GetBoolField(TEXT("public"));
 
@@ -1100,6 +1079,7 @@ FRedwoodGameServerInstance URedwoodTitleInterface::ParseServerInstance(
   FString EndedAt;
   if (ServerInstance->TryGetStringField(TEXT("endedAt"), EndedAt)) {
     FDateTime::ParseIso8601(*EndedAt, Instance.EndedAt);
+    Instance.bEnded = true;
   }
 
   ServerInstance->TryGetStringField(TEXT("connection"), Instance.Connection);
@@ -1115,7 +1095,7 @@ FRedwoodGameServerInstance URedwoodTitleInterface::ParseServerInstance(
     }
 
     if (ChannelParts.Num() > 1) {
-      Instance.ZoneInstanceIndex = FCString::Atoi(*ChannelParts[1]);
+      Instance.ShardName = ChannelParts[1];
     }
   }
 
