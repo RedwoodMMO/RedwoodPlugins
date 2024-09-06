@@ -65,6 +65,7 @@ void ARedwoodCharacter::DeserializeBackendData(
             *VariableName,
             *VariableName
           );
+          return;
         }
 
         void *StructPtr = FMemory::Malloc(StructDefinition->GetStructureSize());
@@ -232,6 +233,12 @@ void ARedwoodCharacter::RedwoodPlayerStateCharacterUpdated() {
     RedwoodCharacterId = RedwoodCharacterBackend.Id;
 
     DeserializeBackendData(
+      RedwoodCharacterBackend.CharacterCreatorData,
+      TEXT("CharacterCreatorData"),
+      LatestMetadataSchemaVersion
+    );
+
+    DeserializeBackendData(
       RedwoodCharacterBackend.Metadata,
       TEXT("Metadata"),
       LatestMetadataSchemaVersion
@@ -259,6 +266,10 @@ void ARedwoodCharacter::RedwoodPlayerStateCharacterUpdated() {
 
 void ARedwoodCharacter::OnRedwoodCharacterUpdated_Implementation() {
   //
+}
+
+void ARedwoodCharacter::MarkCharacterCreatorDataDirty() {
+  bCharacterCreatorDataDirty = true;
 }
 
 void ARedwoodCharacter::MarkMetadataDirty() {

@@ -36,6 +36,9 @@ public:
   FString RedwoodCharacterName;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  int32 LatestCharacterCreatorDataSchemaVersion = 0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestMetadataSchemaVersion = 0;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
@@ -48,6 +51,9 @@ public:
   int32 LatestDataSchemaVersion = 0;
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
+  void MarkCharacterCreatorDataDirty();
+
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkMetadataDirty();
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
@@ -58,6 +64,11 @@ public:
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkDataDirty();
+
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsCharacterCreatorDataDirty() const {
+    return bCharacterCreatorDataDirty;
+  }
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
   bool IsMetadataDirty() const {
@@ -80,6 +91,7 @@ public:
   }
 
   void ClearDirtyFlags() {
+    bCharacterCreatorDataDirty = false;
     bMetadataDirty = false;
     bEquippedInventoryDirty = false;
     bNonequippedInventoryDirty = false;
@@ -98,6 +110,7 @@ private:
     int32 LatestSchemaVersion
   );
 
+  bool bCharacterCreatorDataDirty = false;
   bool bMetadataDirty = false;
   bool bEquippedInventoryDirty = false;
   bool bNonequippedInventoryDirty = false;

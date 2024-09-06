@@ -533,6 +533,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
           ARedwoodCharacter *RedwoodCharacter = Cast<ARedwoodCharacter>(Pawn);
           if (RedwoodCharacter) {
             if (
+            !RedwoodCharacter->IsCharacterCreatorDataDirty() &&
             !RedwoodCharacter->IsMetadataDirty() &&
             !RedwoodCharacter->IsEquippedInventoryDirty() &&
             !RedwoodCharacter->IsNonequippedInventoryDirty() &&
@@ -562,6 +563,21 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             CharacterObject->SetStringField(
               TEXT("characterId"), RedwoodCharacter->RedwoodCharacterId
             );
+
+            if (RedwoodCharacter->IsCharacterCreatorDataDirty()) {
+              USIOJsonObject *CharacterCreatorData =
+                RedwoodCharacter->SerializeBackendData(
+                  TEXT("CharacterCreatorData")
+                );
+              if (CharacterCreatorData) {
+                RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
+                  CharacterCreatorData;
+                CharacterObject->SetObjectField(
+                  TEXT("characterCreatorData"),
+                  CharacterCreatorData->GetRootObject()
+                );
+              }
+            }
 
             if (RedwoodCharacter->IsMetadataDirty()) {
               USIOJsonObject *Metadata =
@@ -672,6 +688,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
           ARedwoodCharacter *RedwoodCharacter = Cast<ARedwoodCharacter>(Pawn);
           if (RedwoodCharacter) {
             if (
+            !RedwoodCharacter->IsCharacterCreatorDataDirty() &&
             !RedwoodCharacter->IsMetadataDirty() &&
             !RedwoodCharacter->IsEquippedInventoryDirty() &&
             !RedwoodCharacter->IsNonequippedInventoryDirty() &&
@@ -695,6 +712,14 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
 
             // since we save the whole json to disk, we update all
             // of the data here to ensure proper variable name serialization
+
+            USIOJsonObject *CharacterCreatorData =
+              RedwoodCharacter->SerializeBackendData(TEXT("CharacterCreatorData"
+              ));
+            if (CharacterCreatorData) {
+              RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
+                CharacterCreatorData;
+            }
 
             USIOJsonObject *Metadata =
               RedwoodCharacter->SerializeBackendData(TEXT("Metadata"));

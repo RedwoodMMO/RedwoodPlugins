@@ -6,6 +6,7 @@
 #include "RedwoodPlayerController.h"
 #include "RedwoodPlayerState.h"
 #include "RedwoodServerGameSubsystem.h"
+#include "RedwoodZoneSpawn.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"

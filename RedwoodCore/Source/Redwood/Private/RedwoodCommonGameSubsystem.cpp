@@ -22,6 +22,12 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
   JsonObject->SetStringField(TEXT("updatedAt"), Character.UpdatedAt.ToString());
   JsonObject->SetStringField(TEXT("playerId"), Character.PlayerId);
   JsonObject->SetStringField(TEXT("name"), Character.Name);
+  if (Character.CharacterCreatorData) {
+    JsonObject->SetObjectField(
+      TEXT("characterCreatorData"),
+      Character.CharacterCreatorData->GetRootObject()
+    );
+  }
   if (Character.Metadata) {
     JsonObject->SetObjectField(
       TEXT("metadata"), Character.Metadata->GetRootObject()
@@ -99,6 +105,13 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
   );
   Character.PlayerId = JsonObject->GetStringField(TEXT("playerId"));
   Character.Name = JsonObject->GetStringField(TEXT("name"));
+
+  TSharedPtr<FJsonObject> CharacterCreatorDataObj =
+    JsonObject->GetObjectField(TEXT("characterCreatorData"));
+  if (CharacterCreatorDataObj.IsValid()) {
+    Character.CharacterCreatorData = NewObject<USIOJsonObject>();
+    Character.CharacterCreatorData->SetRootObject(CharacterCreatorDataObj);
+  }
 
   TSharedPtr<FJsonObject> MetadataObj =
     JsonObject->GetObjectField(TEXT("metadata"));
