@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodStopServerAsync.h"
 
 URedwoodStopServerAsync *URedwoodStopServerAsync::StopServer(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString ServerProxyId
 ) {

@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodInitializeConnectionForFirstRealmAsync.generated.h"
 
@@ -32,11 +32,11 @@ public:
   )
   static URedwoodInitializeConnectionForFirstRealmAsync *
   InitializeConnectionForFirstRealm(
-    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+    URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
   FRedwoodSocketConnectedDynamicDelegate OnOutput;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 };

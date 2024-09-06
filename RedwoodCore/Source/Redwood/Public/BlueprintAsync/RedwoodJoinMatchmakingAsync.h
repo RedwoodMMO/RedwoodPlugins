@@ -4,7 +4,7 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodJoinMatchmakingAsync.generated.h"
 
@@ -25,7 +25,7 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodJoinMatchmakingAsync *JoinMatchmaking(
-    URedwoodTitleGameSubsystem *Target,
+    URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     FString ProfileId,
     TArray<FString> Regions
@@ -34,7 +34,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodTicketingUpdateDynamicDelegate OnUpdate;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 
   FString ProfileId;
   TArray<FString> Regions;

@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodLeaveTicketingAsync.h"
 
 URedwoodLeaveTicketingAsync *URedwoodLeaveTicketingAsync::LeaveTicketing(
-  URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+  URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodLeaveTicketingAsync *Action =
     NewObject<URedwoodLeaveTicketingAsync>();

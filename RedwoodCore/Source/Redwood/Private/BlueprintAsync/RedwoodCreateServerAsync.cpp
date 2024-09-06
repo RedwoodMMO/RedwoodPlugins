@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodCreateServerAsync.h"
 
 URedwoodCreateServerAsync *URedwoodCreateServerAsync::CreateServer(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   bool bJoinSession,
   FRedwoodCreateServerInput Parameters

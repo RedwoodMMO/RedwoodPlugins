@@ -12,17 +12,17 @@
 #include "SocketIOFunctionLibrary.h"
 #include "SocketIONative.h"
 
-#include "RedwoodTitleInterface.generated.h"
+#include "RedwoodClientInterface.generated.h"
 
-// This class is separated from URedwoodTitleGameSubsystem
+// This class is separated from URedwoodClientGameSubsystem
 // so that we can use it in automated tests without instantiating
 // a whole world.
 
 class FTimerManager;
 
 UCLASS()
-class REDWOOD_API URedwoodTitleInterface : public UObject,
-                                           public FTickableGameObject {
+class REDWOOD_API URedwoodClientInterface : public UObject,
+                                            public FTickableGameObject {
   GENERATED_BODY()
 
 public:

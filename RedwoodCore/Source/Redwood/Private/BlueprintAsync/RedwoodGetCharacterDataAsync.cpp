@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodGetCharacterDataAsync.h"
 
 URedwoodGetCharacterDataAsync *URedwoodGetCharacterDataAsync::GetCharacterData(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString CharacterId
 ) {

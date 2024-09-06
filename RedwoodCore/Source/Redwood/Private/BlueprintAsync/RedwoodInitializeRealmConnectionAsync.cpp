@@ -4,7 +4,7 @@
 
 URedwoodInitializeRealmConnectionAsync *
 URedwoodInitializeRealmConnectionAsync::InitializeRealmConnection(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FRedwoodRealm Realm
 ) {

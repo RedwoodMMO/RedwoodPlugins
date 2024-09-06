@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodListCharactersAsync.h"
 
 URedwoodListCharactersAsync *URedwoodListCharactersAsync::ListCharacters(
-  URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+  URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodListCharactersAsync *Action =
     NewObject<URedwoodListCharactersAsync>();

@@ -8,12 +8,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
-#include "RedwoodTitleGameSubsystem.generated.h"
+#include "RedwoodClientGameSubsystem.generated.h"
 
-class URedwoodTitleInterface;
+class URedwoodClientInterface;
 
 UCLASS(BlueprintType)
-class REDWOOD_API URedwoodTitleGameSubsystem : public UGameInstanceSubsystem {
+class REDWOOD_API URedwoodClientGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
 
 public:
@@ -157,13 +157,13 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionConsoleCommand();
 
-  URedwoodTitleInterface *GetTitleInterface() {
-    return TitleInterface;
+  URedwoodClientInterface *GetClientInterface() {
+    return ClientInterface;
   }
 
 private:
   UPROPERTY()
-  URedwoodTitleInterface *TitleInterface;
+  URedwoodClientInterface *ClientInterface;
 
   UFUNCTION()
   void HandlePingsReceived();

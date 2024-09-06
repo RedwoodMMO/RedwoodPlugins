@@ -1,10 +1,10 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "RedwoodTitleInterface.h"
+#include "RedwoodClientGameSubsystem.h"
+#include "RedwoodClientInterface.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodSaveGame.h"
 #include "RedwoodSettings.h"
-#include "RedwoodTitleGameSubsystem.h"
 
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "Kismet/KismetStringLibrary.h"
@@ -15,7 +15,7 @@
 
 #include "JsonModern.h"
 
-void URedwoodTitleInterface::Deinitialize() {
+void URedwoodClientInterface::Deinitialize() {
   if (Director.IsValid()) {
     ISocketIOClientModule::Get().ReleaseNativePointer(Director);
     Director = nullptr;
@@ -27,15 +27,15 @@ void URedwoodTitleInterface::Deinitialize() {
   }
 }
 
-void URedwoodTitleInterface::Tick(float DeltaTime) {
+void URedwoodClientInterface::Tick(float DeltaTime) {
   TimerManager.Tick(DeltaTime);
 }
 
-TStatId URedwoodTitleInterface::GetStatId() const {
-  RETURN_QUICK_DECLARE_CYCLE_STAT(URedwoodTitleInterface, STATGROUP_Tickables);
+TStatId URedwoodClientInterface::GetStatId() const {
+  RETURN_QUICK_DECLARE_CYCLE_STAT(URedwoodClientInterface, STATGROUP_Tickables);
 }
 
-void URedwoodTitleInterface::InitializeDirectorConnection(
+void URedwoodClientInterface::InitializeDirectorConnection(
   FRedwoodSocketConnectedDelegate OnDirectorConnected
 ) {
   Director = ISocketIOClientModule::Get().NewValidNativePointer();
@@ -96,11 +96,11 @@ void URedwoodTitleInterface::InitializeDirectorConnection(
   Director->Connect(*Uri);
 }
 
-bool URedwoodTitleInterface::IsDirectorConnected() {
+bool URedwoodClientInterface::IsDirectorConnected() {
   return Director.IsValid() && Director->bIsConnected;
 }
 
-void URedwoodTitleInterface::HandleRegionsChanged(
+void URedwoodClientInterface::HandleRegionsChanged(
   const FString &Event, const TSharedPtr<FJsonValue> &Message
 ) {
   FRedwoodRegionsChanged MessageStruct;
@@ -131,7 +131,7 @@ void URedwoodTitleInterface::HandleRegionsChanged(
   InitiatePings();
 }
 
-void URedwoodTitleInterface::InitiatePings() {
+void URedwoodClientInterface::InitiatePings() {
   ULatencyCheckerLibrary::FPingResult Delegate;
   Delegate.BindUFunction(this, FName(TEXT("HandlePingResult")));
 
@@ -189,14 +189,14 @@ void URedwoodTitleInterface::InitiatePings() {
     TimerManager.SetTimer(
       PingTimer,
       this,
-      &URedwoodTitleInterface::InitiatePings,
+      &URedwoodClientInterface::InitiatePings,
       RedwoodSettings->PingFrequency,
       false
     );
   }
 }
 
-void URedwoodTitleInterface::HandlePingResult(
+void URedwoodClientInterface::HandlePingResult(
   FString TargetAddress, float RTT
 ) {
   URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
@@ -228,7 +228,7 @@ void URedwoodTitleInterface::HandlePingResult(
   InitiatePings();
 }
 
-void URedwoodTitleInterface::Register(
+void URedwoodClientInterface::Register(
   const FString &Username,
   const FString &Password,
   FRedwoodAuthUpdateDelegate OnUpdate
@@ -272,7 +272,7 @@ void URedwoodTitleInterface::Register(
   );
 }
 
-void URedwoodTitleInterface::Logout() {
+void URedwoodClientInterface::Logout() {
   if (IsLoggedIn()) {
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
     Payload->SetStringField(TEXT("playerId"), PlayerId);
@@ -296,15 +296,15 @@ void URedwoodTitleInterface::Logout() {
   }
 }
 
-bool URedwoodTitleInterface::IsLoggedIn() {
+bool URedwoodClientInterface::IsLoggedIn() {
   return !PlayerId.IsEmpty() && !AuthToken.IsEmpty();
 }
 
-FString URedwoodTitleInterface::GetPlayerId() {
+FString URedwoodClientInterface::GetPlayerId() {
   return PlayerId;
 }
 
-void URedwoodTitleInterface::AttemptAutoLogin(
+void URedwoodClientInterface::AttemptAutoLogin(
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
@@ -329,7 +329,7 @@ void URedwoodTitleInterface::AttemptAutoLogin(
   }
 }
 
-void URedwoodTitleInterface::Login(
+void URedwoodClientInterface::Login(
   const FString &Username,
   const FString &PasswordOrToken,
   const FString &Provider,
@@ -399,17 +399,17 @@ void URedwoodTitleInterface::Login(
   );
 }
 
-FString URedwoodTitleInterface::GetNickname() {
+FString URedwoodClientInterface::GetNickname() {
   return Nickname;
 }
 
-void URedwoodTitleInterface::CancelWaitingForAccountVerification() {
+void URedwoodClientInterface::CancelWaitingForAccountVerification() {
   if (OnAccountVerified.IsBound()) {
     OnAccountVerified.Unbind();
   }
 }
 
-void URedwoodTitleInterface::ListRealms(
+void URedwoodClientInterface::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
@@ -454,7 +454,7 @@ void URedwoodTitleInterface::ListRealms(
   });
 }
 
-void URedwoodTitleInterface::InitializeConnectionForFirstRealm(
+void URedwoodClientInterface::InitializeConnectionForFirstRealm(
   FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
   ListRealms(FRedwoodListRealmsOutputDelegate::CreateLambda(
@@ -485,13 +485,13 @@ void URedwoodTitleInterface::InitializeConnectionForFirstRealm(
   ));
 }
 
-void URedwoodTitleInterface::InitializeRealmConnection(
+void URedwoodClientInterface::InitializeRealmConnection(
   FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
   InitiateRealmHandshake(InRealm, OnRealmConnected);
 }
 
-void URedwoodTitleInterface::InitiateRealmHandshake(
+void URedwoodClientInterface::InitiateRealmHandshake(
   FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
   if (!Director.IsValid() || !Director->bIsConnected || !IsLoggedIn()) {
@@ -559,7 +559,7 @@ void URedwoodTitleInterface::InitiateRealmHandshake(
   );
 }
 
-void URedwoodTitleInterface::FinalizeRealmHandshake(
+void URedwoodClientInterface::FinalizeRealmHandshake(
   FString Token, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
   BindRealmEvents();
@@ -582,7 +582,7 @@ void URedwoodTitleInterface::FinalizeRealmHandshake(
   );
 }
 
-void URedwoodTitleInterface::BindRealmEvents() {
+void URedwoodClientInterface::BindRealmEvents() {
   Realm->OnEvent(
     TEXT("realm:regions"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
@@ -632,15 +632,15 @@ void URedwoodTitleInterface::BindRealmEvents() {
   );
 }
 
-bool URedwoodTitleInterface::IsRealmConnected() {
+bool URedwoodClientInterface::IsRealmConnected() {
   return Realm.IsValid() && Realm->bIsConnected;
 }
 
-TMap<FString, float> URedwoodTitleInterface::GetRegions() {
+TMap<FString, float> URedwoodClientInterface::GetRegions() {
   return PingAverages;
 }
 
-FRedwoodCharacter URedwoodTitleInterface::ParseCharacter(
+FRedwoodCharacter URedwoodClientInterface::ParseCharacter(
   TSharedPtr<FJsonObject> CharacterObj
 ) {
   FRedwoodCharacter Character;
@@ -689,7 +689,7 @@ FRedwoodCharacter URedwoodTitleInterface::ParseCharacter(
   return Character;
 }
 
-void URedwoodTitleInterface::ListCharacters(
+void URedwoodClientInterface::ListCharacters(
   FRedwoodListCharactersOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
@@ -726,7 +726,7 @@ void URedwoodTitleInterface::ListCharacters(
   );
 }
 
-void URedwoodTitleInterface::CreateCharacter(
+void URedwoodClientInterface::CreateCharacter(
   FString Name,
   USIOJsonObject *Metadata,
   USIOJsonObject *EquippedInventory,
@@ -786,7 +786,7 @@ void URedwoodTitleInterface::CreateCharacter(
   );
 }
 
-void URedwoodTitleInterface::GetCharacterData(
+void URedwoodClientInterface::GetCharacterData(
   FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
@@ -820,7 +820,7 @@ void URedwoodTitleInterface::GetCharacterData(
   );
 }
 
-void URedwoodTitleInterface::SetCharacterData(
+void URedwoodClientInterface::SetCharacterData(
   FString CharacterId,
   FString Name,
   USIOJsonObject *Metadata,
@@ -884,11 +884,11 @@ void URedwoodTitleInterface::SetCharacterData(
   );
 }
 
-void URedwoodTitleInterface::SetSelectedCharacter(FString CharacterId) {
+void URedwoodClientInterface::SetSelectedCharacter(FString CharacterId) {
   SelectedCharacterId = CharacterId;
 }
 
-void URedwoodTitleInterface::JoinMatchmaking(
+void URedwoodClientInterface::JoinMatchmaking(
   FString ProfileId,
   TArray<FString> InRegions,
   FRedwoodTicketingUpdateDelegate OnUpdate
@@ -908,7 +908,7 @@ void URedwoodTitleInterface::JoinMatchmaking(
   AttemptJoinMatchmaking();
 }
 
-void URedwoodTitleInterface::JoinQueue(
+void URedwoodClientInterface::JoinQueue(
   FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   if (SelectedCharacterId.IsEmpty()) {
@@ -949,7 +949,8 @@ void URedwoodTitleInterface::JoinQueue(
     });
 }
 
-void URedwoodTitleInterface::LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput
+void URedwoodClientInterface::LeaveTicketing(
+  FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
     FString Error = TEXT("Not connected to Realm.");
@@ -972,7 +973,7 @@ void URedwoodTitleInterface::LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput
   );
 }
 
-FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
+FRedwoodGameServerProxy URedwoodClientInterface::ParseServerProxy(
   TSharedPtr<FJsonObject> ServerProxy
 ) {
   FRedwoodGameServerProxy Server;
@@ -1054,7 +1055,7 @@ FRedwoodGameServerProxy URedwoodTitleInterface::ParseServerProxy(
   return Server;
 }
 
-FRedwoodGameServerInstance URedwoodTitleInterface::ParseServerInstance(
+FRedwoodGameServerInstance URedwoodClientInterface::ParseServerInstance(
   TSharedPtr<FJsonObject> ServerInstance
 ) {
   FRedwoodGameServerInstance Instance;
@@ -1106,7 +1107,7 @@ FRedwoodGameServerInstance URedwoodTitleInterface::ParseServerInstance(
   return Instance;
 }
 
-void URedwoodTitleInterface::ListServers(
+void URedwoodClientInterface::ListServers(
   TArray<FString> PrivateServerReferences,
   FRedwoodListServersOutputDelegate OnOutput
 ) {
@@ -1142,7 +1143,8 @@ void URedwoodTitleInterface::ListServers(
       TArray<FRedwoodGameServerProxy> ServersStruct;
       for (TSharedPtr<FJsonValue> Server : Servers) {
         TSharedPtr<FJsonObject> ServerData = Server->AsObject();
-        ServersStruct.Add(URedwoodTitleInterface::ParseServerProxy(ServerData));
+        ServersStruct.Add(URedwoodClientInterface::ParseServerProxy(ServerData)
+        );
       }
 
       FRedwoodListServersOutput Output;
@@ -1153,7 +1155,7 @@ void URedwoodTitleInterface::ListServers(
   );
 }
 
-void URedwoodTitleInterface::CreateServer(
+void URedwoodClientInterface::CreateServer(
   bool bJoinSession,
   FRedwoodCreateServerInput Parameters,
   FRedwoodCreateServerOutputDelegate OnOutput
@@ -1242,7 +1244,7 @@ void URedwoodTitleInterface::CreateServer(
   );
 }
 
-void URedwoodTitleInterface::JoinServerInstance(
+void URedwoodClientInterface::JoinServerInstance(
   FString ServerReference,
   FString Password,
   FRedwoodJoinServerOutputDelegate OnOutput
@@ -1295,7 +1297,7 @@ void URedwoodTitleInterface::JoinServerInstance(
   );
 }
 
-void URedwoodTitleInterface::StopServer(
+void URedwoodClientInterface::StopServer(
   FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
@@ -1320,7 +1322,7 @@ void URedwoodTitleInterface::StopServer(
   );
 }
 
-void URedwoodTitleInterface::AttemptJoinMatchmaking() {
+void URedwoodClientInterface::AttemptJoinMatchmaking() {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
     FRedwoodTicketingUpdate Update;
     Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
@@ -1345,7 +1347,7 @@ void URedwoodTitleInterface::AttemptJoinMatchmaking() {
     TimerManager.SetTimer(
       PingTimer,
       this,
-      &URedwoodTitleInterface::AttemptJoinMatchmaking,
+      &URedwoodClientInterface::AttemptJoinMatchmaking,
       2.f,
       false
     );
@@ -1402,7 +1404,7 @@ void URedwoodTitleInterface::AttemptJoinMatchmaking() {
   );
 }
 
-FString URedwoodTitleInterface::GetConnectionConsoleCommand() {
+FString URedwoodClientInterface::GetConnectionConsoleCommand() {
   if (ServerConnection.IsEmpty() || ServerToken.IsEmpty()) {
     UE_LOG(LogRedwood, Error, TEXT("Server connection or token is empty."));
     return "";

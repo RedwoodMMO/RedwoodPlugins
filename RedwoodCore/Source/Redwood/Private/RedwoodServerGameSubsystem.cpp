@@ -1,6 +1,6 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "RedwoodGameSubsystem.h"
+#include "RedwoodServerGameSubsystem.h"
 #include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodMapAsset.h"
@@ -17,7 +17,9 @@
 
 #include "SocketIOClient.h"
 
-void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
+void URedwoodServerGameSubsystem::Initialize(
+  FSubsystemCollectionBase &Collection
+) {
   Super::Initialize(Collection);
 
   UWorld *World = GetWorld();
@@ -30,7 +32,9 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
     )
   ) {
     UE_LOG(
-      LogRedwood, Log, TEXT("Initializing RedwoodGameSubsystem for server")
+      LogRedwood,
+      Log,
+      TEXT("Initializing RedwoodServerGameSubsystem for server")
     );
 
     FPrimaryAssetType GameModeAssetType =
@@ -57,7 +61,7 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
         LogRedwood,
         Error,
         TEXT(
-          "Failed to load RedwoodGameModeAsset or RedwoodMapAsset asset types; not initializing RedwoodGameSubsystem"
+          "Failed to load RedwoodGameModeAsset or RedwoodMapAsset asset types; not initializing RedwoodServerGameSubsystem"
         )
       );
       return;
@@ -121,14 +125,16 @@ void URedwoodGameSubsystem::Initialize(FSubsystemCollectionBase &Collection) {
     ListenerHandle = MessageSubsystem.RegisterListener(
       TAG_Redwood_Shutdown_Instance,
       this,
-      &URedwoodGameSubsystem::OnShutdownMessage
+      &URedwoodServerGameSubsystem::OnShutdownMessage
     );
 
-    UE_LOG(LogRedwood, Log, TEXT("Finished initializing RedwoodGameSubsystem"));
+    UE_LOG(
+      LogRedwood, Log, TEXT("Finished initializing RedwoodServerGameSubsystem")
+    );
   }
 }
 
-void URedwoodGameSubsystem::OnShutdownMessage(
+void URedwoodServerGameSubsystem::OnShutdownMessage(
   FGameplayTag InChannel, const FRedwoodReason &Message
 ) {
   UE_LOG(
@@ -140,7 +146,7 @@ void URedwoodGameSubsystem::OnShutdownMessage(
   bIsShuttingDown = true;
 }
 
-void URedwoodGameSubsystem::Deinitialize() {
+void URedwoodServerGameSubsystem::Deinitialize() {
   Super::Deinitialize();
 
   if (TimerHandle_UpdateSidecar.IsValid()) {
@@ -159,7 +165,7 @@ void URedwoodGameSubsystem::Deinitialize() {
   }
 }
 
-void URedwoodGameSubsystem::InitializeSidecar() {
+void URedwoodServerGameSubsystem::InitializeSidecar() {
   Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
   Sidecar->OnEvent(
@@ -275,7 +281,7 @@ void URedwoodGameSubsystem::InitializeSidecar() {
         GetGameInstance()->GetTimerManager().SetTimer(
           TimerHandle_UpdateSidecarLoading,
           this,
-          &URedwoodGameSubsystem::SendUpdateToSidecar,
+          &URedwoodServerGameSubsystem::SendUpdateToSidecar,
           UpdateSidecarLoadingRate,
           true // loop
         );
@@ -283,7 +289,7 @@ void URedwoodGameSubsystem::InitializeSidecar() {
         GetGameInstance()->GetTimerManager().SetTimer(
           TimerHandle_UpdateSidecar,
           this,
-          &URedwoodGameSubsystem::SendUpdateToSidecar,
+          &URedwoodServerGameSubsystem::SendUpdateToSidecar,
           UpdateSidecarRate,
           true, // loop
           0.f // immediately trigger first one
@@ -301,7 +307,7 @@ void URedwoodGameSubsystem::InitializeSidecar() {
   Sidecar->Connect(SidecarUri);
 }
 
-void URedwoodGameSubsystem::SendUpdateToSidecar() {
+void URedwoodServerGameSubsystem::SendUpdateToSidecar() {
   if (Sidecar.IsValid()) {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 
@@ -374,7 +380,8 @@ void URedwoodGameSubsystem::SendUpdateToSidecar() {
   }
 }
 
-void URedwoodGameSubsystem::CallExecCommandOnAllClients(const FString &Command
+void URedwoodServerGameSubsystem::CallExecCommandOnAllClients(
+  const FString &Command
 ) {
   // spawn ARedwoodClientExecCommand
   UWorld *World = GetWorld();
@@ -392,7 +399,7 @@ void URedwoodGameSubsystem::CallExecCommandOnAllClients(const FString &Command
   }
 }
 
-void URedwoodGameSubsystem::TravelPlayerToZone(
+void URedwoodServerGameSubsystem::TravelPlayerToZone(
   APlayerController *PlayerController,
   const FString &InZoneName,
   const FTransform &InTransform

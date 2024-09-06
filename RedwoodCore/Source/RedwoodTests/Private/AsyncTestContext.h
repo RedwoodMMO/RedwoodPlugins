@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 
-#include "RedwoodTitleInterface.h"
+#include "RedwoodClientInterface.h"
 
 #include "AsyncTestContext.generated.h"
 

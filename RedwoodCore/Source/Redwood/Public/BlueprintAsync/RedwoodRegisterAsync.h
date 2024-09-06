@@ -5,7 +5,7 @@
 #include "Kismet/BlueprintAsyncActionBase.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodRegisterAsync.generated.h"
 
@@ -25,7 +25,7 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodRegisterAsync *Register(
-    URedwoodTitleGameSubsystem *Target,
+    URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     const FString &Username,
     const FString &Password
@@ -34,7 +34,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodAuthUpdateDynamicDelegate OnUpdate;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 
   FString Username;
 

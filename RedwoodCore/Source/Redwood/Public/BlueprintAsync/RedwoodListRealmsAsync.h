@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodListRealmsAsync.generated.h"
 
@@ -27,11 +27,11 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodListRealmsAsync *ListRealms(
-    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+    URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
   FRedwoodListRealmsOutputDynamicDelegate OnOutput;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 };

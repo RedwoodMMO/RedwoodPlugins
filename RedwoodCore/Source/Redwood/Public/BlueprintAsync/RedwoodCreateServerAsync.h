@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodCreateServerAsync.generated.h"
 
@@ -27,7 +27,7 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodCreateServerAsync *CreateServer(
-    URedwoodTitleGameSubsystem *Target,
+    URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     bool bJoinSession,
     FRedwoodCreateServerInput Parameters
@@ -36,7 +36,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodCreateServerOutputDynamicDelegate OnOutput;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 
   bool bJoinSession;
 

@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodListRealmsAsync.h"
 
 URedwoodListRealmsAsync *URedwoodListRealmsAsync::ListRealms(
-  URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+  URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodListRealmsAsync *Action = NewObject<URedwoodListRealmsAsync>();
   Action->Target = Target;

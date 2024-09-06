@@ -4,7 +4,7 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodLeaveTicketingAsync.generated.h"
 
@@ -25,11 +25,11 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodLeaveTicketingAsync *LeaveTicketing(
-    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+    URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
   FRedwoodErrorOutputDynamicDelegate OnOutput;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 };

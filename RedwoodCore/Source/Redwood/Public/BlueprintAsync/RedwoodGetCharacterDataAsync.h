@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodGetCharacterDataAsync.generated.h"
 
@@ -28,7 +28,7 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodGetCharacterDataAsync *GetCharacterData(
-    URedwoodTitleGameSubsystem *Target,
+    URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     FString CharacterId
   );
@@ -36,7 +36,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodGetCharacterOutputDynamicDelegate OnOutput;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 
   FString CharacterId;
 };

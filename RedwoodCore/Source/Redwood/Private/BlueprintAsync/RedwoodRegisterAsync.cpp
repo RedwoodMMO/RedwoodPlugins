@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodRegisterAsync.h"
 
 URedwoodRegisterAsync *URedwoodRegisterAsync::Register(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   const FString &Username,
   const FString &Password

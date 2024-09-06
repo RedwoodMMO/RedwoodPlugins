@@ -4,7 +4,7 @@
 
 URedwoodJoinServerInstanceAsync *
 URedwoodJoinServerInstanceAsync::JoinServerInstance(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString ServerReference,
   FString Password

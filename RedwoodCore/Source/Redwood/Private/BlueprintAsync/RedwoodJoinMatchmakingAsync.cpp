@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodJoinMatchmakingAsync.h"
 
 URedwoodJoinMatchmakingAsync *URedwoodJoinMatchmakingAsync::JoinMatchmaking(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString ProfileId,
   TArray<FString> Regions

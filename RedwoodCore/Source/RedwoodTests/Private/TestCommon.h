@@ -9,13 +9,13 @@
 #include "Tests/AutomationEditorCommon.h"
 
 #include "./AsyncTestContext.h"
-#include "RedwoodTitleInterface.h"
+#include "RedwoodClientInterface.h"
 
 #define DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(CommandName) \
   class CommandName : public IAutomationLatentCommand { \
   public: \
     CommandName( \
-      URedwoodTitleInterface *InputParam0, \
+      URedwoodClientInterface *InputParam0, \
       UAsyncTestContext *InputParam1, \
       int32 InputParam2 \
     ) : \
@@ -29,7 +29,7 @@
 \
   private: \
     FAutomationTestBase *CurrentTest; \
-    URedwoodTitleInterface *Redwood; \
+    URedwoodClientInterface *Redwood; \
     UAsyncTestContext *Context; \
     int32 TestIndex; \
   }; \
@@ -63,7 +63,7 @@
 
 DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(
   FWaitForEnd,
-  URedwoodTitleInterface *,
+  URedwoodClientInterface *,
   Redwood,
   UAsyncTestContext *,
   Context,

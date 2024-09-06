@@ -137,7 +137,7 @@ APlayerController *ARedwoodGameMode::Login(
               );
 
               RedwoodPlayerState->RedwoodCharacter =
-                URedwoodTitleInterface::ParseCharacter(Character);
+                URedwoodClientInterface::ParseCharacter(Character);
 
               RedwoodPlayerState->OnRedwoodCharacterUpdated.Broadcast();
 
@@ -268,10 +268,10 @@ void ARedwoodGameMode::FinishRestartPlayer(
 APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
   AController *NewPlayer, const FTransform &SpawnTransform
 ) {
-  URedwoodGameSubsystem *RedwoodGameSubsystem =
+  URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
     NewPlayer->GetWorld()
       ->GetGameInstance()
-      ->GetSubsystem<URedwoodGameSubsystem>();
+      ->GetSubsystem<URedwoodServerGameSubsystem>();
 
   ARedwoodPlayerState *RedwoodPlayerState =
     Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
@@ -319,7 +319,7 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
     for (AActor *ZoneSpawn : ZoneSpawns) {
       ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
       if (IsValid(RedwoodZoneSpawn)) {
-        if (RedwoodZoneSpawn->ZoneName == RedwoodGameSubsystem->ZoneName) {
+        if (RedwoodZoneSpawn->ZoneName == RedwoodServerGameSubsystem->ZoneName) {
           UE_LOG(
             LogRedwood,
             Log,
@@ -341,7 +341,7 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
     TEXT(
       "Could not find a lastTransform for the character and there's no valid ARedwoodZoneSpawn found for this zone (%s). Using default transform."
     ),
-    *RedwoodGameSubsystem->ZoneName
+    *RedwoodServerGameSubsystem->ZoneName
   );
 
   return Super::SpawnDefaultPawnAtTransform_Implementation(

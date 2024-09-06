@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodLoginAsync.h"
 
 URedwoodLoginAsync *URedwoodLoginAsync::Login(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   const FString &Username,
   const FString &Password,

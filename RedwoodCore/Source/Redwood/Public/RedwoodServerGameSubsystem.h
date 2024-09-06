@@ -13,12 +13,12 @@
 #include "SocketIOFunctionLibrary.h"
 #include "SocketIONative.h"
 
-#include "RedwoodGameSubsystem.generated.h"
+#include "RedwoodServerGameSubsystem.generated.h"
 
 class AGameModeBase;
 
 UCLASS(BlueprintType)
-class REDWOOD_API URedwoodGameSubsystem : public UGameInstanceSubsystem {
+class REDWOOD_API URedwoodServerGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
 
 public:

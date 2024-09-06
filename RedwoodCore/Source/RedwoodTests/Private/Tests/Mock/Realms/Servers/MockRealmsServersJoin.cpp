@@ -73,7 +73,7 @@ void FMockRealmsServersJoinRun::Initialize() {
 }
 
 bool FMockRealmsServersJoin::RunTest(const FString &Parameters) {
-  URedwoodTitleInterface *Redwood = NewObject<URedwoodTitleInterface>();
+  URedwoodClientInterface *Redwood = NewObject<URedwoodClientInterface>();
   UAsyncTestContext *Context = NewObject<UAsyncTestContext>();
 
   Redwood->AddToRoot();

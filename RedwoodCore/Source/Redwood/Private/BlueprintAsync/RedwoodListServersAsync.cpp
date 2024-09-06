@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodListServersAsync.h"
 
 URedwoodListServersAsync *URedwoodListServersAsync::ListServers(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   TArray<FString> PrivateServerReferences
 ) {

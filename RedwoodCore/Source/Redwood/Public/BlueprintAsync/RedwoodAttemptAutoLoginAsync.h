@@ -5,7 +5,7 @@
 #include "Kismet/BlueprintAsyncActionBase.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodAttemptAutoLoginAsync.generated.h"
 
@@ -26,11 +26,11 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodAttemptAutoLoginAsync *AttemptAutoLogin(
-    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+    URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
   FRedwoodAuthUpdateDynamicDelegate OnUpdate;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 };

@@ -50,9 +50,9 @@ public:
    * when they receive a request from the Realm service. This will happen
    * when the client A) requests to join a lobby session, B) requests to join
    * matchmaking, or C) is part of a party that is joining because of A or B.
-   * If set to false, the URedwoodTitleGameSubsystem::OnRequestToJoinServer
+   * If set to false, the URedwoodClientGameSubsystem::OnRequestToJoinServer
    * delegate will be called instead. Clients will then need to call
-   * URedwoodTitleGameSubsystem::GetConnectionConsoleCommand (which they can
+   * URedwoodClientGameSubsystem::GetConnectionConsoleCommand (which they can
    * append with additional parameters) to pass to the Execute Console Command
    * engine function. This delegate will not be fired if set to true.
    */

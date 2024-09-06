@@ -4,7 +4,7 @@
 
 URedwoodInitializeDirectorConnectionAsync *
 URedwoodInitializeDirectorConnectionAsync::InitializeDirectorConnection(
-  URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+  URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodInitializeDirectorConnectionAsync *Action =
     NewObject<URedwoodInitializeDirectorConnectionAsync>();

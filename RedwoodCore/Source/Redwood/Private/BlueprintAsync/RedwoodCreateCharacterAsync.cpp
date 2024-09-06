@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodCreateCharacterAsync.h"
 
 URedwoodCreateCharacterAsync *URedwoodCreateCharacterAsync::CreateCharacter(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString Name,
   USIOJsonObject *Metadata,

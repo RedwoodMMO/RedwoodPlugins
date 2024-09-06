@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodStopServerAsync.generated.h"
 
@@ -27,7 +27,7 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodStopServerAsync *StopServer(
-    URedwoodTitleGameSubsystem *Target,
+    URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     FString ServerProxyId
   );
@@ -35,7 +35,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodErrorOutputDynamicDelegate OnOutput;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 
   FString ServerProxyId;
 };

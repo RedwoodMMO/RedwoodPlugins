@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodJoinQueueAsync.h"
 
 URedwoodJoinQueueAsync *URedwoodJoinQueueAsync::JoinQueue(
-  URedwoodTitleGameSubsystem *Target,
+  URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString ProxyId,
   FString ZoneName

@@ -5,7 +5,7 @@
 URedwoodInitializeConnectionForFirstRealmAsync *
 URedwoodInitializeConnectionForFirstRealmAsync::
   InitializeConnectionForFirstRealm(
-    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+    URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
   ) {
   URedwoodInitializeConnectionForFirstRealmAsync *Action =
     NewObject<URedwoodInitializeConnectionForFirstRealmAsync>();

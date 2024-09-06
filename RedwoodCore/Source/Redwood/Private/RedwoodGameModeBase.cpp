@@ -1,10 +1,10 @@
 // Copyright Incanta Games. All rights reserved.
 
 #include "RedwoodGameModeBase.h"
-#include "RedwoodGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodPlayerController.h"
 #include "RedwoodPlayerState.h"
+#include "RedwoodServerGameSubsystem.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -37,9 +37,9 @@ void ARedwoodGameModeBase::InitGame(
   if (bConnectToSidecar) {
     Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
-    URedwoodGameSubsystem *RedwoodGameSubsystem =
-      GetGameInstance()->GetSubsystem<URedwoodGameSubsystem>();
-    Sidecar->Connect(RedwoodGameSubsystem->SidecarUri);
+    URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+      GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
+    Sidecar->Connect(RedwoodServerGameSubsystem->SidecarUri);
   }
 
   FGameModeEvents::GameModeLogoutEvent.AddUObject(
@@ -137,7 +137,7 @@ APlayerController *ARedwoodGameModeBase::Login(
               );
 
               RedwoodPlayerState->RedwoodCharacter =
-                URedwoodTitleInterface::ParseCharacter(Character);
+                URedwoodClientInterface::ParseCharacter(Character);
 
               RedwoodPlayerState->OnRedwoodCharacterUpdated.Broadcast();
 
@@ -269,10 +269,10 @@ void ARedwoodGameModeBase::FinishRestartPlayer(
 APawn *ARedwoodGameModeBase::SpawnDefaultPawnAtTransform_Implementation(
   AController *NewPlayer, const FTransform &SpawnTransform
 ) {
-  URedwoodGameSubsystem *RedwoodGameSubsystem =
+  URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
     NewPlayer->GetWorld()
       ->GetGameInstance()
-      ->GetSubsystem<URedwoodGameSubsystem>();
+      ->GetSubsystem<URedwoodServerGameSubsystem>();
 
   ARedwoodPlayerState *RedwoodPlayerState =
     Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
@@ -320,7 +320,7 @@ APawn *ARedwoodGameModeBase::SpawnDefaultPawnAtTransform_Implementation(
     for (AActor *ZoneSpawn : ZoneSpawns) {
       ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
       if (IsValid(RedwoodZoneSpawn)) {
-        if (RedwoodZoneSpawn->ZoneName == RedwoodGameSubsystem->ZoneName) {
+        if (RedwoodZoneSpawn->ZoneName == RedwoodServerGameSubsystem->ZoneName) {
           UE_LOG(
             LogRedwood,
             Log,
@@ -342,7 +342,7 @@ APawn *ARedwoodGameModeBase::SpawnDefaultPawnAtTransform_Implementation(
     TEXT(
       "Could not find a lastTransform for the character and there's no valid ARedwoodZoneSpawn found for this zone (%s). Using default transform."
     ),
-    *RedwoodGameSubsystem->ZoneName
+    *RedwoodServerGameSubsystem->ZoneName
   );
 
   return Super::SpawnDefaultPawnAtTransform_Implementation(

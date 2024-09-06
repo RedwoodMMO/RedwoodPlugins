@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodAttemptAutoLoginAsync.h"
 
 URedwoodAttemptAutoLoginAsync *URedwoodAttemptAutoLoginAsync::AttemptAutoLogin(
-  URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+  URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodAttemptAutoLoginAsync *Action =
     NewObject<URedwoodAttemptAutoLoginAsync>();
