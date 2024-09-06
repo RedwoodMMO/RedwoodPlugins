@@ -7,20 +7,14 @@ URedwoodSetCharacterDataAsync *URedwoodSetCharacterDataAsync::SetCharacterData(
   UObject *WorldContextObject,
   FString CharacterId,
   FString Name,
-  USIOJsonObject *Metadata,
-  USIOJsonObject *EquippedInventory,
-  USIOJsonObject *NonequippedInventory,
-  USIOJsonObject *Data
+  USIOJsonObject *CharacterCreatorData
 ) {
   URedwoodSetCharacterDataAsync *Action =
     NewObject<URedwoodSetCharacterDataAsync>();
   Action->Target = Target;
   Action->CharacterId = CharacterId;
   Action->Name = Name;
-  Action->Metadata = Metadata;
-  Action->EquippedInventory = EquippedInventory;
-  Action->NonequippedInventory = NonequippedInventory;
-  Action->Data = Data;
+  Action->CharacterCreatorData = CharacterCreatorData;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
@@ -30,10 +24,7 @@ void URedwoodSetCharacterDataAsync::Activate() {
   Target->SetCharacterData(
     CharacterId,
     Name,
-    Metadata,
-    EquippedInventory,
-    NonequippedInventory,
-    Data,
+    CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](FRedwoodGetCharacterOutput Output) {
         OnOutput.Broadcast(Output);

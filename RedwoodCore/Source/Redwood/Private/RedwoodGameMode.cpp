@@ -1,10 +1,12 @@
 // Copyright Incanta Games. All rights reserved.
 
 #include "RedwoodGameMode.h"
+#include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodPlayerController.h"
 #include "RedwoodPlayerState.h"
 #include "RedwoodServerGameSubsystem.h"
+#include "RedwoodZoneSpawn.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -137,7 +139,7 @@ APlayerController *ARedwoodGameMode::Login(
               );
 
               RedwoodPlayerState->SetRedwoodCharacter(
-                URedwoodClientInterface::ParseCharacter(Character)
+                URedwoodCommonGameSubsystem::ParseCharacter(Character)
               );
 
               RedwoodPlayerState->SetServerReady();

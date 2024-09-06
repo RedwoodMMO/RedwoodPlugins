@@ -107,12 +107,11 @@ void FListNoCharacters::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FCreateCharacter);
 void FCreateCharacter::Initialize() {
+  USIOJsonObject *CharacterCreatorData = NewObject<USIOJsonObject>();
+
   Redwood->CreateCharacter(
     TEXT("TestCharacter"),
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
+    CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](const FRedwoodGetCharacterOutput &Output) {
         CurrentTest->TestEqual(
@@ -156,9 +155,6 @@ void FSetCharacter::Initialize() {
   Redwood->SetCharacterData(
     Context->Data.GetStringField(TEXT("CharacterId")),
     TEXT("TestCharacter 2"),
-    nullptr,
-    nullptr,
-    nullptr,
     nullptr,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](const FRedwoodGetCharacterOutput &Output) {

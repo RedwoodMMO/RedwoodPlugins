@@ -28,5 +28,15 @@ public:
 
   static uint8 GetCharactersOnDiskCount();
 
+  static FRedwoodCharacterBackend ParseCharacter(
+    TSharedPtr<FJsonObject> CharacterObj
+  );
+  static FRedwoodGameServerProxy ParseServerProxy(
+    TSharedPtr<FJsonObject> ServerProxy
+  );
+  static FRedwoodGameServerInstance ParseServerInstance(
+    TSharedPtr<FJsonObject> ServerInstance
+  );
+
 private:
 };

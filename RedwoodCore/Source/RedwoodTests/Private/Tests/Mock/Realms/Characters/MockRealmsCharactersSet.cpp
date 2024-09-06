@@ -44,38 +44,15 @@ void FMockRealmsCharactersSetInitialize::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsCharactersSetRun);
 void FMockRealmsCharactersSetRun::Initialize() {
-  USIOJsonObject *Metadata = NewObject<USIOJsonObject>();
-  Metadata->SetNumberField(TEXT("level"), 2.0f);
-
-  USIOJsonObject *EquippedInventory = NewObject<USIOJsonObject>();
-  EquippedInventory->SetStringField(TEXT("head"), TEXT("mock-head-new-item"));
-  TArray<USIOJsonValue *> Backpack;
-  Backpack.Add(USIOJsonValue::ConstructJsonValueString(
-    nullptr, TEXT("mock-backpack-new-item")
-  ));
-  EquippedInventory->SetArrayField(TEXT("backpack"), Backpack);
-
-  USIOJsonObject *NonequippedInventory = NewObject<USIOJsonObject>();
-  TArray<USIOJsonValue *> Bank;
-  Bank.Add(
-    USIOJsonValue::ConstructJsonValueString(nullptr, TEXT("mock-bank-new-item"))
-  );
-  NonequippedInventory->SetArrayField(TEXT("bank"), Bank);
-
-  USIOJsonObject *Data = NewObject<USIOJsonObject>();
-  Data->SetStringField(TEXT("lastLocation"), TEXT("mock-new-location"));
+  USIOJsonObject *CharacterCreatorData = NewObject<USIOJsonObject>();
+  CharacterCreatorData->SetNumberField(TEXT("level"), 2.0f);
 
   Redwood->SetCharacterData(
     TEXT("ignored-id"),
     TEXT("mock-character-new-name"),
-    Metadata,
-    EquippedInventory,
-    NonequippedInventory,
-    Data,
+    CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
-      [this, Metadata, EquippedInventory, NonequippedInventory, Data](
-        const FRedwoodGetCharacterOutput &Output
-      ) {
+      [this, CharacterCreatorData](const FRedwoodGetCharacterOutput &Output) {
         CurrentTest->TestEqual(
           TEXT("returns correct error"),
           Output.Error,
@@ -107,64 +84,20 @@ void FMockRealmsCharactersSetRun::Initialize() {
         );
 
         CurrentTest->TestTrue(
-          TEXT("returns valid metadata object"),
-          IsValid(Output.Character.Metadata)
+          TEXT("returns valid CharacterCreatorData object"),
+          IsValid(Output.Character.CharacterCreatorData)
         );
 
         CurrentTest->TestEqual(
-          TEXT("returns character metadata name"),
+          TEXT("returns character name"),
           Output.Character.Name,
           TEXT("mock-character-new-name")
         );
 
         CurrentTest->TestEqual(
-          TEXT("returns character metadata level"),
-          Output.Character.Metadata->GetNumberField(TEXT("level")),
-          Metadata->GetNumberField(TEXT("level"))
-        );
-
-        CurrentTest->TestTrue(
-          TEXT("returns valid EquippedInventory object"),
-          IsValid(Output.Character.EquippedInventory)
-        );
-
-        CurrentTest->TestEqual(
-          TEXT("returns character equipped head item"),
-          Output.Character.EquippedInventory->GetStringField(TEXT("head")),
-          EquippedInventory->GetStringField(TEXT("head"))
-        );
-
-        TArray<USIOJsonValue *> Backpack =
-          Output.Character.EquippedInventory->GetArrayField(TEXT("backpack"));
-
-        CurrentTest->TestEqual(
-          TEXT("returns character equipped backpack item"),
-          Backpack[0]->AsString(),
-          EquippedInventory->GetArrayField(TEXT("backpack"))[0]->AsString()
-        );
-
-        CurrentTest->TestTrue(
-          TEXT("returns valid NonequippedInventory object"),
-          IsValid(Output.Character.NonequippedInventory)
-        );
-
-        TArray<USIOJsonValue *> Bank =
-          Output.Character.NonequippedInventory->GetArrayField(TEXT("bank"));
-
-        CurrentTest->TestEqual(
-          TEXT("returns character bank item"),
-          Bank[0]->AsString(),
-          NonequippedInventory->GetArrayField(TEXT("bank"))[0]->AsString()
-        );
-
-        CurrentTest->TestTrue(
-          TEXT("returns valid Data object"), IsValid(Output.Character.Data)
-        );
-
-        CurrentTest->TestEqual(
-          TEXT("returns character last location"),
-          Output.Character.Data->GetStringField(TEXT("lastLocation")),
-          Data->GetStringField(TEXT("lastLocation"))
+          TEXT("returns character CharacterCreatorData level"),
+          Output.Character.CharacterCreatorData->GetNumberField(TEXT("level")),
+          CharacterCreatorData->GetNumberField(TEXT("level"))
         );
 
         Context->bIsCurrentTestComplete = true;

@@ -1,6 +1,8 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodServerGameSubsystem.h"
+#include "RedwoodCharacter.h"
+#include "RedwoodClientExecCommand.h"
 #include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"

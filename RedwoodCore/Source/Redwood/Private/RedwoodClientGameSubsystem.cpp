@@ -222,16 +222,11 @@ void URedwoodClientGameSubsystem::ListCharacters(
 
 void URedwoodClientGameSubsystem::CreateCharacter(
   FString Name,
-  USIOJsonObject *Metadata,
-  USIOJsonObject *EquippedInventory,
-  USIOJsonObject *NonequippedInventory,
-  USIOJsonObject *Data,
+  USIOJsonObject *CharacterCreatorData,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (ShouldConnectToBackend()) {
-    ClientInterface->CreateCharacter(
-      Name, Metadata, EquippedInventory, NonequippedInventory, Data, OnOutput
-    );
+    ClientInterface->CreateCharacter(Name, CharacterCreatorData, OnOutput);
   } else {
     FRedwoodCharacterBackend Character;
     uint8 CharacterIndex =
@@ -241,10 +236,11 @@ void URedwoodClientGameSubsystem::CreateCharacter(
     Character.Id = PaddedCharacterIndex;
     Character.PlayerId = FGuid::NewGuid().ToString();
     Character.Name = Name;
-    Character.Metadata = Metadata;
-    Character.EquippedInventory = EquippedInventory;
-    Character.NonequippedInventory = NonequippedInventory;
-    Character.Data = Data;
+    Character.CharacterCreatorData = CharacterCreatorData;
+    Character.Metadata = NewObject<USIOJsonObject>();
+    Character.EquippedInventory = NewObject<USIOJsonObject>();
+    Character.NonequippedInventory = NewObject<USIOJsonObject>();
+    Character.Data = NewObject<USIOJsonObject>();
 
     FRedwoodGetCharacterOutput Output;
     Output.Character = Character;
@@ -271,21 +267,12 @@ void URedwoodClientGameSubsystem::GetCharacterData(
 void URedwoodClientGameSubsystem::SetCharacterData(
   FString CharacterId,
   FString Name,
-  USIOJsonObject *Metadata,
-  USIOJsonObject *EquippedInventory,
-  USIOJsonObject *NonequippedInventory,
-  USIOJsonObject *Data,
+  USIOJsonObject *CharacterCreatorData,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (ShouldConnectToBackend()) {
     ClientInterface->SetCharacterData(
-      CharacterId,
-      Name,
-      Metadata,
-      EquippedInventory,
-      NonequippedInventory,
-      Data,
-      OnOutput
+      CharacterId, Name, CharacterCreatorData, OnOutput
     );
   } else {
     FRedwoodCharacterBackend Character =
@@ -295,20 +282,8 @@ void URedwoodClientGameSubsystem::SetCharacterData(
       Character.Name = Name;
     }
 
-    if (Metadata) {
-      Character.Metadata = Metadata;
-    }
-
-    if (EquippedInventory) {
-      Character.EquippedInventory = EquippedInventory;
-    }
-
-    if (NonequippedInventory) {
-      Character.NonequippedInventory = NonequippedInventory;
-    }
-
-    if (Data) {
-      Character.Data = Data;
+    if (CharacterCreatorData) {
+      Character.CharacterCreatorData = CharacterCreatorData;
     }
 
     FRedwoodGetCharacterOutput Output;
@@ -366,18 +341,6 @@ void URedwoodClientGameSubsystem::LeaveTicketing(
       "Cannot leave ticketing in PIE when connecting to the backend is disabled";
     OnOutput.ExecuteIfBound(Error);
   }
-}
-
-FRedwoodGameServerProxy URedwoodClientGameSubsystem::ParseServerProxy(
-  TSharedPtr<FJsonObject> ServerProxy
-) {
-  return URedwoodClientInterface::ParseServerProxy(ServerProxy);
-}
-
-FRedwoodGameServerInstance URedwoodClientGameSubsystem::ParseServerInstance(
-  TSharedPtr<FJsonObject> ServerInstance
-) {
-  return URedwoodClientInterface::ParseServerInstance(ServerInstance);
 }
 
 void URedwoodClientGameSubsystem::ListServers(

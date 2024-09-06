@@ -92,18 +92,11 @@ public:
 
   TMap<FString, float> GetRegions();
 
-  static FRedwoodCharacterBackend ParseCharacter(
-    TSharedPtr<FJsonObject> CharacterObj
-  );
-
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
   void CreateCharacter(
     FString Name,
-    USIOJsonObject *Metadata,
-    USIOJsonObject *EquippedInventory,
-    USIOJsonObject *NonequippedInventory,
-    USIOJsonObject *Data,
+    USIOJsonObject *CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate OnOutput
   );
 
@@ -114,10 +107,7 @@ public:
   void SetCharacterData(
     FString CharacterId,
     FString Name,
-    USIOJsonObject *Metadata,
-    USIOJsonObject *EquippedInventory,
-    USIOJsonObject *NonequippedInventory,
-    USIOJsonObject *Data,
+    USIOJsonObject *CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate OnOutput
   );
 
@@ -135,12 +125,6 @@ public:
 
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
-  static FRedwoodGameServerProxy ParseServerProxy(
-    TSharedPtr<FJsonObject> ServerProxy
-  );
-  static FRedwoodGameServerInstance ParseServerInstance(
-    TSharedPtr<FJsonObject> ServerInstance
-  );
   void ListServers(
     TArray<FString> PrivateServerReferences,
     FRedwoodListServersOutputDelegate OnOutput

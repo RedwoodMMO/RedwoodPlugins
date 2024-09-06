@@ -1,7 +1,7 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "RedwoodClientGameSubsystem.h"
 #include "RedwoodClientInterface.h"
+#include "RedwoodClientGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodSaveGame.h"
 #include "RedwoodSettings.h"
@@ -641,55 +641,6 @@ TMap<FString, float> URedwoodClientInterface::GetRegions() {
   return PingAverages;
 }
 
-FRedwoodCharacterBackend URedwoodClientInterface::ParseCharacter(
-  TSharedPtr<FJsonObject> CharacterObj
-) {
-  FRedwoodCharacterBackend Character;
-  Character.Id = CharacterObj->GetStringField(TEXT("id"));
-
-  FDateTime::ParseIso8601(
-    *CharacterObj->GetStringField(TEXT("createdAt")), Character.CreatedAt
-  );
-
-  FDateTime::ParseIso8601(
-    *CharacterObj->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
-  );
-
-  Character.PlayerId = CharacterObj->GetStringField(TEXT("playerId"));
-
-  Character.Name = CharacterObj->GetStringField(TEXT("name"));
-
-  const TSharedPtr<FJsonObject> *CharacterMetadata = nullptr;
-  if (CharacterObj->TryGetObjectField(TEXT("metadata"), CharacterMetadata)) {
-    Character.Metadata = NewObject<USIOJsonObject>();
-    Character.Metadata->SetRootObject(*CharacterMetadata);
-  }
-
-  const TSharedPtr<FJsonObject> *CharacterEquippedInventory = nullptr;
-  if (CharacterObj->TryGetObjectField(
-        TEXT("equippedInventory"), CharacterEquippedInventory
-      )) {
-    Character.EquippedInventory = NewObject<USIOJsonObject>();
-    Character.EquippedInventory->SetRootObject(*CharacterEquippedInventory);
-  }
-
-  const TSharedPtr<FJsonObject> *NonequippedInventory = nullptr;
-  if (CharacterObj->TryGetObjectField(
-        TEXT("nonequippedInventory"), NonequippedInventory
-      )) {
-    Character.NonequippedInventory = NewObject<USIOJsonObject>();
-    Character.NonequippedInventory->SetRootObject(*NonequippedInventory);
-  }
-
-  const TSharedPtr<FJsonObject> *CharacterData = nullptr;
-  if (CharacterObj->TryGetObjectField(TEXT("data"), CharacterData)) {
-    Character.Data = NewObject<USIOJsonObject>();
-    Character.Data->SetRootObject(*CharacterData);
-  }
-
-  return Character;
-}
-
 void URedwoodClientInterface::ListCharacters(
   FRedwoodListCharactersOutputDelegate OnOutput
 ) {
@@ -716,7 +667,9 @@ void URedwoodClientInterface::ListCharacters(
       for (TSharedPtr<FJsonValue> Character : Characters) {
         TSharedPtr<FJsonObject> CharacterData = Character->AsObject();
 
-        CharactersStruct.Add(ParseCharacter(CharacterData));
+        CharactersStruct.Add(
+          URedwoodCommonGameSubsystem::ParseCharacter(CharacterData)
+        );
       }
 
       FRedwoodListCharactersOutput Output;
@@ -729,10 +682,7 @@ void URedwoodClientInterface::ListCharacters(
 
 void URedwoodClientInterface::CreateCharacter(
   FString Name,
-  USIOJsonObject *Metadata,
-  USIOJsonObject *EquippedInventory,
-  USIOJsonObject *NonequippedInventory,
-  USIOJsonObject *Data,
+  USIOJsonObject *CharacterCreatorData,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
@@ -742,30 +692,21 @@ void URedwoodClientInterface::CreateCharacter(
     return;
   }
 
+  if (CharacterCreatorData == nullptr) {
+    FRedwoodGetCharacterOutput Output;
+    Output.Error = TEXT("Character creator data is required.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
 
   Payload->SetStringField(TEXT("name"), Name);
 
-  if (IsValid(Metadata)) {
-    Payload->SetObjectField(TEXT("metadata"), Metadata->GetRootObject());
-  }
-
-  if (IsValid(EquippedInventory)) {
-    Payload->SetObjectField(
-      TEXT("equippedInventory"), EquippedInventory->GetRootObject()
-    );
-  }
-
-  if (IsValid(NonequippedInventory)) {
-    Payload->SetObjectField(
-      TEXT("nonequippedInventory"), NonequippedInventory->GetRootObject()
-    );
-  }
-
-  if (IsValid(Data)) {
-    Payload->SetObjectField(TEXT("data"), Data->GetRootObject());
-  }
+  Payload->SetObjectField(
+    TEXT("characterCreatorData"), CharacterCreatorData->GetRootObject()
+  );
 
   Realm->Emit(
     TEXT("realm:characters:create"),
@@ -779,7 +720,8 @@ void URedwoodClientInterface::CreateCharacter(
 
       const TSharedPtr<FJsonObject> *CharacterObj;
       if (MessageObject->TryGetObjectField(TEXT("character"), CharacterObj)) {
-        Output.Character = ParseCharacter(*CharacterObj);
+        Output.Character =
+          URedwoodCommonGameSubsystem::ParseCharacter(*CharacterObj);
       }
 
       OnOutput.ExecuteIfBound(Output);
@@ -813,7 +755,8 @@ void URedwoodClientInterface::GetCharacterData(
 
       const TSharedPtr<FJsonObject> *CharacterObj;
       if (MessageObject->TryGetObjectField(TEXT("character"), CharacterObj)) {
-        Output.Character = ParseCharacter(*CharacterObj);
+        Output.Character =
+          URedwoodCommonGameSubsystem::ParseCharacter(*CharacterObj);
       }
 
       OnOutput.ExecuteIfBound(Output);
@@ -860,7 +803,8 @@ void URedwoodClientInterface::SetCharacterData(
 
       const TSharedPtr<FJsonObject> *CharacterObj;
       if (MessageObject->TryGetObjectField(TEXT("character"), CharacterObj)) {
-        Output.Character = ParseCharacter(*CharacterObj);
+        Output.Character =
+          URedwoodCommonGameSubsystem::ParseCharacter(*CharacterObj);
       }
 
       OnOutput.ExecuteIfBound(Output);
@@ -957,140 +901,6 @@ void URedwoodClientInterface::LeaveTicketing(
   );
 }
 
-FRedwoodGameServerProxy URedwoodClientInterface::ParseServerProxy(
-  TSharedPtr<FJsonObject> ServerProxy
-) {
-  FRedwoodGameServerProxy Server;
-
-  Server.Id = ServerProxy->GetStringField(TEXT("id"));
-
-  FDateTime::ParseIso8601(
-    *ServerProxy->GetStringField(TEXT("createdAt")), Server.CreatedAt
-  );
-
-  FDateTime::ParseIso8601(
-    *ServerProxy->GetStringField(TEXT("updatedAt")), Server.UpdatedAt
-  );
-
-  FString EndedAt;
-  if (ServerProxy->TryGetStringField(TEXT("endedAt"), EndedAt)) {
-    FDateTime::ParseIso8601(*EndedAt, Server.EndedAt);
-    Server.bEnded = true;
-  }
-
-  // Start common properties for GameServerInstance loading details
-
-  Server.Name = ServerProxy->GetStringField(TEXT("name"));
-
-  Server.ModeId = ServerProxy->GetStringField(TEXT("modeId"));
-
-  Server.MapId = ServerProxy->GetStringField(TEXT("mapId"));
-
-  Server.bContinuousPlay = ServerProxy->GetBoolField(TEXT("continuousPlay"));
-
-  ServerProxy->TryGetStringField(TEXT("password"), Server.Password);
-
-  ServerProxy->TryGetStringField(TEXT("shortCode"), Server.ShortCode);
-
-  Server.MaxPlayersPerShard =
-    ServerProxy->GetIntegerField(TEXT("maxPlayersPerShard"));
-
-  const TSharedPtr<FJsonObject> *Data;
-  if (ServerProxy->TryGetObjectField(TEXT("data"), Data)) {
-    USIOJsonObject *DataObject = NewObject<USIOJsonObject>();
-    DataObject->SetRootObject(*Data);
-    Server.Data = DataObject;
-  }
-
-  ServerProxy->TryGetStringField(TEXT("ownerPlayerId"), Server.OwnerPlayerId);
-
-  // End common properties for GameServerInstance loading details
-
-  Server.Region = ServerProxy->GetStringField(TEXT("region"));
-
-  Server.bStartOnBoot = ServerProxy->GetBoolField(TEXT("startOnBoot"));
-
-  FString ZonesCSV;
-  if (ServerProxy->TryGetStringField(TEXT("zones"), ZonesCSV)) {
-    ZonesCSV.ParseIntoArray(Server.Zones, TEXT(","), true);
-  }
-
-  ServerProxy->TryGetNumberField(
-    TEXT("numPlayersToAddShard"), Server.NumPlayersToAddShard
-  );
-
-  ServerProxy->TryGetNumberField(
-    TEXT("numMinutesToDestroyEmptyShard"), Server.NumMinutesToDestroyEmptyShard
-  );
-
-  Server.bPublic = ServerProxy->GetBoolField(TEXT("public"));
-
-  Server.bProxyEndsWhenCollectionEnds =
-    ServerProxy->GetBoolField(TEXT("proxyEndsWhenCollectionEnds"));
-
-  Server.CurrentPlayers = ServerProxy->GetIntegerField(TEXT("currentPlayers"));
-
-  ServerProxy->TryGetBoolField(TEXT("hasPassword"), Server.bHasPassword);
-
-  ServerProxy->TryGetStringField(
-    TEXT("activeCollectionId"), Server.ActiveCollectionId
-  );
-
-  return Server;
-}
-
-FRedwoodGameServerInstance URedwoodClientInterface::ParseServerInstance(
-  TSharedPtr<FJsonObject> ServerInstance
-) {
-  FRedwoodGameServerInstance Instance;
-
-  Instance.Id = ServerInstance->GetStringField(TEXT("id"));
-
-  FDateTime::ParseIso8601(
-    *ServerInstance->GetStringField(TEXT("createdAt")), Instance.CreatedAt
-  );
-
-  FDateTime::ParseIso8601(
-    *ServerInstance->GetStringField(TEXT("updatedAt")), Instance.UpdatedAt
-  );
-
-  Instance.ProviderId = ServerInstance->GetStringField(TEXT("providerId"));
-
-  FString StartedAt;
-  if (ServerInstance->TryGetStringField(TEXT("startedAt"), StartedAt)) {
-    FDateTime::ParseIso8601(*StartedAt, Instance.StartedAt);
-  }
-
-  FString EndedAt;
-  if (ServerInstance->TryGetStringField(TEXT("endedAt"), EndedAt)) {
-    FDateTime::ParseIso8601(*EndedAt, Instance.EndedAt);
-    Instance.bEnded = true;
-  }
-
-  ServerInstance->TryGetStringField(TEXT("connection"), Instance.Connection);
-
-  ServerInstance->TryGetStringField(TEXT("channel"), Instance.Channel);
-
-  if (Instance.Channel.Contains(":")) {
-    TArray<FString> ChannelParts;
-    Instance.Channel.ParseIntoArray(ChannelParts, TEXT(":"), true);
-
-    if (ChannelParts.Num() > 0) {
-      Instance.ZoneName = ChannelParts[0];
-    }
-
-    if (ChannelParts.Num() > 1) {
-      Instance.ShardName = ChannelParts[1];
-    }
-  }
-
-  Instance.ContainerId = ServerInstance->GetStringField(TEXT("containerId"));
-
-  Instance.CollectionId = ServerInstance->GetStringField(TEXT("collectionId"));
-
-  return Instance;
-}
-
 void URedwoodClientInterface::ListServers(
   TArray<FString> PrivateServerReferences,
   FRedwoodListServersOutputDelegate OnOutput
@@ -1127,7 +937,8 @@ void URedwoodClientInterface::ListServers(
       TArray<FRedwoodGameServerProxy> ServersStruct;
       for (TSharedPtr<FJsonValue> Server : Servers) {
         TSharedPtr<FJsonObject> ServerData = Server->AsObject();
-        ServersStruct.Add(URedwoodClientInterface::ParseServerProxy(ServerData)
+        ServersStruct.Add(
+          URedwoodCommonGameSubsystem::ParseServerProxy(ServerData)
         );
       }
 

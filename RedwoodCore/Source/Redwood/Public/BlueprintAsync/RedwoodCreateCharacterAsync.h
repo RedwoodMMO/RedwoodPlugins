@@ -31,10 +31,7 @@ public:
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     FString Name,
-    USIOJsonObject *Metadata,
-    USIOJsonObject *EquippedInventory,
-    USIOJsonObject *NonequippedInventory,
-    USIOJsonObject *Data
+    USIOJsonObject *CharacterCreatorData
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -45,14 +42,5 @@ public:
   FString Name;
 
   UPROPERTY()
-  USIOJsonObject *Metadata;
-
-  UPROPERTY()
-  USIOJsonObject *EquippedInventory;
-
-  UPROPERTY()
-  USIOJsonObject *NonequippedInventory;
-
-  UPROPERTY()
-  USIOJsonObject *Data;
+  USIOJsonObject *CharacterCreatorData;
 };
