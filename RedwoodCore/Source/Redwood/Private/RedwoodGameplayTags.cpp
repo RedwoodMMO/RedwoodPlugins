@@ -10,3 +10,6 @@ UE_DEFINE_GAMEPLAY_TAG(
   TAG_Redwood_Shutdown_Instance, "Redwood.Shutdown.Instance"
 );
 UE_DEFINE_GAMEPLAY_TAG(TAG_Redwood_Player_Left, "Redwood.Player.Left");
+UE_DEFINE_GAMEPLAY_TAG(
+  TAG_Redwood_Player_InventoryChanged, "Redwood.Player.InventoryChanged"
+);

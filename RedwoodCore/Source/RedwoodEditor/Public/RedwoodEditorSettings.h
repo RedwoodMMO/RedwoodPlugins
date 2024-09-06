@@ -20,6 +20,10 @@ public:
   UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
   bool bConnectToSidecarInPIE = false;
 
+  /** Whether or not you want the client to try to connect to the Redwood Backend while running PIE */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  bool bConnectClientToBackendInPIE = true;
+
   virtual FName GetContainerName() const override {
     return "Editor";
   }

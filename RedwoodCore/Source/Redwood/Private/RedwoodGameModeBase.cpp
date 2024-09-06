@@ -12,6 +12,8 @@
 
 #include "Dom/JsonObject.h"
 #include "GameFramework/GameSession.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Guid.h"
 #include "Net/OnlineEngineInterface.h"
@@ -45,6 +47,16 @@ void ARedwoodGameModeBase::InitGame(
   FGameModeEvents::GameModeLogoutEvent.AddUObject(
     this, &ARedwoodGameModeBase::OnGameModeLogout
   );
+
+  // create a looping timer to flush player character data
+  FTimerManager &TimerManager = GetWorld()->GetTimerManager();
+  TimerManager.SetTimer(
+    FlushPlayerCharacterDataTimerHandle,
+    this,
+    &ARedwoodGameModeBase::FlushPlayerCharacterData,
+    0.5f,
+    true
+  );
 }
 
 void ARedwoodGameModeBase::OnGameModeLogout(
@@ -55,11 +67,15 @@ void ARedwoodGameModeBase::OnGameModeLogout(
     return;
   }
 
-  UGameplayMessageSubsystem &MessageSubsystem =
-    UGameplayMessageSubsystem::Get(this);
-  MessageSubsystem.BroadcastMessage(
-    TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
-  );
+  if (UGameplayMessageSubsystem::HasInstance(this)) {
+    // When we stop PIE, it's possible for the subsystem to be destroyed
+    // before we get this event, so we need to check if it's valid
+    UGameplayMessageSubsystem &MessageSubsystem =
+      UGameplayMessageSubsystem::Get(this);
+    MessageSubsystem.BroadcastMessage(
+      TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
+    );
+  }
 }
 
 APlayerController *ARedwoodGameModeBase::Login(
@@ -116,16 +132,6 @@ APlayerController *ARedwoodGameModeBase::Login(
             FString CharacterId = Character->GetStringField(TEXT("id"));
             FString CharacterName = Character->GetStringField(TEXT("name"));
 
-            FUniqueNetIdWrapper UniqueNetIdWrapper =
-              UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(
-                PlayerId + TEXT(":") + CharacterId, FName(TEXT("RedwoodMMO"))
-              );
-            FUniqueNetIdRepl UniqueId(UniqueNetIdWrapper.GetUniqueNetId());
-
-            PlayerController->PlayerState->SetUniqueId(UniqueId);
-
-            PlayerController->PlayerState->SetPlayerName(CharacterName);
-
             ARedwoodPlayerState *RedwoodPlayerState =
               Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
             if (IsValid(RedwoodPlayerState)) {
@@ -136,10 +142,9 @@ APlayerController *ARedwoodGameModeBase::Login(
                 *CharacterId
               );
 
-              RedwoodPlayerState->RedwoodCharacter =
-                URedwoodClientInterface::ParseCharacter(Character);
-
-              RedwoodPlayerState->OnRedwoodCharacterUpdated.Broadcast();
+              RedwoodPlayerState->SetRedwoodCharacter(
+                URedwoodClientInterface::ParseCharacter(Character)
+              );
 
               RedwoodPlayerState->SetServerReady();
 
@@ -169,6 +174,37 @@ APlayerController *ARedwoodGameModeBase::Login(
     } else {
       ErrorMessage =
         TEXT("Invalid authentication request: missing RedwoodAuth option");
+    }
+  } else {
+    // we're likely PIE so just load the character from disk
+    // based on the player controller index
+    uint8 PlayerIndex = PlayerController->NetPlayerIndex;
+
+    TArray<FRedwoodCharacterBackend> Characters =
+      URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
+
+    if (PlayerIndex < Characters.Num()) {
+      ARedwoodPlayerState *RedwoodPlayerState =
+        Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
+      if (IsValid(RedwoodPlayerState)) {
+        FRedwoodCharacterBackend &Character = Characters[PlayerIndex];
+        RedwoodPlayerState->SetRedwoodCharacter(Character);
+
+        RedwoodPlayerState->SetServerReady();
+
+        HandleStartingNewPlayer(PlayerController);
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Log,
+          TEXT("Can't load character data as we're not using RedwoodPlayerState"
+          )
+        );
+      }
+    } else {
+      ErrorMessage = FString::Printf(
+        TEXT("No character found for this player index %d"), PlayerIndex
+      );
     }
   }
 
@@ -348,4 +384,11 @@ APawn *ARedwoodGameModeBase::SpawnDefaultPawnAtTransform_Implementation(
   return Super::SpawnDefaultPawnAtTransform_Implementation(
     NewPlayer, SpawnTransform
   );
+}
+
+void ARedwoodGameModeBase::FlushPlayerCharacterData() {
+  URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+    GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
+
+  RedwoodServerGameSubsystem->FlushPlayerCharacterData();
 }

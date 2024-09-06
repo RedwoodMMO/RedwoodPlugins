@@ -136,10 +136,9 @@ APlayerController *ARedwoodGameMode::Login(
                 *CharacterId
               );
 
-              RedwoodPlayerState->RedwoodCharacter =
-                URedwoodClientInterface::ParseCharacter(Character);
-
-              RedwoodPlayerState->OnRedwoodCharacterUpdated.Broadcast();
+              RedwoodPlayerState->SetRedwoodCharacter(
+                URedwoodClientInterface::ParseCharacter(Character)
+              );
 
               RedwoodPlayerState->SetServerReady();
 

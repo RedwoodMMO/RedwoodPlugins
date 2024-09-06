@@ -7,6 +7,7 @@
 #include "RedwoodSettings.h"
 
 #include "GameFramework/GameplayMessageSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetStringLibrary.h"
 #include "LatencyCheckerLibrary.h"
 #include "Misc/DateTime.h"
@@ -823,10 +824,7 @@ void URedwoodClientInterface::GetCharacterData(
 void URedwoodClientInterface::SetCharacterData(
   FString CharacterId,
   FString Name,
-  USIOJsonObject *Metadata,
-  USIOJsonObject *EquippedInventory,
-  USIOJsonObject *NonequippedInventory,
-  USIOJsonObject *Data,
+  USIOJsonObject *CharacterCreatorData,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
@@ -844,28 +842,14 @@ void URedwoodClientInterface::SetCharacterData(
     Payload->SetStringField(TEXT("name"), Name);
   }
 
-  if (IsValid(Metadata)) {
-    Payload->SetObjectField(TEXT("metadata"), Metadata->GetRootObject());
-  }
-
-  if (IsValid(EquippedInventory)) {
+  if (IsValid(CharacterCreatorData)) {
     Payload->SetObjectField(
-      TEXT("equippedInventory"), EquippedInventory->GetRootObject()
+      TEXT("characterCreatorData"), CharacterCreatorData->GetRootObject()
     );
-  }
-
-  if (IsValid(NonequippedInventory)) {
-    Payload->SetObjectField(
-      TEXT("nonequippedInventory"), NonequippedInventory->GetRootObject()
-    );
-  }
-
-  if (IsValid(Data)) {
-    Payload->SetObjectField(TEXT("data"), Data->GetRootObject());
   }
 
   Realm->Emit(
-    TEXT("realm:characters:set"),
+    TEXT("realm:characters:set:client"),
     Payload,
     [this, OnOutput, CharacterId](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();

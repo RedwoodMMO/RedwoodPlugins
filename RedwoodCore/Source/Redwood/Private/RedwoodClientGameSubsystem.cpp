@@ -2,11 +2,17 @@
 
 #include "RedwoodClientGameSubsystem.h"
 #include "RedwoodClientInterface.h"
+#include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodSettings.h"
 
+#if WITH_EDITOR
+  #include "RedwoodEditorSettings.h"
+#endif
+
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "Kismet/KismetStringLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "LatencyCheckerLibrary.h"
 #include "SocketIOClient.h"
 
@@ -17,39 +23,53 @@ void URedwoodClientGameSubsystem::Initialize(
 ) {
   Super::Initialize(Collection);
 
-  ClientInterface = NewObject<URedwoodClientInterface>();
+  if (ShouldConnectToBackend()) {
+    ClientInterface = NewObject<URedwoodClientInterface>();
 
-  ClientInterface->OnPingsReceived.AddDynamic(
-    this, &URedwoodClientGameSubsystem::HandlePingsReceived
-  );
-  ClientInterface->OnRequestToJoinServer.AddDynamic(
-    this, &URedwoodClientGameSubsystem::HandleRequestToJoinServer
-  );
-  ClientInterface->OnDirectorConnectionLost.AddDynamic(
-    this, &URedwoodClientGameSubsystem::HandleOnDirectorConnectionLost
-  );
-  ClientInterface->OnDirectorConnectionReestablished.AddDynamic(
-    this, &URedwoodClientGameSubsystem::HandleOnDirectorConnectionReestablished
-  );
-  ClientInterface->OnRealmConnectionLost.AddDynamic(
-    this, &URedwoodClientGameSubsystem::HandleOnRealmConnectionLost
-  );
+    ClientInterface->OnPingsReceived.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandlePingsReceived
+    );
+    ClientInterface->OnRequestToJoinServer.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleRequestToJoinServer
+    );
+    ClientInterface->OnDirectorConnectionLost.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnDirectorConnectionLost
+    );
+    ClientInterface->OnDirectorConnectionReestablished.AddDynamic(
+      this,
+      &URedwoodClientGameSubsystem::HandleOnDirectorConnectionReestablished
+    );
+    ClientInterface->OnRealmConnectionLost.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnRealmConnectionLost
+    );
+  }
 }
 
 void URedwoodClientGameSubsystem::Deinitialize() {
   Super::Deinitialize();
 
-  ClientInterface->Deinitialize();
+  if (ClientInterface) {
+    ClientInterface->Deinitialize();
+  }
 }
 
 void URedwoodClientGameSubsystem::InitializeDirectorConnection(
   FRedwoodSocketConnectedDelegate OnDirectorConnected
 ) {
-  ClientInterface->InitializeDirectorConnection(OnDirectorConnected);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->InitializeDirectorConnection(OnDirectorConnected);
+  } else {
+    FRedwoodSocketConnected Output;
+    OnDirectorConnected.ExecuteIfBound(Output);
+  }
 }
 
 bool URedwoodClientGameSubsystem::IsDirectorConnected() {
-  return ClientInterface->IsDirectorConnected();
+  if (ShouldConnectToBackend()) {
+    return ClientInterface->IsDirectorConnected();
+  } else {
+    return true;
+  }
 }
 
 void URedwoodClientGameSubsystem::Register(
@@ -57,21 +77,41 @@ void URedwoodClientGameSubsystem::Register(
   const FString &Password,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  ClientInterface->Register(Username, Password, OnUpdate);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->Register(Username, Password, OnUpdate);
+  } else {
+    FRedwoodAuthUpdate Output;
+    Output.Type = ERedwoodAuthUpdateType::Error;
+    Output.Message =
+      "Cannot register in when connecting to the backend is disabled in PIE, just login with any credentials";
+    OnUpdate.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::Logout() {
-  ClientInterface->Logout();
+  if (ShouldConnectToBackend()) {
+    ClientInterface->Logout();
+  }
 }
 
 bool URedwoodClientGameSubsystem::IsLoggedIn() {
-  return ClientInterface->IsLoggedIn();
+  if (ShouldConnectToBackend()) {
+    return ClientInterface->IsLoggedIn();
+  } else {
+    return true;
+  }
 }
 
 void URedwoodClientGameSubsystem::AttemptAutoLogin(
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  ClientInterface->AttemptAutoLogin(OnUpdate);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->AttemptAutoLogin(OnUpdate);
+  } else {
+    FRedwoodAuthUpdate Output;
+    Output.Type = ERedwoodAuthUpdateType::Success;
+    OnUpdate.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::Login(
@@ -81,49 +121,103 @@ void URedwoodClientGameSubsystem::Login(
   bool bRememberMe,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  ClientInterface->Login(
-    Username, PasswordOrToken, Provider, bRememberMe, OnUpdate
-  );
+  if (ShouldConnectToBackend()) {
+    ClientInterface->Login(
+      Username, PasswordOrToken, Provider, bRememberMe, OnUpdate
+    );
+  } else {
+    FRedwoodAuthUpdate Output;
+    Output.Type = ERedwoodAuthUpdateType::Success;
+    OnUpdate.ExecuteIfBound(Output);
+  }
 }
 
 FString URedwoodClientGameSubsystem::GetNickname() {
-  return ClientInterface->GetNickname();
+  if (ShouldConnectToBackend()) {
+    return ClientInterface->GetNickname();
+  } else {
+    return TEXT("PIE Player");
+  }
 }
 
 void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
-  ClientInterface->CancelWaitingForAccountVerification();
+  if (ShouldConnectToBackend()) {
+    ClientInterface->CancelWaitingForAccountVerification();
+  }
 }
 
 void URedwoodClientGameSubsystem::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {
-  ClientInterface->ListRealms(OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->ListRealms(OnOutput);
+  } else {
+    TArray<FRedwoodRealm> Realms;
+
+    FRedwoodRealm FakeRealm;
+    FakeRealm.Id = FGuid::NewGuid().ToString();
+    FakeRealm.Name = "Local PIE Realm";
+    FakeRealm.Uri = "ws://localhost";
+    FakeRealm.bListed = true;
+
+    FRedwoodListRealmsOutput Output;
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::InitializeConnectionForFirstRealm(
   FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
-  ClientInterface->InitializeConnectionForFirstRealm(OnRealmConnected);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->InitializeConnectionForFirstRealm(OnRealmConnected);
+  } else {
+    FRedwoodSocketConnected Output;
+    OnRealmConnected.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::InitializeRealmConnection(
   FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
-  ClientInterface->InitializeRealmConnection(InRealm, OnRealmConnected);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->InitializeRealmConnection(InRealm, OnRealmConnected);
+  } else {
+    FRedwoodSocketConnected Output;
+    OnRealmConnected.ExecuteIfBound(Output);
+  }
 }
 
 bool URedwoodClientGameSubsystem::IsRealmConnected() {
-  return ClientInterface->IsRealmConnected();
+  if (ShouldConnectToBackend()) {
+    return ClientInterface->IsRealmConnected();
+  } else {
+    return true;
+  }
 }
 
 TMap<FString, float> URedwoodClientGameSubsystem::GetRegions() {
-  return ClientInterface->GetRegions();
+  if (ShouldConnectToBackend()) {
+    return ClientInterface->GetRegions();
+  } else {
+    TMap<FString, float> Regions;
+    Regions.Add("Local", 0.0f);
+    return Regions;
+  }
 }
 
 void URedwoodClientGameSubsystem::ListCharacters(
   FRedwoodListCharactersOutputDelegate OnOutput
 ) {
-  ClientInterface->ListCharacters(OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->ListCharacters(OnOutput);
+  } else {
+    TArray<FRedwoodCharacterBackend> Characters;
+
+    FRedwoodListCharactersOutput Output;
+    Output.Characters =
+      URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::CreateCharacter(
@@ -134,15 +228,44 @@ void URedwoodClientGameSubsystem::CreateCharacter(
   USIOJsonObject *Data,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
-  ClientInterface->CreateCharacter(
-    Name, Metadata, EquippedInventory, NonequippedInventory, Data, OnOutput
-  );
+  if (ShouldConnectToBackend()) {
+    ClientInterface->CreateCharacter(
+      Name, Metadata, EquippedInventory, NonequippedInventory, Data, OnOutput
+    );
+  } else {
+    FRedwoodCharacterBackend Character;
+    uint8 CharacterIndex =
+      URedwoodCommonGameSubsystem::GetCharactersOnDiskCount();
+    FString PaddedCharacterIndex =
+      FString::Printf(TEXT("%03d"), CharacterIndex);
+    Character.Id = PaddedCharacterIndex;
+    Character.PlayerId = FGuid::NewGuid().ToString();
+    Character.Name = Name;
+    Character.Metadata = Metadata;
+    Character.EquippedInventory = EquippedInventory;
+    Character.NonequippedInventory = NonequippedInventory;
+    Character.Data = Data;
+
+    FRedwoodGetCharacterOutput Output;
+    Output.Character = Character;
+
+    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::GetCharacterData(
   FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
-  ClientInterface->GetCharacterData(CharacterId, OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->GetCharacterData(CharacterId, OnOutput);
+  } else {
+    FRedwoodGetCharacterOutput Output;
+    Output.Character =
+      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::SetCharacterData(
@@ -154,19 +277,53 @@ void URedwoodClientGameSubsystem::SetCharacterData(
   USIOJsonObject *Data,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
-  ClientInterface->SetCharacterData(
-    CharacterId,
-    Name,
-    Metadata,
-    EquippedInventory,
-    NonequippedInventory,
-    Data,
-    OnOutput
-  );
+  if (ShouldConnectToBackend()) {
+    ClientInterface->SetCharacterData(
+      CharacterId,
+      Name,
+      Metadata,
+      EquippedInventory,
+      NonequippedInventory,
+      Data,
+      OnOutput
+    );
+  } else {
+    FRedwoodCharacterBackend Character =
+      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+
+    if (!Name.IsEmpty()) {
+      Character.Name = Name;
+    }
+
+    if (Metadata) {
+      Character.Metadata = Metadata;
+    }
+
+    if (EquippedInventory) {
+      Character.EquippedInventory = EquippedInventory;
+    }
+
+    if (NonequippedInventory) {
+      Character.NonequippedInventory = NonequippedInventory;
+    }
+
+    if (Data) {
+      Character.Data = Data;
+    }
+
+    FRedwoodGetCharacterOutput Output;
+    Output.Character = Character;
+
+    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::SetSelectedCharacter(FString CharacterId) {
-  ClientInterface->SetSelectedCharacter(CharacterId);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->SetSelectedCharacter(CharacterId);
+  }
 }
 
 void URedwoodClientGameSubsystem::JoinMatchmaking(
@@ -174,19 +331,41 @@ void URedwoodClientGameSubsystem::JoinMatchmaking(
   TArray<FString> InRegions,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
-  ClientInterface->JoinMatchmaking(ProfileId, InRegions, OnUpdate);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->JoinMatchmaking(ProfileId, InRegions, OnUpdate);
+  } else {
+    FRedwoodTicketingUpdate Output;
+    Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Output.Message =
+      "Cannot join matchmaking in PIE when connecting to the backend is disabled";
+    OnUpdate.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::JoinQueue(
   FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
-  ClientInterface->JoinQueue(ProxyId, ZoneName, OnUpdate);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->JoinQueue(ProxyId, ZoneName, OnUpdate);
+  } else {
+    FRedwoodTicketingUpdate Output;
+    Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Output.Message =
+      "Cannot join matchmaking in PIE when connecting to the backend is disabled";
+    OnUpdate.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::LeaveTicketing(
   FRedwoodErrorOutputDelegate OnOutput
 ) {
-  ClientInterface->LeaveTicketing(OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->LeaveTicketing(OnOutput);
+  } else {
+    FString Error =
+      "Cannot leave ticketing in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
 }
 
 FRedwoodGameServerProxy URedwoodClientGameSubsystem::ParseServerProxy(
@@ -205,7 +384,12 @@ void URedwoodClientGameSubsystem::ListServers(
   TArray<FString> PrivateServerReferences,
   FRedwoodListServersOutputDelegate OnOutput
 ) {
-  ClientInterface->ListServers(PrivateServerReferences, OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->ListServers(PrivateServerReferences, OnOutput);
+  } else {
+    FRedwoodListServersOutput Output;
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::CreateServer(
@@ -213,7 +397,14 @@ void URedwoodClientGameSubsystem::CreateServer(
   FRedwoodCreateServerInput Parameters,
   FRedwoodCreateServerOutputDelegate OnOutput
 ) {
-  ClientInterface->CreateServer(bJoinSession, Parameters, OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->CreateServer(bJoinSession, Parameters, OnOutput);
+  } else {
+    FRedwoodCreateServerOutput Output;
+    Output.Error =
+      "Cannot create server in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::JoinServerInstance(
@@ -221,17 +412,34 @@ void URedwoodClientGameSubsystem::JoinServerInstance(
   FString Password,
   FRedwoodJoinServerOutputDelegate OnOutput
 ) {
-  ClientInterface->JoinServerInstance(ServerReference, Password, OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->JoinServerInstance(ServerReference, Password, OnOutput);
+  } else {
+    FRedwoodJoinServerOutput Output;
+    Output.Error =
+      "Cannot join server in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
 }
 
 void URedwoodClientGameSubsystem::StopServer(
   FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput
 ) {
-  ClientInterface->StopServer(ServerProxyId, OnOutput);
+  if (ShouldConnectToBackend()) {
+    ClientInterface->StopServer(ServerProxyId, OnOutput);
+  } else {
+    FString Error =
+      "Cannot stop server in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
 }
 
 FString URedwoodClientGameSubsystem::GetConnectionConsoleCommand() {
-  return ClientInterface->GetConnectionConsoleCommand();
+  if (ShouldConnectToBackend()) {
+    return ClientInterface->GetConnectionConsoleCommand();
+  } else {
+    return FString();
+  }
 }
 
 void URedwoodClientGameSubsystem::HandlePingsReceived() {
@@ -266,4 +474,16 @@ void URedwoodClientGameSubsystem::HandleOnDirectorConnectionReestablished() {
 
 void URedwoodClientGameSubsystem::HandleOnRealmConnectionLost() {
   OnRealmConnectionLost.Broadcast();
+}
+
+bool URedwoodClientGameSubsystem::ShouldConnectToBackend() {
+#if WITH_EDITOR
+  // get redwoodeditorsettings
+  URedwoodEditorSettings *RedwoodEditorSettings =
+    GetMutableDefault<URedwoodEditorSettings>();
+
+  return RedwoodEditorSettings->bConnectClientToBackendInPIE;
+#else
+  return true;
+#endif
 }

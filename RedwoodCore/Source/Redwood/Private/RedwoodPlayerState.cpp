@@ -17,3 +17,22 @@ void ARedwoodPlayerState::SetServerReady() {
     bServerReady = true;
   }
 }
+
+void ARedwoodPlayerState::SetRedwoodCharacter(
+  FRedwoodCharacterBackend InRedwoodCharacter
+) {
+  RedwoodCharacter = InRedwoodCharacter;
+
+  FUniqueNetIdWrapper UniqueNetIdWrapper =
+    UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(
+      RedwoodCharacter.PlayerId + TEXT(":") + RedwoodCharacter.Id,
+      FName(TEXT("RedwoodMMO"))
+    );
+  FUniqueNetIdRepl NetUniqueId(UniqueNetIdWrapper.GetUniqueNetId());
+
+  SetUniqueId(NetUniqueId);
+
+  SetPlayerName(RedwoodCharacter.Name);
+
+  OnRedwoodCharacterUpdated.Broadcast();
+}

@@ -39,6 +39,9 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
   void SetServerReady();
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
+  void SetRedwoodCharacter(FRedwoodCharacterBackend InRedwoodCharacter);
+
   UPROPERTY(BlueprintAssignable, Category = "Events")
   FOnRedwoodCharacterUpdated OnRedwoodCharacterUpdated;
 };

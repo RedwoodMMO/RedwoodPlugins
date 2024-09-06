@@ -1,9 +1,11 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodServerGameSubsystem.h"
+#include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodMapAsset.h"
+#include "RedwoodSettings.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -445,7 +447,7 @@ void URedwoodServerGameSubsystem::TravelPlayerToZone(
 
   Payload->SetObjectField(TEXT("transform"), Transform);
 
-  if (!Sidecar.IsValid() && !Sidecar->bIsConnected) {
+  if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
     UE_LOG(
       LogRedwood,
       Error,
@@ -484,4 +486,247 @@ void URedwoodServerGameSubsystem::TravelPlayerToZone(
       }
     }
   );
+}
+
+void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
+  UWorld *World = GetWorld();
+  if (!IsValid(World)) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't FlushPlayerCharacterData: World is not valid")
+    );
+    return;
+  }
+
+  AGameStateBase *GameState = World->GetGameState();
+  if (!IsValid(GameState)) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't FlushPlayerCharacterData: GameState is not valid")
+    );
+    return;
+  }
+
+  TArray<TObjectPtr<APlayerState>> PlayerArray = GameState->PlayerArray;
+
+  if (PlayerArray.Num() == 0) {
+    UE_LOG(LogRedwood, Log, TEXT("No players to flush character data for"));
+    return;
+  }
+
+  if (Sidecar && Sidecar->bIsConnected) {
+    UE_LOG(LogRedwood, Log, TEXT("Flushing player character data"));
+    TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+    TArray<TSharedPtr<FJsonValue>> CharactersArray;
+    for (TObjectPtr<APlayerState> PlayerState : GameState->PlayerArray) {
+      ARedwoodPlayerState *RedwoodPlayerState =
+        Cast<ARedwoodPlayerState>(PlayerState);
+      if (RedwoodPlayerState) {
+        APawn *Pawn = PlayerState->GetPawn();
+        if (Pawn) {
+          ARedwoodCharacter *RedwoodCharacter = Cast<ARedwoodCharacter>(Pawn);
+          if (RedwoodCharacter) {
+            if (
+            !RedwoodCharacter->IsMetadataDirty() &&
+            !RedwoodCharacter->IsEquippedInventoryDirty() &&
+            !RedwoodCharacter->IsNonequippedInventoryDirty() &&
+            !RedwoodCharacter->IsDataDirty()
+            ) {
+              UE_LOG(
+                LogRedwood,
+                Log,
+                TEXT("Character %s is not dirty, skipping"),
+                *RedwoodCharacter->RedwoodCharacterName
+              );
+              continue;
+            }
+
+            UE_LOG(
+              LogRedwood,
+              Log,
+              TEXT("Flushing character %s"),
+              *RedwoodCharacter->RedwoodCharacterName
+            );
+
+            TSharedPtr<FJsonObject> CharacterObject =
+              MakeShareable(new FJsonObject);
+            CharacterObject->SetStringField(
+              TEXT("playerId"), RedwoodCharacter->RedwoodPlayerId
+            );
+            CharacterObject->SetStringField(
+              TEXT("characterId"), RedwoodCharacter->RedwoodCharacterId
+            );
+
+            if (RedwoodCharacter->IsMetadataDirty()) {
+              USIOJsonObject *Metadata =
+                RedwoodCharacter->SerializeBackendData(TEXT("Metadata"));
+              if (Metadata) {
+                RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
+                CharacterObject->SetObjectField(
+                  TEXT("metadata"), Metadata->GetRootObject()
+                );
+              }
+            }
+
+            if (RedwoodCharacter->IsEquippedInventoryDirty()) {
+              USIOJsonObject *EquippedInventory =
+                RedwoodCharacter->SerializeBackendData(TEXT("EquippedInventory")
+                );
+              if (EquippedInventory) {
+                RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
+                  EquippedInventory;
+                CharacterObject->SetObjectField(
+                  TEXT("equippedInventory"), EquippedInventory->GetRootObject()
+                );
+              }
+            }
+
+            if (RedwoodCharacter->IsNonequippedInventoryDirty()) {
+              USIOJsonObject *NonequippedInventory =
+                RedwoodCharacter->SerializeBackendData(
+                  TEXT("NonequippedInventory")
+                );
+              if (NonequippedInventory) {
+                RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
+                  NonequippedInventory;
+                CharacterObject->SetObjectField(
+                  TEXT("nonequippedInventory"),
+                  NonequippedInventory->GetRootObject()
+                );
+              }
+            }
+
+            if (RedwoodCharacter->IsDataDirty()) {
+              USIOJsonObject *CharData =
+                RedwoodCharacter->SerializeBackendData(TEXT("Data"));
+              if (CharData) {
+                RedwoodPlayerState->RedwoodCharacter.Data = CharData;
+                CharacterObject->SetObjectField(
+                  TEXT("data"), CharData->GetRootObject()
+                );
+              }
+            }
+
+            TSharedPtr<FJsonValueObject> Value =
+              MakeShareable(new FJsonValueObject(CharacterObject));
+            CharactersArray.Add(Value);
+
+            RedwoodCharacter->ClearDirtyFlags();
+          } else {
+            UE_LOG(
+              LogRedwood,
+              Error,
+              TEXT("Pawn %s is not a RedwoodCharacter"),
+              *Pawn->GetName()
+            );
+          }
+        } else {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT("PlayerState %s has no pawn"),
+            *PlayerState->GetPlayerName()
+          );
+        }
+      } else {
+        UE_LOG(
+          LogRedwood, Error, TEXT("PlayerState is not a RedwoodPlayerState")
+        );
+      }
+    }
+
+    if (CharactersArray.Num() == 0) {
+      UE_LOG(LogRedwood, Log, TEXT("No characters to flush"));
+      return;
+    }
+
+    UE_LOG(
+      LogRedwood, Log, TEXT("Flushing %d characters"), CharactersArray.Num()
+    );
+
+    Payload->SetArrayField(TEXT("characters"), CharactersArray);
+
+    Sidecar->Emit(TEXT("realm:characters:set:server"), Payload);
+  } else {
+    // save the dirty characters to disk
+
+    FString SavePath = FPaths::ProjectSavedDir() / TEXT("Characters");
+    FPaths::NormalizeDirectoryName(SavePath);
+
+    if (!FPaths::DirectoryExists(SavePath)) {
+      IFileManager::Get().MakeDirectory(*SavePath, true);
+    }
+
+    for (TObjectPtr<APlayerState> PlayerState : GameState->PlayerArray) {
+      ARedwoodPlayerState *RedwoodPlayerState =
+        Cast<ARedwoodPlayerState>(PlayerState);
+      if (RedwoodPlayerState) {
+        APawn *Pawn = PlayerState->GetPawn();
+        if (Pawn) {
+          ARedwoodCharacter *RedwoodCharacter = Cast<ARedwoodCharacter>(Pawn);
+          if (RedwoodCharacter) {
+            if (
+            !RedwoodCharacter->IsMetadataDirty() &&
+            !RedwoodCharacter->IsEquippedInventoryDirty() &&
+            !RedwoodCharacter->IsNonequippedInventoryDirty() &&
+            !RedwoodCharacter->IsDataDirty()
+            ) {
+              UE_LOG(
+                LogRedwood,
+                Log,
+                TEXT("Character %s is not dirty, skipping"),
+                *RedwoodCharacter->RedwoodCharacterName
+              );
+              continue;
+            }
+
+            UE_LOG(
+              LogRedwood,
+              Log,
+              TEXT("Flushing character %s to disk"),
+              *RedwoodCharacter->RedwoodCharacterName
+            );
+
+            // since we save the whole json to disk, we update all
+            // of the data here to ensure proper variable name serialization
+
+            USIOJsonObject *Metadata =
+              RedwoodCharacter->SerializeBackendData(TEXT("Metadata"));
+            if (Metadata) {
+              RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
+            }
+
+            USIOJsonObject *EquippedInventory =
+              RedwoodCharacter->SerializeBackendData(TEXT("EquippedInventory"));
+            if (EquippedInventory) {
+              RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
+                EquippedInventory;
+            }
+
+            USIOJsonObject *NonequippedInventory =
+              RedwoodCharacter->SerializeBackendData(TEXT("NonequippedInventory"
+              ));
+            if (NonequippedInventory) {
+              RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
+                NonequippedInventory;
+            }
+
+            USIOJsonObject *CharData =
+              RedwoodCharacter->SerializeBackendData(TEXT("Data"));
+            if (CharData) {
+              RedwoodPlayerState->RedwoodCharacter.Data = CharData;
+            }
+
+            URedwoodCommonGameSubsystem::SaveCharacterToDisk(
+              RedwoodPlayerState->RedwoodCharacter
+            );
+          }
+        }
+      }
+    }
+  }
 }

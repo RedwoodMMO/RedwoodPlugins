@@ -46,6 +46,11 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood|GameMode")
   void OnGameModeLogout(AGameModeBase *GameMode, AController *Controller);
 
+  UFUNCTION()
+  void FlushPlayerCharacterData();
+
 private:
   TSharedPtr<FSocketIONative> Sidecar;
+
+  FTimerHandle FlushPlayerCharacterDataTimerHandle;
 };

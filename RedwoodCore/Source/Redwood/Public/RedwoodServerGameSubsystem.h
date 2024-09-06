@@ -80,6 +80,8 @@ public:
     const FTransform &InTransform
   );
 
+  void FlushPlayerCharacterData();
+
 private:
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FString, FPrimaryAssetId> Maps;

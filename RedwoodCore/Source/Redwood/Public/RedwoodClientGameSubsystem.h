@@ -161,6 +161,9 @@ public:
     return ClientInterface;
   }
 
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool ShouldConnectToBackend();
+
 private:
   UPROPERTY()
   URedwoodClientInterface *ClientInterface;
