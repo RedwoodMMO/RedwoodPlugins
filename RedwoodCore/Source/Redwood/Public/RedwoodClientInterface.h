@@ -92,7 +92,9 @@ public:
 
   TMap<FString, float> GetRegions();
 
-  static FRedwoodCharacter ParseCharacter(TSharedPtr<FJsonObject> CharacterObj);
+  static FRedwoodCharacterBackend ParseCharacter(
+    TSharedPtr<FJsonObject> CharacterObj
+  );
 
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 

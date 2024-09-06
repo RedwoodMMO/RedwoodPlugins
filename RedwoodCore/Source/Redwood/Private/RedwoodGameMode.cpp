@@ -1,10 +1,10 @@
 // Copyright Incanta Games. All rights reserved.
 
 #include "RedwoodGameMode.h"
-#include "RedwoodGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodPlayerController.h"
 #include "RedwoodPlayerState.h"
+#include "RedwoodServerGameSubsystem.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -37,9 +37,9 @@ void ARedwoodGameMode::InitGame(
   if (bConnectToSidecar) {
     Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
-    URedwoodGameSubsystem *RedwoodGameSubsystem =
-      GetGameInstance()->GetSubsystem<URedwoodGameSubsystem>();
-    Sidecar->Connect(RedwoodGameSubsystem->SidecarUri);
+    URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+      GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
+    Sidecar->Connect(RedwoodServerGameSubsystem->SidecarUri);
   }
 
   FGameModeEvents::GameModeLogoutEvent.AddUObject(

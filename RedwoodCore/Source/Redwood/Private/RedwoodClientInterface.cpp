@@ -640,10 +640,10 @@ TMap<FString, float> URedwoodClientInterface::GetRegions() {
   return PingAverages;
 }
 
-FRedwoodCharacter URedwoodClientInterface::ParseCharacter(
+FRedwoodCharacterBackend URedwoodClientInterface::ParseCharacter(
   TSharedPtr<FJsonObject> CharacterObj
 ) {
-  FRedwoodCharacter Character;
+  FRedwoodCharacterBackend Character;
   Character.Id = CharacterObj->GetStringField(TEXT("id"));
 
   FDateTime::ParseIso8601(
@@ -711,7 +711,7 @@ void URedwoodClientInterface::ListCharacters(
       TArray<TSharedPtr<FJsonValue>> Characters =
         MessageObject->GetArrayField(TEXT("characters"));
 
-      TArray<FRedwoodCharacter> CharactersStruct;
+      TArray<FRedwoodCharacterBackend> CharactersStruct;
       for (TSharedPtr<FJsonValue> Character : Characters) {
         TSharedPtr<FJsonObject> CharacterData = Character->AsObject();
 

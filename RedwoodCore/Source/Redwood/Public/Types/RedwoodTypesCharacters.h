@@ -7,7 +7,7 @@
 #include "RedwoodTypesCharacters.generated.h"
 
 USTRUCT(BlueprintType)
-struct FRedwoodCharacter {
+struct FRedwoodCharacterBackend {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -46,7 +46,7 @@ struct FRedwoodListCharactersOutput {
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  TArray<FRedwoodCharacter> Characters;
+  TArray<FRedwoodCharacterBackend> Characters;
 };
 
 typedef TDelegate<void(const FRedwoodListCharactersOutput &)>
@@ -67,7 +67,7 @@ struct FRedwoodGetCharacterOutput {
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FRedwoodCharacter Character;
+  FRedwoodCharacterBackend Character;
 };
 
 typedef TDelegate<void(const FRedwoodGetCharacterOutput &)>

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 
+#include "Types/RedwoodTypesCharacters.h"
+
 #include "RedwoodPlayerState.generated.h"
 
 class USIOJsonObject;
@@ -16,8 +18,8 @@ class REDWOOD_API ARedwoodPlayerState : public APlayerState {
   GENERATED_BODY()
 
 public:
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
-  FRedwoodCharacter RedwoodCharacter;
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood|PlayerState")
+  FRedwoodCharacterBackend RedwoodCharacter;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
   bool bClientReady = false;
