@@ -216,7 +216,7 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
           }
 
           if (ChannelParts.Num() > 1) {
-            ZoneInstanceIndex = FCString::Atoi(*ChannelParts[1]);
+            ShardName = ChannelParts[1];
           }
         }
 

@@ -68,7 +68,7 @@ public:
 
   // 1-based index of which instance of the zone this server is running
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
-  int32 ZoneInstanceIndex = 0;
+  FString ShardName;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString SidecarUri;
