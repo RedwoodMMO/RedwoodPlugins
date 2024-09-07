@@ -45,7 +45,7 @@ void ARedwoodGameMode::InitGame(
   }
 
   FGameModeEvents::GameModeLogoutEvent.AddUObject(
-    this, &ARedwoodGameModeBase::OnGameModeLogout
+    this, &ARedwoodGameMode::OnGameModeLogout
   );
 
   // create a looping timer to flush player character data
@@ -53,7 +53,7 @@ void ARedwoodGameMode::InitGame(
   TimerManager.SetTimer(
     FlushPlayerCharacterDataTimerHandle,
     this,
-    &ARedwoodGameModeBase::FlushPlayerCharacterData,
+    &ARedwoodGameMode::FlushPlayerCharacterData,
     0.5f,
     true
   );

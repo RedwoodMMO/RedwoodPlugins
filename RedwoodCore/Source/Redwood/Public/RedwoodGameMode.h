@@ -51,4 +51,6 @@ public:
 
 private:
   TSharedPtr<FSocketIONative> Sidecar;
+
+  FTimerHandle FlushPlayerCharacterDataTimerHandle;
 };

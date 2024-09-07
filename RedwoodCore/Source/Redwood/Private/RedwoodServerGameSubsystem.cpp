@@ -667,6 +667,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
     );
 
     Payload->SetArrayField(TEXT("characters"), CharactersArray);
+    Payload->SetStringField(TEXT("id"), TEXT("game-server"));
 
     Sidecar->Emit(TEXT("realm:characters:set:server"), Payload);
   } else {
