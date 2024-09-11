@@ -74,10 +74,17 @@ public:
   FString SidecarUri;
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
-  void TravelPlayerToZone(
+  void TravelPlayerToZoneTransform(
     APlayerController *PlayerController,
     const FString &InZoneName,
     const FTransform &InTransform
+  );
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void TravelPlayerToZoneSpawnName(
+    APlayerController *PlayerController,
+    const FString &InZoneName,
+    const FString &InSpawnName = TEXT("default")
   );
 
   void FlushPlayerCharacterData();

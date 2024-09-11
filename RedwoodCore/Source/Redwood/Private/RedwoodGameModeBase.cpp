@@ -269,9 +269,9 @@ void ARedwoodGameModeBase::FinishRestartPlayer(
     FRotator NewControlRotation = NewPlayer->GetPawn()->GetActorRotation();
 
     if (IsValid(RedwoodPlayerState)) {
-      if (RedwoodPlayerState->RedwoodCharacter.Data) {
+      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData) {
         USIOJsonObject *LastTransform =
-          RedwoodPlayerState->RedwoodCharacter.Data->GetObjectField(
+          RedwoodPlayerState->RedwoodCharacter.RedwoodData->GetObjectField(
             TEXT("lastTransform")
           );
         if (IsValid(LastTransform)) {
@@ -312,13 +312,42 @@ APawn *ARedwoodGameModeBase::SpawnDefaultPawnAtTransform_Implementation(
       ->GetGameInstance()
       ->GetSubsystem<URedwoodServerGameSubsystem>();
 
+  // get all actors of the ARedwoodZoneSpawn class
+  TArray<AActor *> ZoneSpawns;
+  UGameplayStatics::GetAllActorsOfClass(
+    NewPlayer->GetWorld(), ARedwoodZoneSpawn::StaticClass(), ZoneSpawns
+  );
+
+  TArray<ARedwoodZoneSpawn *> RedwoodZoneSpawns;
+  for (AActor *ZoneSpawn : RedwoodZoneSpawns) {
+    ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
+    if (IsValid(RedwoodZoneSpawn)) {
+      if (RedwoodZoneSpawn->ZoneName == RedwoodServerGameSubsystem->ZoneName) {
+        RedwoodZoneSpawns.Add(RedwoodZoneSpawn);
+      }
+    }
+  }
+
   ARedwoodPlayerState *RedwoodPlayerState =
     Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
 
   if (IsValid(RedwoodPlayerState)) {
-    if (IsValid(RedwoodPlayerState->RedwoodCharacter.Data)) {
+    if (IsValid(RedwoodPlayerState->RedwoodCharacter.RedwoodData)) {
+      FString LastSpawnName;
+      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetStringField(
+            TEXT("lastSpawnName"), LastSpawnName
+          )) {
+        for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
+          if (ZoneSpawn->SpawnName == LastSpawnName) {
+            return Super::SpawnDefaultPawnAtTransform_Implementation(
+              NewPlayer, ZoneSpawn->GetActorTransform()
+            );
+          }
+        }
+      }
+
       USIOJsonObject *LastTransform =
-        RedwoodPlayerState->RedwoodCharacter.Data->GetObjectField(
+        RedwoodPlayerState->RedwoodCharacter.RedwoodData->GetObjectField(
           TEXT("lastTransform")
         );
       if (IsValid(LastTransform)) {
@@ -349,28 +378,18 @@ APawn *ARedwoodGameModeBase::SpawnDefaultPawnAtTransform_Implementation(
       LogRedwood, Log, TEXT("No valid last transform found, using zone spawn")
     );
 
-    // get all actors of the ARedwoodZoneSpawn class
-    TArray<AActor *> ZoneSpawns;
-    UGameplayStatics::GetAllActorsOfClass(
-      NewPlayer->GetWorld(), ARedwoodZoneSpawn::StaticClass(), ZoneSpawns
-    );
-
-    for (AActor *ZoneSpawn : ZoneSpawns) {
-      ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
-      if (IsValid(RedwoodZoneSpawn)) {
-        if (RedwoodZoneSpawn->ZoneName == RedwoodServerGameSubsystem->ZoneName) {
-          UE_LOG(
-            LogRedwood,
-            Log,
-            TEXT("Found zone spawn for current zone %s"),
-            *RedwoodZoneSpawn->ZoneName
-          );
-
-          return Super::SpawnDefaultPawnAtTransform_Implementation(
-            NewPlayer, RedwoodZoneSpawn->GetSpawnTransform()
-          );
-        }
+    for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
+      if (ZoneSpawn->SpawnName == TEXT("default")) {
+        return Super::SpawnDefaultPawnAtTransform_Implementation(
+          NewPlayer, ZoneSpawn->GetActorTransform()
+        );
       }
+    }
+
+    if (RedwoodZoneSpawns.Num() > 0) {
+      return Super::SpawnDefaultPawnAtTransform_Implementation(
+        NewPlayer, RedwoodZoneSpawns[0]->GetActorTransform()
+      );
     }
   }
 

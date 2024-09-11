@@ -22,6 +22,9 @@ public:
   FString ZoneName;
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  FString SpawnName = TEXT("default");
+
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   float SpawnRadius = 0.0f;
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")

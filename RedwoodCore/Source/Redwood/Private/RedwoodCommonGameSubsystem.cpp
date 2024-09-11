@@ -208,6 +208,12 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::ParseCharacter(
     Character.Data->SetRootObject(*CharacterData);
   }
 
+  const TSharedPtr<FJsonObject> *RedwoodData = nullptr;
+  if (CharacterObj->TryGetObjectField(TEXT("redwoodData"), RedwoodData)) {
+    Character.RedwoodData = NewObject<USIOJsonObject>();
+    Character.RedwoodData->SetRootObject(*RedwoodData);
+  }
+
   return Character;
 }
 

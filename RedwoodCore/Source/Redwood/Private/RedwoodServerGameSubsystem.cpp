@@ -403,7 +403,7 @@ void URedwoodServerGameSubsystem::CallExecCommandOnAllClients(
   }
 }
 
-void URedwoodServerGameSubsystem::TravelPlayerToZone(
+void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   APlayerController *PlayerController,
   const FString &InZoneName,
   const FTransform &InTransform
@@ -419,6 +419,10 @@ void URedwoodServerGameSubsystem::TravelPlayerToZone(
   Payload->SetStringField(TEXT("characterId"), CharacterId);
   Payload->SetStringField(TEXT("priorZoneName"), ZoneName);
   Payload->SetStringField(TEXT("zoneName"), InZoneName);
+
+  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  Payload->SetField(TEXT("spawnName"), NullValue);
 
   TSharedPtr<FJsonObject> Transform = MakeShareable(new FJsonObject);
 
@@ -490,6 +494,79 @@ void URedwoodServerGameSubsystem::TravelPlayerToZone(
   );
 }
 
+void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
+  APlayerController *PlayerController,
+  const FString &InZoneName,
+  const FString &InSpawnName
+) {
+  if (InSpawnName.IsEmpty()) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Cannot travel player to zone %s; provide a non-empty SpawnName"),
+      *InZoneName
+    );
+    return;
+  }
+
+  FString UniqueId = PlayerController->PlayerState->GetUniqueId().ToString();
+
+  FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));
+  FString CharacterId = UniqueId.RightChop(UniqueId.Find(TEXT(":")) + 1);
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  Payload->SetStringField(TEXT("priorZoneName"), ZoneName);
+  Payload->SetStringField(TEXT("zoneName"), InZoneName);
+
+  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  Payload->SetStringField(TEXT("spawnName"), InSpawnName);
+  Payload->SetField(TEXT("transform"), NullValue);
+
+  if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Sidecar is not connected; cannot travel player to new zone")
+    );
+    return;
+  }
+
+  UE_LOG(
+    LogRedwood,
+    Log,
+    TEXT("Traveling player %s to zone %s"),
+    *PlayerId,
+    *InZoneName
+  );
+
+  Sidecar->Emit(
+    TEXT("realm:servers:transfer-zone:game-server-to-sidecar"),
+    Payload,
+    [this, PlayerId, CharacterId, PlayerController](auto Response) {
+      TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+      FString Error = MessageStruct->GetStringField(TEXT("error"));
+
+      if (!Error.IsEmpty()) {
+        // kick the player
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Failed to transfer player to new zone, kicking them now: %s"),
+          *Error
+        );
+        GetGameInstance()
+          ->GetWorld()
+          ->GetAuthGameMode()
+          ->GameSession->KickPlayer(PlayerController, FText::FromString(Error));
+      }
+    }
+  );
+}
+
 void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
   UWorld *World = GetWorld();
   if (!IsValid(World)) {
@@ -514,12 +591,10 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
   TArray<TObjectPtr<APlayerState>> PlayerArray = GameState->PlayerArray;
 
   if (PlayerArray.Num() == 0) {
-    UE_LOG(LogRedwood, Log, TEXT("No players to flush character data for"));
     return;
   }
 
   if (Sidecar && Sidecar->bIsConnected) {
-    UE_LOG(LogRedwood, Log, TEXT("Flushing player character data"));
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
     TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
 
@@ -539,12 +614,6 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             !RedwoodCharacter->IsNonequippedInventoryDirty() &&
             !RedwoodCharacter->IsDataDirty()
             ) {
-              UE_LOG(
-                LogRedwood,
-                Log,
-                TEXT("Character %s is not dirty, skipping"),
-                *RedwoodCharacter->RedwoodCharacterName
-              );
               continue;
             }
 
@@ -695,12 +764,6 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             !RedwoodCharacter->IsNonequippedInventoryDirty() &&
             !RedwoodCharacter->IsDataDirty()
             ) {
-              UE_LOG(
-                LogRedwood,
-                Log,
-                TEXT("Character %s is not dirty, skipping"),
-                *RedwoodCharacter->RedwoodCharacterName
-              );
               continue;
             }
 
