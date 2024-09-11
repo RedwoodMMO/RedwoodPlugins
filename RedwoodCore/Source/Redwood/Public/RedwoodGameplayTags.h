@@ -6,10 +6,12 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "NativeGameplayTags.h"
-#include "RedwoodPlayerState.h"
 #include "SIOJsonObject.h"
 
 #include "RedwoodGameplayTags.generated.h"
+
+class ARedwoodPlayerState;
+class ARedwoodCharacter;
 
 REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Shutdown_Instance);
 USTRUCT(BlueprintType)
@@ -36,4 +38,13 @@ struct REDWOOD_API FRedwoodPlayerInventoryChanged {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   ARedwoodPlayerState *PlayerState;
+};
+
+REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Player_Interaction);
+USTRUCT(BlueprintType)
+struct REDWOOD_API FRedwoodPlayerInteraction {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  ARedwoodCharacter *Character;
 };

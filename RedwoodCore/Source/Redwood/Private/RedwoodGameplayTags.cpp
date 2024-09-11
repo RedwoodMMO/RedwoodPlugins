@@ -1,6 +1,9 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodGameplayTags.h"
+#include "RedwoodCharacter.h"
+#include "RedwoodPlayerState.h"
+
 
 #include "UObject/NameTypes.h"
 
@@ -12,4 +15,7 @@ UE_DEFINE_GAMEPLAY_TAG(
 UE_DEFINE_GAMEPLAY_TAG(TAG_Redwood_Player_Left, "Redwood.Player.Left");
 UE_DEFINE_GAMEPLAY_TAG(
   TAG_Redwood_Player_InventoryChanged, "Redwood.Player.InventoryChanged"
+);
+UE_DEFINE_GAMEPLAY_TAG(
+  TAG_Redwood_Player_Interaction, "Redwood.Player.Interaction"
 );
