@@ -1,9 +1,11 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodCharacter.h"
+#include "RedwoodModule.h"
 #include "RedwoodPlayerState.h"
 
 #include "Net/UnrealNetwork.h"
+#include "SIOJConvert.h"
 #include "SIOJsonObject.h"
 
 ARedwoodCharacter::ARedwoodCharacter(const FObjectInitializer &ObjectInitializer
@@ -69,6 +71,7 @@ void ARedwoodCharacter::DeserializeBackendData(
         }
 
         void *StructPtr = FMemory::Malloc(StructDefinition->GetStructureSize());
+        FMemory::Memzero(StructPtr, StructDefinition->GetStructureSize());
 
         bool bSuccess = StructDefinition == nullptr
           ? false

@@ -7,6 +7,8 @@
 
 #include "RedwoodCharacter.generated.h"
 
+class USIOJsonObject;
+
 UCLASS(Blueprintable, BlueprintType, ClassGroup = (Redwood))
 class REDWOOD_API ARedwoodCharacter : public ACharacter {
   GENERATED_BODY()

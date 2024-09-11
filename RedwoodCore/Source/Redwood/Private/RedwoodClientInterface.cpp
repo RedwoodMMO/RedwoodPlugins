@@ -2,6 +2,7 @@
 
 #include "RedwoodClientInterface.h"
 #include "RedwoodClientGameSubsystem.h"
+#include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodSaveGame.h"
 #include "RedwoodSettings.h"
