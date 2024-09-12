@@ -237,30 +237,30 @@ void ARedwoodCharacter::RedwoodPlayerStateCharacterUpdated() {
 
     DeserializeBackendData(
       RedwoodCharacterBackend.CharacterCreatorData,
-      TEXT("CharacterCreatorData"),
+      *CharacterCreatorDataVariableName,
       LatestMetadataSchemaVersion
     );
 
     DeserializeBackendData(
       RedwoodCharacterBackend.Metadata,
-      TEXT("Metadata"),
+      *MetadataVariableName,
       LatestMetadataSchemaVersion
     );
 
     DeserializeBackendData(
       RedwoodCharacterBackend.EquippedInventory,
-      TEXT("EquippedInventory"),
+      *EquippedInventoryVariableName,
       LatestEquippedSchemaVersion
     );
 
     DeserializeBackendData(
       RedwoodCharacterBackend.NonequippedInventory,
-      TEXT("NonequippedInventory"),
+      *NonequippedInventoryVariableName,
       LatestNonequippedSchemaVersion
     );
 
     DeserializeBackendData(
-      RedwoodCharacterBackend.Data, TEXT("Data"), LatestDataSchemaVersion
+      RedwoodCharacterBackend.Data, *DataVariableName, LatestDataSchemaVersion
     );
 
     OnRedwoodCharacterUpdated();

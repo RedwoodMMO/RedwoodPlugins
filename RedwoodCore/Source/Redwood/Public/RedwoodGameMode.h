@@ -49,6 +49,9 @@ public:
   UFUNCTION()
   void FlushPlayerCharacterData();
 
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  float DatabasePersistenceInterval = 0.5f;
+
 private:
   TSharedPtr<FSocketIONative> Sidecar;
 

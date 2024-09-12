@@ -51,14 +51,16 @@ void ARedwoodGameMode::InitGame(
   );
 
   // create a looping timer to flush player character data
-  FTimerManager &TimerManager = GetWorld()->GetTimerManager();
-  TimerManager.SetTimer(
-    FlushPlayerCharacterDataTimerHandle,
-    this,
-    &ARedwoodGameMode::FlushPlayerCharacterData,
-    0.5f,
-    true
-  );
+  if (DatabasePersistenceInterval > 0) {
+    FTimerManager &TimerManager = GetWorld()->GetTimerManager();
+    TimerManager.SetTimer(
+      FlushPlayerCharacterDataTimerHandle,
+      this,
+      &ARedwoodGameMode::FlushPlayerCharacterData,
+      DatabasePersistenceInterval,
+      true
+    );
+  }
 }
 
 void ARedwoodGameMode::OnGameModeLogout(

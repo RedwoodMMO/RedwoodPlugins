@@ -38,16 +38,31 @@ public:
   FString RedwoodCharacterName;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  FString CharacterCreatorDataVariableName = TEXT("CharacterCreatorData");
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestCharacterCreatorDataSchemaVersion = 0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  FString MetadataVariableName = TEXT("Metadata");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestMetadataSchemaVersion = 0;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
-  int32 LatestEquippedSchemaVersion = 0;
+  FString EquippedInventoryVariableName = TEXT("EquippedInventory");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
-  int32 LatestNonequippedSchemaVersion = 0;
+  int32 LatestEquippedInventorySchemaVersion = 0;
+
+  UPROPRETY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  FString NonequippedInventoryVariableName = TEXT("NonequippedInventory");
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  int32 LatestNonequippedInventorySchemaVersion = 0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  FString DataVariableName = TEXT("Data");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestDataSchemaVersion = 0;
