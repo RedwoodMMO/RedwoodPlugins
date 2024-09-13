@@ -4,7 +4,7 @@
 
 #include "Kismet/BlueprintAsyncActionBase.h"
 
-#include "RedwoodTitleGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 #include "Types/RedwoodTypes.h"
 
 #include "RedwoodLoginWithSteamAsync.generated.h"
@@ -26,11 +26,11 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodLoginWithSteamAsync *LoginWithSteam(
-    URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+    URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
   FRedwoodAuthUpdateDynamicDelegate OnUpdate;
 
-  URedwoodTitleGameSubsystem *Target;
+  URedwoodClientGameSubsystem *Target;
 };

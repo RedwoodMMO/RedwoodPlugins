@@ -1,14 +1,14 @@
 // Copyright Incanta LLC. All Rights Reserved.
 
-#include "RedwoodSteamTitleInterface.h"
+#include "RedwoodSteamClientInterface.h"
 #include "RedwoodSteamModule.h"
 
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystem.h"
-#include "RedwoodTitleInterface.h"
+#include "RedwoodClientInterface.h"
 
-void URedwoodSteamTitleInterface::LoginWithSteam(
-  URedwoodTitleInterface *TitleInterface, FRedwoodAuthUpdateDelegate OnUpdate
+void URedwoodSteamClientInterface::LoginWithSteam(
+  URedwoodClientInterface *ClientInterface, FRedwoodAuthUpdateDelegate OnUpdate
 ) {
   IOnlineSubsystem *OnlineSub = IOnlineSubsystem::Get(STEAM_SUBSYSTEM);
   if (OnlineSub) {
@@ -17,13 +17,13 @@ void URedwoodSteamTitleInterface::LoginWithSteam(
       0,
       FString(TEXT("WebAPI:redwood")),
       IOnlineIdentity::FOnGetLinkedAccountAuthTokenCompleteDelegate::
-        CreateLambda([TitleInterface, OnUpdate](
+        CreateLambda([ClientInterface, OnUpdate](
                        int32 LocalUserNum,
                        bool bSuccessful,
                        const FExternalAuthToken &Token
                      ) {
           if (bSuccessful && Token.HasTokenString()) {
-            TitleInterface->Login(
+            ClientInterface->Login(
               "steam", // todo?
               Token.TokenString,
               "steam",

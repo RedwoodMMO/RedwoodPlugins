@@ -3,7 +3,7 @@
 #include "BlueprintAsync/RedwoodLoginWithSteamAsync.h"
 
 URedwoodLoginWithSteamAsync *URedwoodLoginWithSteamAsync::LoginWithSteam(
-  URedwoodTitleGameSubsystem *Target, UObject *WorldContextObject
+  URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodLoginWithSteamAsync *Action =
     NewObject<URedwoodLoginWithSteamAsync>();
@@ -14,8 +14,8 @@ URedwoodLoginWithSteamAsync *URedwoodLoginWithSteamAsync::LoginWithSteam(
 }
 
 void URedwoodLoginWithSteamAsync::Activate() {
-  URedwoodSteamTitleInterface::LoginWithSteam(
-    Target->GetTitleInterface(),
+  URedwoodSteamClientInterface::LoginWithSteam(
+    Target->GetClientInterface(),
     FRedwoodAuthUpdateDelegate::CreateLambda([this](FRedwoodAuthUpdate Update) {
       OnUpdate.Broadcast(Update);
 

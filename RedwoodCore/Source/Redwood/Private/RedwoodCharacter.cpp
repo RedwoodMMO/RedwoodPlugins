@@ -250,13 +250,13 @@ void ARedwoodCharacter::RedwoodPlayerStateCharacterUpdated() {
     DeserializeBackendData(
       RedwoodCharacterBackend.EquippedInventory,
       *EquippedInventoryVariableName,
-      LatestEquippedSchemaVersion
+      LatestEquippedInventorySchemaVersion
     );
 
     DeserializeBackendData(
       RedwoodCharacterBackend.NonequippedInventory,
       *NonequippedInventoryVariableName,
-      LatestNonequippedSchemaVersion
+      LatestNonequippedInventorySchemaVersion
     );
 
     DeserializeBackendData(

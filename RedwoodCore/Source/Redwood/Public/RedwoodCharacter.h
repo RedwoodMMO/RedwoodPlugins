@@ -55,7 +55,7 @@ public:
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestEquippedInventorySchemaVersion = 0;
 
-  UPROPRETY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   FString NonequippedInventoryVariableName = TEXT("NonequippedInventory");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
