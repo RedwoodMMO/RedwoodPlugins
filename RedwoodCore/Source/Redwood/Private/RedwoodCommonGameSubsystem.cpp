@@ -2,6 +2,8 @@
 
 #include "RedwoodCommonGameSubsystem.h"
 
+#include "SIOJsonObject.h"
+
 void URedwoodCommonGameSubsystem::Initialize(
   FSubsystemCollectionBase &Collection
 ) {
@@ -349,4 +351,195 @@ FRedwoodGameServerInstance URedwoodCommonGameSubsystem::ParseServerInstance(
   Instance.CollectionId = ServerInstance->GetStringField(TEXT("collectionId"));
 
   return Instance;
+}
+
+void URedwoodCommonGameSubsystem::DeserializeBackendData(
+  UObject *TargetObject,
+  USIOJsonObject *SIOJsonObject,
+  FString VariableName,
+  int32 LatestSchemaVersion
+) {
+  if (SIOJsonObject) {
+    FProperty *Prop =
+      TargetObject->GetClass()->FindPropertyByName(*VariableName);
+    if (Prop) {
+      FStructProperty *StructProp = CastField<FStructProperty>(Prop);
+      if (StructProp) {
+        TSharedPtr<FJsonObject> JsonObject = SIOJsonObject->GetRootObject();
+
+        UStruct *StructDefinition = StructProp->Struct;
+
+        int32 SchemaVersion = 0;
+        if (!JsonObject->TryGetNumberField(
+              TEXT("schemaVersion"), SchemaVersion
+            )) {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "schemaVersion not found in Redwood backend field for %s, did you add one to your struct? Not updating %s."
+            ),
+            *VariableName,
+            *VariableName
+          );
+          return;
+        }
+
+        void *StructPtr = FMemory::Malloc(StructDefinition->GetStructureSize());
+        FMemory::Memzero(StructPtr, StructDefinition->GetStructureSize());
+
+        bool bSuccess = StructDefinition == nullptr
+          ? false
+          : USIOJConvert::JsonObjectToUStruct(
+              JsonObject, StructDefinition, StructPtr, true
+            );
+
+        if (bSuccess) {
+          while (SchemaVersion < LatestSchemaVersion) {
+            // call a migration functions
+            FString MigrationFunctionName = FString::Printf(
+              TEXT("%s_Migrate_v%d"), *VariableName, SchemaVersion
+            );
+            UFunction *MigrationFunction =
+              TargetObject->GetClass()->FindFunctionByName(
+                *MigrationFunctionName
+              );
+
+            if (MigrationFunction) {
+              // Ensure the function is valid and has the correct signature
+              if (!MigrationFunction->IsValidLowLevel() || MigrationFunction->NumParms != 3 || !MigrationFunction->ReturnValueOffset)
+                  {
+                UE_LOG(
+                  LogRedwood,
+                  Error,
+                  TEXT(
+                    "Migration function %s in %s has an invalid signature, skipping update."
+                  ),
+                  *MigrationFunctionName,
+                  *TargetObject->GetName()
+                );
+
+                break;
+              } else {
+                // Allocate memory for the parameters
+                void *Params = FMemory::Malloc(MigrationFunction->ParmsSize);
+                FMemory::Memzero(Params, MigrationFunction->ParmsSize);
+
+                FProperty *FunctionStructProp = MigrationFunction->PropertyLink;
+                FProperty *FunctionObjectProp =
+                  FunctionStructProp->PropertyLinkNext;
+
+                // Set the input parameters
+                void *StructParam =
+                  FunctionStructProp->ContainerPtrToValuePtr<void *>(Params);
+                FMemory::Memcpy(
+                  StructParam, StructPtr, StructDefinition->GetStructureSize()
+                );
+
+                // ObjectParam is a pointer to a USIOJsonObject pointer
+                USIOJsonObject **ObjectParam =
+                  FunctionObjectProp->ContainerPtrToValuePtr<USIOJsonObject *>(
+                    Params
+                  );
+                *ObjectParam = SIOJsonObject;
+
+                // Call the function
+                TargetObject->ProcessEvent(MigrationFunction, Params);
+
+                // Retrieve the return value
+                void *ReturnValue =
+                  (void
+                     *)((SIZE_T)Params + MigrationFunction->ReturnValueOffset);
+
+                // Copy the return value
+                FMemory::Free(StructPtr);
+                StructPtr =
+                  FMemory::Malloc(StructDefinition->GetStructureSize());
+                FMemory::Memcpy(
+                  StructPtr, ReturnValue, StructDefinition->GetStructureSize()
+                );
+
+                // Clean up
+                FMemory::Free(Params);
+              }
+            }
+
+            SchemaVersion++;
+          }
+
+          if (SchemaVersion == LatestSchemaVersion) {
+            StructProp->CopySingleValue(
+              StructProp->ContainerPtrToValuePtr<void>(TargetObject), StructPtr
+            );
+          }
+
+          FMemory::Free(StructPtr);
+        } else {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT("Failed to convert JSON object for %s, schemaVersion %d"),
+            *TargetObject->GetName(),
+            SchemaVersion
+          );
+        }
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("%s variable in %s is not a struct"),
+          *VariableName,
+          *TargetObject->GetName()
+        );
+      }
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable not found in %s"),
+        *VariableName,
+        *TargetObject->GetName()
+      );
+    }
+  }
+}
+
+USIOJsonObject *URedwoodCommonGameSubsystem::SerializeBackendData(
+  UObject *TargetObject, FString VariableName
+) {
+  FProperty *Prop = TargetObject->GetClass()->FindPropertyByName(*VariableName);
+  if (Prop) {
+    FStructProperty *StructProp = CastField<FStructProperty>(Prop);
+    if (StructProp) {
+      UStruct *StructDefinition = StructProp->Struct;
+
+      void *StructPtr = StructProp->ContainerPtrToValuePtr<void>(TargetObject);
+
+      TSharedPtr<FJsonObject> JsonObject =
+        USIOJConvert::ToJsonObject(StructDefinition, StructPtr, true);
+
+      USIOJsonObject *SIOJsonObject = NewObject<USIOJsonObject>();
+      SIOJsonObject->SetRootObject(JsonObject);
+
+      return SIOJsonObject;
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable in %s is not a struct"),
+        *VariableName,
+        *TargetObject->GetName()
+      );
+    }
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("%s variable not found in %s"),
+      *VariableName,
+      *TargetObject->GetName()
+    );
+  }
+
+  return nullptr;
 }

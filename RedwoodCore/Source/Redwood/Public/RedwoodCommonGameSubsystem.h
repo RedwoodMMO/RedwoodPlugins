@@ -10,6 +10,8 @@
 
 #include "RedwoodCommonGameSubsystem.generated.h"
 
+class USIOJsonObject;
+
 UCLASS(BlueprintType)
 class REDWOOD_API URedwoodCommonGameSubsystem : public UGameInstanceSubsystem {
   GENERATED_BODY()
@@ -36,6 +38,17 @@ public:
   );
   static FRedwoodGameServerInstance ParseServerInstance(
     TSharedPtr<FJsonObject> ServerInstance
+  );
+
+  static USIOJsonObject *SerializeBackendData(
+    UObject *TargetObject, FString VariableName
+  );
+
+  static void DeserializeBackendData(
+    UObject *TargetObject,
+    USIOJsonObject *SIOJsonObject,
+    FString VariableName,
+    int32 LatestSchemaVersion
   );
 
 private:

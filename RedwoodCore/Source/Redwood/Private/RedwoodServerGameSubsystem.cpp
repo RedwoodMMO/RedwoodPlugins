@@ -635,8 +635,9 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
 
             if (RedwoodCharacter->IsCharacterCreatorDataDirty()) {
               USIOJsonObject *CharacterCreatorData =
-                RedwoodCharacter->SerializeBackendData(
-                  TEXT("CharacterCreatorData")
+                URedwoodCommonGameSubsystem::SerializeBackendData(
+                  RedwoodCharacter,
+                  RedwoodCharacter->CharacterCreatorDataVariableName
                 );
               if (CharacterCreatorData) {
                 RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
@@ -650,7 +651,9 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
 
             if (RedwoodCharacter->IsMetadataDirty()) {
               USIOJsonObject *Metadata =
-                RedwoodCharacter->SerializeBackendData(TEXT("Metadata"));
+                URedwoodCommonGameSubsystem::SerializeBackendData(
+                  RedwoodCharacter, RedwoodCharacter->MetadataVariableName
+                );
               if (Metadata) {
                 RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
                 CharacterObject->SetObjectField(
@@ -661,7 +664,9 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
 
             if (RedwoodCharacter->IsEquippedInventoryDirty()) {
               USIOJsonObject *EquippedInventory =
-                RedwoodCharacter->SerializeBackendData(TEXT("EquippedInventory")
+                URedwoodCommonGameSubsystem::SerializeBackendData(
+                  RedwoodCharacter,
+                  RedwoodCharacter->EquippedInventoryVariableName
                 );
               if (EquippedInventory) {
                 RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
@@ -674,8 +679,9 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
 
             if (RedwoodCharacter->IsNonequippedInventoryDirty()) {
               USIOJsonObject *NonequippedInventory =
-                RedwoodCharacter->SerializeBackendData(
-                  TEXT("NonequippedInventory")
+                URedwoodCommonGameSubsystem::SerializeBackendData(
+                  RedwoodCharacter,
+                  RedwoodCharacter->NonequippedInventoryVariableName
                 );
               if (NonequippedInventory) {
                 RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
@@ -689,7 +695,9 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
 
             if (RedwoodCharacter->IsDataDirty()) {
               USIOJsonObject *CharData =
-                RedwoodCharacter->SerializeBackendData(TEXT("Data"));
+                URedwoodCommonGameSubsystem::SerializeBackendData(
+                  RedwoodCharacter, RedwoodCharacter->DataVariableName
+                );
               if (CharData) {
                 RedwoodPlayerState->RedwoodCharacter.Data = CharData;
                 CharacterObject->SetObjectField(
@@ -778,36 +786,47 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             // of the data here to ensure proper variable name serialization
 
             USIOJsonObject *CharacterCreatorData =
-              RedwoodCharacter->SerializeBackendData(TEXT("CharacterCreatorData"
-              ));
+              URedwoodCommonGameSubsystem::SerializeBackendData(
+                RedwoodCharacter,
+                RedwoodCharacter->CharacterCreatorDataVariableName
+              );
             if (CharacterCreatorData) {
               RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
                 CharacterCreatorData;
             }
 
             USIOJsonObject *Metadata =
-              RedwoodCharacter->SerializeBackendData(TEXT("Metadata"));
+              URedwoodCommonGameSubsystem::SerializeBackendData(
+                RedwoodCharacter, RedwoodCharacter->MetadataVariableName
+              );
             if (Metadata) {
               RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
             }
 
             USIOJsonObject *EquippedInventory =
-              RedwoodCharacter->SerializeBackendData(TEXT("EquippedInventory"));
+              URedwoodCommonGameSubsystem::SerializeBackendData(
+                RedwoodCharacter,
+                RedwoodCharacter->EquippedInventoryVariableName
+              );
             if (EquippedInventory) {
               RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
                 EquippedInventory;
             }
 
             USIOJsonObject *NonequippedInventory =
-              RedwoodCharacter->SerializeBackendData(TEXT("NonequippedInventory"
-              ));
+              URedwoodCommonGameSubsystem::SerializeBackendData(
+                RedwoodCharacter,
+                RedwoodCharacter->NonequippedInventoryVariableName
+              );
             if (NonequippedInventory) {
               RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
                 NonequippedInventory;
             }
 
             USIOJsonObject *CharData =
-              RedwoodCharacter->SerializeBackendData(TEXT("Data"));
+              URedwoodCommonGameSubsystem::SerializeBackendData(
+                RedwoodCharacter, RedwoodCharacter->DataVariableName
+              );
             if (CharData) {
               RedwoodPlayerState->RedwoodCharacter.Data = CharData;
             }

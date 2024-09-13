@@ -115,17 +115,9 @@ public:
     bDataDirty = false;
   }
 
-  USIOJsonObject *SerializeBackendData(FString VariableName);
-
 private:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void RedwoodPlayerStateCharacterUpdated();
-
-  void DeserializeBackendData(
-    USIOJsonObject *SIOJsonObject,
-    FString VariableName,
-    int32 LatestSchemaVersion
-  );
 
   bool bCharacterCreatorDataDirty = false;
   bool bMetadataDirty = false;
