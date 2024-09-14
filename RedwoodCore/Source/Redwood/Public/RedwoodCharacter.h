@@ -68,19 +68,29 @@ public:
   int32 LatestDataSchemaVersion = 0;
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
-  void MarkCharacterCreatorDataDirty();
+  void MarkCharacterCreatorDataDirty() {
+    bCharacterCreatorDataDirty = true;
+  }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
-  void MarkMetadataDirty();
+  void MarkMetadataDirty() {
+    bMetadataDirty = true;
+  }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
-  void MarkEquippedInventoryDirty();
+  void MarkEquippedInventoryDirty() {
+    bEquippedInventoryDirty = true;
+  }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
-  void MarkNonequippedInventoryDirty();
+  void MarkNonequippedInventoryDirty() {
+    bNonequippedInventoryDirty = true;
+  }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
-  void MarkDataDirty();
+  void MarkDataDirty() {
+    bDataDirty = true;
+  }
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
   bool IsCharacterCreatorDataDirty() const {

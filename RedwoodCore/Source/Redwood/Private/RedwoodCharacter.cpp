@@ -95,23 +95,3 @@ void ARedwoodCharacter::RedwoodPlayerStateCharacterUpdated() {
 void ARedwoodCharacter::OnRedwoodCharacterUpdated_Implementation() {
   //
 }
-
-void ARedwoodCharacter::MarkCharacterCreatorDataDirty() {
-  bCharacterCreatorDataDirty = true;
-}
-
-void ARedwoodCharacter::MarkMetadataDirty() {
-  bMetadataDirty = true;
-}
-
-void ARedwoodCharacter::MarkEquippedInventoryDirty() {
-  bEquippedInventoryDirty = true;
-}
-
-void ARedwoodCharacter::MarkNonequippedInventoryDirty() {
-  bNonequippedInventoryDirty = true;
-}
-
-void ARedwoodCharacter::MarkDataDirty() {
-  bDataDirty = true;
-}

@@ -27,18 +27,7 @@ void ARedwoodGameMode::InitGame(
 ) {
   Super::InitGame(MapName, Options, ErrorMessage);
 
-  bool bConnectToSidecar = false;
-
-#if WITH_EDITOR
-  URedwoodEditorSettings *RedwoodEditorSettings =
-    GetMutableDefault<URedwoodEditorSettings>();
-  bConnectToSidecar =
-    !GIsEditor || RedwoodEditorSettings->bConnectToSidecarInPIE;
-#else
-  bConnectToSidecar = true;
-#endif
-
-  if (bConnectToSidecar) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
     Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
     URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
@@ -56,10 +45,32 @@ void ARedwoodGameMode::InitGame(
     TimerManager.SetTimer(
       FlushPlayerCharacterDataTimerHandle,
       this,
-      &ARedwoodGameMode::FlushPlayerCharacterData,
+      &ARedwoodGameMode::FlushPersistence,
       DatabasePersistenceInterval,
       true
     );
+  }
+}
+
+void ARedwoodGameMode::BeginPlay() {
+  Super::BeginPlay();
+
+  FTimerManager &TimerManager = GetWorld()->GetTimerManager();
+  TimerManager.SetTimer(
+    PostBeginPlayTimerHandle,
+    this,
+    &ARedwoodGameMode::PostBeginPlay,
+    PostBeginPlayDelay,
+    false
+  );
+}
+
+void ARedwoodGameMode::PostBeginPlay() {
+  URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+    GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
+
+  if (RedwoodServerGameSubsystem) {
+    RedwoodServerGameSubsystem->InitialDataLoad();
   }
 }
 
@@ -98,18 +109,7 @@ APlayerController *ARedwoodGameMode::Login(
     return PlayerController;
   }
 
-  bool bConnectToSidecar = false;
-
-#if WITH_EDITOR
-  URedwoodEditorSettings *RedwoodEditorSettings =
-    GetMutableDefault<URedwoodEditorSettings>();
-  bConnectToSidecar =
-    !GIsEditor || RedwoodEditorSettings->bConnectToSidecarInPIE;
-#else
-  bConnectToSidecar = true;
-#endif
-
-  if (bConnectToSidecar) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
     if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
       FString PlayerId =
         UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));
@@ -352,21 +352,21 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
           TEXT("lastTransform")
         );
       if (IsValid(LastTransform)) {
-        USIOJsonObject *Position =
-          LastTransform->GetObjectField(TEXT("position"));
+        USIOJsonObject *Location =
+          LastTransform->GetObjectField(TEXT("location"));
         USIOJsonObject *Rotation =
           LastTransform->GetObjectField(TEXT("rotation"));
-        if (IsValid(Position) && IsValid(Rotation)) {
-          float PosX = Position->GetNumberField(TEXT("x"));
-          float PosY = Position->GetNumberField(TEXT("y"));
-          float PosZ = Position->GetNumberField(TEXT("z"));
+        if (IsValid(Location) && IsValid(Rotation)) {
+          float LocX = Location->GetNumberField(TEXT("x"));
+          float LocY = Location->GetNumberField(TEXT("y"));
+          float LocZ = Location->GetNumberField(TEXT("z"));
 
           float RotX = Rotation->GetNumberField(TEXT("x"));
           float RotY = Rotation->GetNumberField(TEXT("y"));
           float RotZ = Rotation->GetNumberField(TEXT("z"));
 
           FTransform Transform =
-            FTransform(FRotator(RotX, RotY, RotZ), FVector(PosX, PosY, PosZ));
+            FTransform(FRotator(RotX, RotY, RotZ), FVector(LocX, LocY, LocZ));
 
           return Super::SpawnDefaultPawnAtTransform_Implementation(
             NewPlayer, Transform
@@ -408,9 +408,9 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
   );
 }
 
-void ARedwoodGameMode::FlushPlayerCharacterData() {
+void ARedwoodGameMode::FlushPersistence() {
   URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
     GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
 
-  RedwoodServerGameSubsystem->FlushPlayerCharacterData();
+  RedwoodServerGameSubsystem->FlushPersistence();
 }

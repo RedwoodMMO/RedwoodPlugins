@@ -16,13 +16,9 @@ public:
     SectionName = TEXT("Redwood");
   }
 
-  /** Whether or not you want the server to try to connect to the sidecar while running PIE */
+  /** Whether or not you want the client or server to try to use the backend while running PIE */
   UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
-  bool bConnectToSidecarInPIE = false;
-
-  /** Whether or not you want the client to try to connect to the Redwood Backend while running PIE */
-  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
-  bool bConnectClientToBackendInPIE = true;
+  bool bUseBackendInPIE = false;
 
   virtual FName GetContainerName() const override {
     return "Editor";

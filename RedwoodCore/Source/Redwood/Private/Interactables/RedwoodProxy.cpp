@@ -7,3 +7,11 @@ ARedwoodProxy::ARedwoodProxy() {
   bNetUseOwnerRelevancy = false;
   bOnlyRelevantToOwner = true;
 }
+
+void ARedwoodProxy::GetLifetimeReplicatedProps(
+  TArray<FLifetimeProperty> &OutLifetimeProps
+) const {
+  Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+  DOREPLIFETIME(ARedwoodProxy, Interactable);
+}

@@ -16,6 +16,8 @@
 #include "RedwoodServerGameSubsystem.generated.h"
 
 class AGameModeBase;
+class URedwoodPersistentItemAsset;
+class URedwoodPersistenceComponent;
 
 UCLASS(BlueprintType)
 class REDWOOD_API URedwoodServerGameSubsystem : public UGameInstanceSubsystem {
@@ -87,11 +89,21 @@ public:
     const FString &InSpawnName = TEXT("default")
   );
 
+  void FlushPersistence();
   void FlushPlayerCharacterData();
+  void FlushZoneData();
+
+  void InitialDataLoad();
+
+  void RegisterPersistenceComponent(URedwoodPersistenceComponent *InComponent);
 
 private:
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FString, FPrimaryAssetId> Maps;
+  TMap<FString, URedwoodPersistentItemAsset *> PersistentItemTypesByTypeId;
+  TMap<FString, URedwoodPersistentItemAsset *>
+    PersistentItemTypesByPrimaryAssetId;
+  TMap<FString, URedwoodPersistenceComponent *> PersistentItems;
 
   void InitializeSidecar();
   void SendUpdateToSidecar();
@@ -106,4 +118,7 @@ private:
   bool bIsShuttingDown = false;
   FGameplayMessageListenerHandle ListenerHandle;
   void OnShutdownMessage(FGameplayTag InChannel, const FRedwoodReason &Message);
+
+  void PostInitialDataLoad(TSharedPtr<FJsonObject> ZoneJsonObject);
+  void UpdatePersistentItem(FRedwoodPersistentItem &Item);
 };

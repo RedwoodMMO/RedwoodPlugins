@@ -7,7 +7,10 @@
 #include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodMapAsset.h"
+#include "RedwoodPersistenceComponent.h"
+#include "RedwoodPersistentItemAsset.h"
 #include "RedwoodSettings.h"
+#include "Types/RedwoodTypesPersistence.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -17,6 +20,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
+#include "JsonObjectConverter.h"
 #include "Kismet/KismetStringLibrary.h"
 
 #include "SocketIOClient.h"
@@ -45,13 +49,17 @@ void URedwoodServerGameSubsystem::Initialize(
       URedwoodGameModeAsset::StaticClass()->GetFName();
     FPrimaryAssetType MapAssetType =
       URedwoodMapAsset::StaticClass()->GetFName();
+    FPrimaryAssetType PersistentItemAssetType =
+      URedwoodPersistentItemAsset::StaticClass()->GetFName();
 
     UAssetManager &AssetManager = UAssetManager::Get();
 
     UE_LOG(
       LogRedwood,
       Log,
-      TEXT("Waiting for RedwoodGameModeAsset and RedwoodMapAsset to load")
+      TEXT(
+        "Waiting for RedwoodGameModeAsset, RedwoodMapAsset, and RedwoodPersistentItemAsset to load"
+      )
     );
 
     // Load Redwood GameMode and Map assets so we can know which underlying GameMode and Map to load later
@@ -59,13 +67,15 @@ void URedwoodServerGameSubsystem::Initialize(
       AssetManager.LoadPrimaryAssetsWithType(GameModeAssetType);
     TSharedPtr<FStreamableHandle> HandleMaps =
       AssetManager.LoadPrimaryAssetsWithType(MapAssetType);
+    TSharedPtr<FStreamableHandle> HandlePersistentItems =
+      AssetManager.LoadPrimaryAssetsWithType(PersistentItemAssetType);
 
-    if (!HandleModes.IsValid() || !HandleMaps.IsValid()) {
+    if (!HandleModes.IsValid() || !HandleMaps.IsValid() || !HandlePersistentItems.IsValid()) {
       UE_LOG(
         LogRedwood,
         Error,
         TEXT(
-          "Failed to load RedwoodGameModeAsset or RedwoodMapAsset asset types; not initializing RedwoodServerGameSubsystem"
+          "Failed to load RedwoodGameModeAsset, RedwoodMapAsset, or RedwoodPersistentItemAsset asset types; not initializing RedwoodServerGameSubsystem"
         )
       );
       return;
@@ -73,25 +83,32 @@ void URedwoodServerGameSubsystem::Initialize(
 
     HandleModes->WaitUntilComplete();
     HandleMaps->WaitUntilComplete();
+    HandlePersistentItems->WaitUntilComplete();
 
     TArray<UObject *> GameModesAssets;
     TArray<UObject *> MapsAssets;
+    TArray<UObject *> PersistentItemAssets;
 
     AssetManager.GetPrimaryAssetObjectList(GameModeAssetType, GameModesAssets);
     AssetManager.GetPrimaryAssetObjectList(MapAssetType, MapsAssets);
+    AssetManager.GetPrimaryAssetObjectList(
+      PersistentItemAssetType, PersistentItemAssets
+    );
 
     for (UObject *Object : GameModesAssets) {
       URedwoodGameModeAsset *RedwoodGameMode =
         Cast<URedwoodGameModeAsset>(Object);
       if (ensure(RedwoodGameMode)) {
-        if (RedwoodGameMode->GameModeType == ERedwoodGameModeType::GameModeBase) {
-          GameModeClasses.Add(
-            RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeBaseClass
-          );
-        } else {
-          GameModeClasses.Add(
-            RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeClass
-          );
+        if (!RedwoodGameMode->RedwoodId.IsEmpty()) {
+          if (RedwoodGameMode->GameModeType == ERedwoodGameModeType::GameModeBase) {
+            GameModeClasses.Add(
+              RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeBaseClass
+            );
+          } else {
+            GameModeClasses.Add(
+              RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeClass
+            );
+          }
         }
       }
     }
@@ -99,16 +116,37 @@ void URedwoodServerGameSubsystem::Initialize(
     for (UObject *Object : MapsAssets) {
       URedwoodMapAsset *RedwoodMap = Cast<URedwoodMapAsset>(Object);
       if (ensure(RedwoodMap)) {
-        Maps.Add(RedwoodMap->RedwoodId, RedwoodMap->MapId);
+        if (!RedwoodMap->RedwoodId.IsEmpty()) {
+          Maps.Add(RedwoodMap->RedwoodId, RedwoodMap->MapId);
+        }
+      }
+    }
+
+    for (UObject *Object : PersistentItemAssets) {
+      URedwoodPersistentItemAsset *RedwoodPersistentItem =
+        Cast<URedwoodPersistentItemAsset>(Object);
+      if (ensure(RedwoodPersistentItem)) {
+        if (!RedwoodPersistentItem->RedwoodTypeId.IsEmpty()) {
+          PersistentItemTypesByTypeId.Add(
+            RedwoodPersistentItem->RedwoodTypeId, RedwoodPersistentItem
+          );
+          PersistentItemTypesByPrimaryAssetId.Add(
+            RedwoodPersistentItem->GetPrimaryAssetId().ToString(),
+            RedwoodPersistentItem
+          );
+        }
       }
     }
 
     UE_LOG(
       LogRedwood,
       Log,
-      TEXT("Loaded %d GameMode assets and %d Map assets"),
+      TEXT(
+        "Loaded %d GameMode assets, %d Map assets, and %d PersistentItem assets"
+      ),
       GameModeClasses.Num(),
-      Maps.Num()
+      Maps.Num(),
+      PersistentItemAssets.Num()
     );
 
     URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
@@ -116,7 +154,7 @@ void URedwoodServerGameSubsystem::Initialize(
 #if WITH_EDITOR
       URedwoodEditorSettings *RedwoodEditorSettings =
         GetMutableDefault<URedwoodEditorSettings>();
-      if (!GIsEditor || RedwoodEditorSettings->bConnectToSidecarInPIE) {
+      if (!GIsEditor || RedwoodEditorSettings->bUseBackendInPIE) {
         InitializeSidecar();
       }
 #else
@@ -426,11 +464,11 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
 
   TSharedPtr<FJsonObject> Transform = MakeShareable(new FJsonObject);
 
-  TSharedPtr<FJsonObject> Position = MakeShareable(new FJsonObject);
-  Position->SetNumberField(TEXT("x"), InTransform.GetLocation().X);
-  Position->SetNumberField(TEXT("y"), InTransform.GetLocation().Y);
-  Position->SetNumberField(TEXT("z"), InTransform.GetLocation().Z);
-  Transform->SetObjectField(TEXT("position"), Position);
+  TSharedPtr<FJsonObject> Location = MakeShareable(new FJsonObject);
+  Location->SetNumberField(TEXT("x"), InTransform.GetLocation().X);
+  Location->SetNumberField(TEXT("y"), InTransform.GetLocation().Y);
+  Location->SetNumberField(TEXT("z"), InTransform.GetLocation().Z);
+  Transform->SetObjectField(TEXT("location"), Location);
 
   TSharedPtr<FJsonObject> Rotation = MakeShareable(new FJsonObject);
   auto RotationEuler = InTransform.GetRotation().Euler();
@@ -567,6 +605,11 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
   );
 }
 
+void URedwoodServerGameSubsystem::FlushPersistence() {
+  FlushPlayerCharacterData();
+  FlushZoneData();
+}
+
 void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
   UWorld *World = GetWorld();
   if (!IsValid(World)) {
@@ -594,7 +637,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
     return;
   }
 
-  if (Sidecar && Sidecar->bIsConnected) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
     TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
 
@@ -750,7 +793,8 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
   } else {
     // save the dirty characters to disk
 
-    FString SavePath = FPaths::ProjectSavedDir() / TEXT("Characters");
+    FString SavePath =
+      FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
     FPaths::NormalizeDirectoryName(SavePath);
 
     if (!FPaths::DirectoryExists(SavePath)) {
@@ -839,4 +883,404 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
       }
     }
   }
+}
+
+void URedwoodServerGameSubsystem::InitialDataLoad() {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+    if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Sidecar is not connected; cannot load initial data")
+      );
+      return;
+    }
+
+    TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+    Sidecar->Emit(
+      TEXT("realm:servers:session:persistence::initial-load"),
+      Payload,
+      [this](auto Response) {
+        TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+        FString Error = MessageStruct->GetStringField(TEXT("error"));
+
+        if (!Error.IsEmpty()) {
+          UE_LOG(
+            LogRedwood, Error, TEXT("Failed to load initial data: %s"), *Error
+          );
+        } else {
+          UE_LOG(LogRedwood, Log, TEXT("Loaded initial data"));
+          PostInitialDataLoad(MessageStruct);
+        }
+      }
+    );
+
+  } else {
+    // load from disk
+    FString SavePath =
+      FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Maps");
+    FPaths::NormalizeDirectoryName(SavePath);
+
+    if (!FPaths::DirectoryExists(SavePath)) {
+      IFileManager::Get().MakeDirectory(*SavePath, true);
+    }
+
+    UWorld *World = GetWorld();
+    if (!IsValid(World)) {
+      UE_LOG(
+        LogRedwood, Error, TEXT("Can't InitialDataLoad: World is not valid")
+      );
+      return;
+    }
+
+    FString MapName = World->GetMapName();
+
+    FString MapSavePath = SavePath / MapName + TEXT(".json");
+
+    if (!FPaths::FileExists(MapSavePath)) {
+      UE_LOG(LogRedwood, Log, TEXT("No saved data for map %s"), *MapName);
+      return;
+    }
+
+    FString JsonString;
+    FFileHelper::LoadFileToString(JsonString, *MapSavePath);
+
+    TSharedPtr<FJsonObject> ZoneJsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ZoneJsonObject)) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Failed to deserialize JSON for map %s"),
+        *MapName
+      );
+      return;
+    }
+
+    PostInitialDataLoad(ZoneJsonObject);
+  }
+}
+
+void URedwoodServerGameSubsystem::PostInitialDataLoad(
+  TSharedPtr<FJsonObject> ZoneJsonObject
+) {
+  FRedwoodZoneData InitialLoad =
+    URedwoodCommonGameSubsystem::ParseZoneData(ZoneJsonObject);
+
+  UWorld *World = GetWorld();
+  if (!IsValid(World)) {
+    UE_LOG(
+      LogRedwood, Error, TEXT("Can't PostInitialDataLoad: World is not valid")
+    );
+    return;
+  }
+
+  AGameStateBase *GameState = World->GetGameState();
+  if (!IsValid(GameState)) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't PostInitialDataLoad: GameState is not valid")
+    );
+    return;
+  }
+
+  URedwoodPersistenceComponent *GameStatePersistence =
+    GameState->GetComponentByClass<URedwoodPersistenceComponent>();
+
+  if (InitialLoad.Data && GameStatePersistence) {
+    URedwoodPersistentItemAsset *ProxyItem =
+      PersistentItemTypesByTypeId.FindRef(TEXT("proxy"));
+    if (ProxyItem) {
+      URedwoodCommonGameSubsystem::DeserializeBackendData(
+        GameStatePersistence,
+        InitialLoad.Data,
+        ProxyItem->DataVariableName,
+        ProxyItem->LatestSchemaVersion
+      );
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Warning,
+        TEXT("No 'proxy' persistent item type found, can't load world data")
+      );
+    }
+  }
+
+  for (FRedwoodPersistentItem &Item : InitialLoad.PersistentItems) {
+    UpdatePersistentItem(Item);
+  }
+}
+
+void URedwoodServerGameSubsystem::UpdatePersistentItem(
+  FRedwoodPersistentItem &Item
+) {
+  UWorld *World = GetWorld();
+  if (!IsValid(World)) {
+    UE_LOG(
+      LogRedwood, Error, TEXT("Can't UpdatePersistentItem: World is not valid")
+    );
+    return;
+  }
+
+  URedwoodPersistenceComponent *PersistentItem;
+
+  PersistentItem = PersistentItems.FindRef(Item.Id);
+
+  URedwoodPersistentItemAsset *ItemType =
+    PersistentItemTypesByTypeId.FindRef(Item.TypeId);
+
+  if (ItemType == nullptr) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't spawn PersistentItem of type %s because it's not registered"),
+      *Item.TypeId
+    );
+    return;
+  }
+
+  if (PersistentItem == nullptr) {
+    // spawn it
+    TSoftClassPtr<AActor> ActorClass = ItemType->ActorClass;
+    if (ActorClass.IsNull()) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "Can't spawn PersistentItem of type %s because it has no ActorClass"
+        ),
+        *Item.TypeId
+      );
+      return;
+    }
+
+    AActor *Actor = World->SpawnActor<AActor>(ActorClass.Get());
+
+    if (Actor == nullptr) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Failed to spawn PersistentItem of type %s"),
+        *Item.TypeId
+      );
+      return;
+    }
+
+    PersistentItem = Actor->GetComponentByClass<URedwoodPersistenceComponent>();
+
+    if (PersistentItem == nullptr) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "Spawned actor for PersistentItem of type %s, but the actor has no RedwoodPersistenceComponent"
+        ),
+        *Item.TypeId
+      );
+      return;
+    }
+
+    PersistentItem->RedwoodId = Item.Id;
+
+    PersistentItems.Add(Item.Id, PersistentItem);
+  }
+
+  AActor *Actor = PersistentItem->GetOwner();
+  USceneComponent *ActorRootComponent = Actor->GetRootComponent();
+
+  if (ActorRootComponent == nullptr) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("PersistentItem %s has no root component; can't update transform"),
+      *Item.Id
+    );
+    return;
+  }
+
+  ActorRootComponent->SetWorldTransform(Item.Transform);
+
+  if (Item.Data) {
+    URedwoodCommonGameSubsystem::DeserializeBackendData(
+      PersistentItem,
+      Item.Data,
+      ItemType->DataVariableName,
+      ItemType->LatestSchemaVersion
+    );
+  }
+}
+
+void URedwoodServerGameSubsystem::FlushZoneData() {
+  TSharedPtr<FJsonObject> ZoneData = MakeShareable(new FJsonObject);
+
+  UWorld *World = GetWorld();
+  if (!IsValid(World)) {
+    UE_LOG(LogRedwood, Error, TEXT("Can't FlushZoneData: World is not valid"));
+    return;
+  }
+
+  AGameStateBase *GameState = World->GetGameState();
+  if (!IsValid(GameState)) {
+    UE_LOG(
+      LogRedwood, Error, TEXT("Can't FlushZoneData: GameState is not valid")
+    );
+    return;
+  }
+
+  URedwoodPersistenceComponent *GameStatePersistence =
+    GameState->GetComponentByClass<URedwoodPersistenceComponent>();
+
+  if (GameStatePersistence) {
+    URedwoodPersistentItemAsset *ProxyItem =
+      PersistentItemTypesByTypeId.FindRef(TEXT("proxy"));
+    if (ProxyItem) {
+      USIOJsonObject *DataObject =
+        URedwoodCommonGameSubsystem::SerializeBackendData(
+          GameStatePersistence, ProxyItem->DataVariableName
+        );
+      ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Warning,
+        TEXT("No 'proxy' persistent item type found, can't save world data")
+      );
+    }
+  }
+
+  // get data from PersistentItems
+  TArray<TSharedPtr<FJsonValue>> PersistentItemsArray;
+  for (auto &Pair : PersistentItems) {
+    URedwoodPersistenceComponent *PersistentItem = Pair.Value;
+
+    FPrimaryAssetId AssetId = PersistentItem->PersistentItem;
+    if (!AssetId.IsValid()) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("PersistentItem %s has no PrimaryAssetId"),
+        *PersistentItem->GetName()
+      );
+      continue;
+    }
+
+    // load the data from the PersistentItemAsset from the asset manager
+    URedwoodPersistentItemAsset *PersistenceItemType =
+      PersistentItemTypesByPrimaryAssetId.FindRef(AssetId.ToString());
+
+    if (PersistenceItemType == nullptr) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Couldn't find PersistentItem %s PrimaryAssetId in map"),
+        *PersistentItem->GetName()
+      );
+      continue;
+    }
+
+    TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject());
+
+    ItemObject->SetStringField(TEXT("id"), PersistentItem->RedwoodId);
+    ItemObject->SetStringField(
+      TEXT("typeId"), PersistenceItemType->RedwoodTypeId
+    );
+
+    FTransform Transform = PersistentItem->GetOwner()->GetTransform();
+    FVector Location = Transform.GetLocation();
+    FVector Rotation = Transform.GetRotation().Euler();
+    FVector Scale = Transform.GetScale3D();
+
+    TSharedPtr<FJsonObject> TransformObject = MakeShareable(new FJsonObject());
+    TSharedPtr<FJsonObject> LocationObject = MakeShareable(new FJsonObject());
+    TSharedPtr<FJsonObject> RotationObject = MakeShareable(new FJsonObject());
+    TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
+    LocationObject->SetNumberField(TEXT("x"), Location.X);
+    LocationObject->SetNumberField(TEXT("y"), Location.Y);
+    LocationObject->SetNumberField(TEXT("z"), Location.Z);
+    RotationObject->SetNumberField(TEXT("x"), Rotation.X);
+    RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
+    RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
+    ScaleObject->SetNumberField(TEXT("x"), Scale.X);
+    ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
+    ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
+    TransformObject->SetObjectField(TEXT("location"), LocationObject);
+    TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
+    TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
+    ItemObject->SetObjectField(TEXT("transform"), TransformObject);
+
+    USIOJsonObject *DataObject =
+      URedwoodCommonGameSubsystem::SerializeBackendData(
+        PersistentItem, PersistenceItemType->DataVariableName
+      );
+    ItemObject->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+
+    TSharedPtr<FJsonValueObject> Value =
+      MakeShareable(new FJsonValueObject(ItemObject));
+    PersistentItemsArray.Add(Value);
+  }
+
+  ZoneData->SetArrayField(TEXT("persistentItems"), PersistentItemsArray);
+
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+    if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Sidecar is not connected; cannot flush zone data")
+      );
+      return;
+    }
+
+    // TODO MIKE HERE
+  } else {
+    // save to disk
+    FString SavePath =
+      FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Maps");
+    FPaths::NormalizeDirectoryName(SavePath);
+
+    if (!FPaths::DirectoryExists(SavePath)) {
+      IFileManager::Get().MakeDirectory(*SavePath, true);
+    }
+
+    FString MapName = World->GetMapName();
+    FString MapSavePath = SavePath / MapName + TEXT(".json");
+
+    FString JsonString;
+    TSharedRef<TJsonWriter<>> Writer =
+      TJsonWriterFactory<>::Create(&JsonString);
+    FJsonSerializer::Serialize(ZoneData.ToSharedRef(), Writer);
+
+    FFileHelper::SaveStringToFile(JsonString, *MapSavePath);
+  }
+}
+
+void URedwoodServerGameSubsystem::RegisterPersistenceComponent(
+  URedwoodPersistenceComponent *InComponent
+) {
+  if (InComponent == nullptr) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't register null URedwoodPersistenceComponent")
+    );
+    return;
+  }
+
+  if (PersistentItems.Find(InComponent->RedwoodId) != nullptr) {
+    return;
+  }
+
+  if (InComponent->RedwoodId.IsEmpty()) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't register URedwoodPersistenceComponent %s with empty RedwoodId"
+      ),
+      *InComponent->GetName()
+    );
+    return;
+  }
+
+  PersistentItems.Add(InComponent->RedwoodId, InComponent);
 }

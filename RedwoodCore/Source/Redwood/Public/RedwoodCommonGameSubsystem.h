@@ -39,6 +39,10 @@ public:
   static FRedwoodGameServerInstance ParseServerInstance(
     TSharedPtr<FJsonObject> ServerInstance
   );
+  static FRedwoodZoneData ParseZoneData(TSharedPtr<FJsonObject> ZoneData);
+  static FRedwoodPersistentItem ParsePersistentItem(
+    TSharedPtr<FJsonObject> PersistentItem
+  );
 
   static USIOJsonObject *SerializeBackendData(
     UObject *TargetObject, FString VariableName
@@ -50,6 +54,9 @@ public:
     FString VariableName,
     int32 LatestSchemaVersion
   );
+
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  static bool ShouldUseBackend();
 
 private:
 };

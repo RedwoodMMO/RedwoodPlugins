@@ -8,6 +8,7 @@
 
 #include "RedwoodTypesAuth.h"
 #include "RedwoodTypesCharacters.h"
+#include "RedwoodTypesPersistence.h"
 #include "RedwoodTypesRealms.h"
 #include "RedwoodTypesRegions.h"
 #include "RedwoodTypesServers.h"

@@ -16,6 +16,11 @@ void ARedwoodInteractableProxied::OnInteract_Implementation(
     );
     if (IsValid(Proxy)) {
       Proxy->SetOwner(Character);
+
+      ARedwoodProxy *RedwoodProxy = Cast<ARedwoodProxy>(Proxy);
+      if (IsValid(RedwoodProxy)) {
+        RedwoodProxy->Interactable = this;
+      }
     }
   }
 }

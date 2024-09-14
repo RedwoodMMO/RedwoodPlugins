@@ -55,7 +55,8 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
     TJsonWriterFactory<TCHAR>::Create(&OutputString);
   FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 
-  FString SavePath = FPaths::ProjectSavedDir() / TEXT("Characters");
+  FString SavePath =
+    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
   FPaths::NormalizeFilename(SavePath);
   FString FileName = SavePath / (Character.Id + TEXT(".json"));
 
@@ -64,7 +65,8 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
 
 TArray<FRedwoodCharacterBackend>
 URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk() {
-  FString SavePath = FPaths::ProjectSavedDir() / TEXT("Characters");
+  FString SavePath =
+    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
   FPaths::NormalizeFilename(SavePath);
 
   TArray<FString> Files;
@@ -82,7 +84,8 @@ URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk() {
 FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
   FString CharacterId
 ) {
-  FString SavePath = FPaths::ProjectSavedDir() / TEXT("Characters");
+  FString SavePath =
+    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
   FPaths::NormalizeFilename(SavePath);
 
   FString FilePath = SavePath / CharacterId + TEXT(".json");
@@ -146,7 +149,8 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
 }
 
 uint8 URedwoodCommonGameSubsystem::GetCharactersOnDiskCount() {
-  FString SavePath = FPaths::ProjectSavedDir() / TEXT("Characters");
+  FString SavePath =
+    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
   FPaths::NormalizeFilename(SavePath);
 
   TArray<FString> Files;
@@ -353,6 +357,84 @@ FRedwoodGameServerInstance URedwoodCommonGameSubsystem::ParseServerInstance(
   return Instance;
 }
 
+FRedwoodZoneData URedwoodCommonGameSubsystem::ParseZoneData(
+  TSharedPtr<FJsonObject> ZoneData
+) {
+  FRedwoodZoneData Data;
+
+  const TSharedPtr<FJsonObject> *DataObj;
+  if (ZoneData->TryGetObjectField(TEXT("data"), DataObj)) {
+    Data.Data = NewObject<USIOJsonObject>();
+    Data.Data->SetRootObject(*DataObj);
+  }
+
+  const TArray<TSharedPtr<FJsonValue>> *PersistentItems;
+  if (ZoneData->TryGetArrayField(TEXT("persistentItems"), PersistentItems)) {
+    for (const TSharedPtr<FJsonValue> &Item : *PersistentItems) {
+      if (Item->Type == EJson::Object) {
+        TSharedPtr<FJsonObject> ItemObj = Item->AsObject();
+        FRedwoodPersistentItem PersistentItem = ParsePersistentItem(ItemObj);
+        Data.PersistentItems.Add(PersistentItem);
+      }
+    }
+  }
+
+  return Data;
+}
+
+FRedwoodPersistentItem URedwoodCommonGameSubsystem::ParsePersistentItem(
+  TSharedPtr<FJsonObject> PersistentItem
+) {
+  FRedwoodPersistentItem Item;
+
+  Item.Id = PersistentItem->GetStringField(TEXT("id"));
+
+  Item.TypeId = PersistentItem->GetStringField(TEXT("typeId"));
+
+  TSharedPtr<FJsonObject> TransformObj =
+    PersistentItem->GetObjectField(TEXT("transform"));
+  if (TransformObj.IsValid()) {
+    FVector Location;
+    FRotator Rotation;
+    FVector Scale;
+
+    TSharedPtr<FJsonObject> LocationObj =
+      TransformObj->GetObjectField(TEXT("location"));
+    if (LocationObj.IsValid()) {
+      Location.X = LocationObj->GetNumberField(TEXT("x"));
+      Location.Y = LocationObj->GetNumberField(TEXT("y"));
+      Location.Z = LocationObj->GetNumberField(TEXT("z"));
+    }
+
+    TSharedPtr<FJsonObject> RotationObj =
+      TransformObj->GetObjectField(TEXT("rotation"));
+    if (RotationObj.IsValid()) {
+      float Roll = RotationObj->GetNumberField(TEXT("x"));
+      float Pitch = RotationObj->GetNumberField(TEXT("y"));
+      float Yaw = RotationObj->GetNumberField(TEXT("z"));
+      Rotation = FRotator(Pitch, Yaw, Roll);
+    }
+
+    TSharedPtr<FJsonObject> ScaleObj =
+      TransformObj->GetObjectField(TEXT("scale"));
+    if (ScaleObj.IsValid()) {
+      Scale.X = ScaleObj->GetNumberField(TEXT("x"));
+      Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
+      Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
+    }
+
+    Item.Transform = FTransform(Rotation, Location, Scale);
+  }
+
+  const TSharedPtr<FJsonObject> *DataObj;
+  if (PersistentItem->TryGetObjectField(TEXT("data"), DataObj)) {
+    Item.Data = NewObject<USIOJsonObject>();
+    Item.Data->SetRootObject(*DataObj);
+  }
+
+  return Item;
+}
+
 void URedwoodCommonGameSubsystem::DeserializeBackendData(
   UObject *TargetObject,
   USIOJsonObject *SIOJsonObject,
@@ -542,4 +624,16 @@ USIOJsonObject *URedwoodCommonGameSubsystem::SerializeBackendData(
   }
 
   return nullptr;
+}
+
+bool URedwoodCommonGameSubsystem::ShouldUseBackend() {
+#if WITH_EDITOR
+  // get redwoodeditorsettings
+  URedwoodEditorSettings *RedwoodEditorSettings =
+    GetMutableDefault<URedwoodEditorSettings>();
+
+  return RedwoodEditorSettings->bUseBackendInPIE;
+#else
+  return true;
+#endif
 }

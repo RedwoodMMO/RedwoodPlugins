@@ -14,6 +14,10 @@ class REDWOOD_API ARedwoodGameMode : public AGameMode {
   GENERATED_BODY()
 
 public:
+  //~AActor interface
+  virtual void BeginPlay() override;
+  //~End of AActor interface
+
   //~AGameModeBase interface
   virtual void InitGame(
     const FString &MapName, const FString &Options, FString &ErrorMessage
@@ -40,6 +44,9 @@ public:
   );
   //~End of AGameModeBase interface
 
+  UFUNCTION()
+  void PostBeginPlay();
+
   UFUNCTION(BlueprintCallable, Category = "Redwood|GameMode")
   TArray<FString> GetExpectedCharacterIds() const;
 
@@ -47,13 +54,17 @@ public:
   void OnGameModeLogout(AGameModeBase *GameMode, AController *Controller);
 
   UFUNCTION()
-  void FlushPlayerCharacterData();
+  void FlushPersistence();
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   float DatabasePersistenceInterval = 0.5f;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  float PostBeginPlayDelay = 0.2f;
 
 private:
   TSharedPtr<FSocketIONative> Sidecar;
 
   FTimerHandle FlushPlayerCharacterDataTimerHandle;
+  FTimerHandle PostBeginPlayTimerHandle;
 };
