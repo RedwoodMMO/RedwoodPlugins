@@ -637,7 +637,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
     return;
   }
 
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
     TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
 
@@ -886,7 +886,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
 }
 
 void URedwoodServerGameSubsystem::InitialDataLoad() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
       UE_LOG(
         LogRedwood,

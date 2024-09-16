@@ -23,7 +23,7 @@ void URedwoodClientGameSubsystem::Initialize(
 ) {
   Super::Initialize(Collection);
 
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface = NewObject<URedwoodClientInterface>();
 
     ClientInterface->OnPingsReceived.AddDynamic(
@@ -56,7 +56,7 @@ void URedwoodClientGameSubsystem::Deinitialize() {
 void URedwoodClientGameSubsystem::InitializeDirectorConnection(
   FRedwoodSocketConnectedDelegate OnDirectorConnected
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->InitializeDirectorConnection(OnDirectorConnected);
   } else {
     FRedwoodSocketConnected Output;
@@ -65,7 +65,7 @@ void URedwoodClientGameSubsystem::InitializeDirectorConnection(
 }
 
 bool URedwoodClientGameSubsystem::IsDirectorConnected() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->IsDirectorConnected();
   } else {
     return true;
@@ -77,7 +77,7 @@ void URedwoodClientGameSubsystem::Register(
   const FString &Password,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->Register(Username, Password, OnUpdate);
   } else {
     FRedwoodAuthUpdate Output;
@@ -89,13 +89,13 @@ void URedwoodClientGameSubsystem::Register(
 }
 
 void URedwoodClientGameSubsystem::Logout() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->Logout();
   }
 }
 
 bool URedwoodClientGameSubsystem::IsLoggedIn() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->IsLoggedIn();
   } else {
     return true;
@@ -105,7 +105,7 @@ bool URedwoodClientGameSubsystem::IsLoggedIn() {
 void URedwoodClientGameSubsystem::AttemptAutoLogin(
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->AttemptAutoLogin(OnUpdate);
   } else {
     FRedwoodAuthUpdate Output;
@@ -121,7 +121,7 @@ void URedwoodClientGameSubsystem::Login(
   bool bRememberMe,
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->Login(
       Username, PasswordOrToken, Provider, bRememberMe, OnUpdate
     );
@@ -133,7 +133,7 @@ void URedwoodClientGameSubsystem::Login(
 }
 
 FString URedwoodClientGameSubsystem::GetNickname() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetNickname();
   } else {
     return TEXT("PIE Player");
@@ -141,7 +141,7 @@ FString URedwoodClientGameSubsystem::GetNickname() {
 }
 
 void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->CancelWaitingForAccountVerification();
   }
 }
@@ -149,7 +149,7 @@ void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
 void URedwoodClientGameSubsystem::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->ListRealms(OnOutput);
   } else {
     TArray<FRedwoodRealm> Realms;
@@ -168,7 +168,7 @@ void URedwoodClientGameSubsystem::ListRealms(
 void URedwoodClientGameSubsystem::InitializeConnectionForFirstRealm(
   FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->InitializeConnectionForFirstRealm(OnRealmConnected);
   } else {
     FRedwoodSocketConnected Output;
@@ -179,7 +179,7 @@ void URedwoodClientGameSubsystem::InitializeConnectionForFirstRealm(
 void URedwoodClientGameSubsystem::InitializeRealmConnection(
   FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->InitializeRealmConnection(InRealm, OnRealmConnected);
   } else {
     FRedwoodSocketConnected Output;
@@ -188,7 +188,7 @@ void URedwoodClientGameSubsystem::InitializeRealmConnection(
 }
 
 bool URedwoodClientGameSubsystem::IsRealmConnected() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->IsRealmConnected();
   } else {
     return true;
@@ -196,7 +196,7 @@ bool URedwoodClientGameSubsystem::IsRealmConnected() {
 }
 
 TMap<FString, float> URedwoodClientGameSubsystem::GetRegions() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetRegions();
   } else {
     TMap<FString, float> Regions;
@@ -208,7 +208,7 @@ TMap<FString, float> URedwoodClientGameSubsystem::GetRegions() {
 void URedwoodClientGameSubsystem::ListCharacters(
   FRedwoodListCharactersOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->ListCharacters(OnOutput);
   } else {
     TArray<FRedwoodCharacterBackend> Characters;
@@ -225,7 +225,7 @@ void URedwoodClientGameSubsystem::CreateCharacter(
   USIOJsonObject *CharacterCreatorData,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->CreateCharacter(Name, CharacterCreatorData, OnOutput);
   } else {
     FRedwoodCharacterBackend Character;
@@ -254,7 +254,7 @@ void URedwoodClientGameSubsystem::CreateCharacter(
 void URedwoodClientGameSubsystem::GetCharacterData(
   FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->GetCharacterData(CharacterId, OnOutput);
   } else {
     FRedwoodGetCharacterOutput Output;
@@ -270,7 +270,7 @@ void URedwoodClientGameSubsystem::SetCharacterData(
   USIOJsonObject *CharacterCreatorData,
   FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->SetCharacterData(
       CharacterId, Name, CharacterCreatorData, OnOutput
     );
@@ -296,7 +296,7 @@ void URedwoodClientGameSubsystem::SetCharacterData(
 }
 
 void URedwoodClientGameSubsystem::SetSelectedCharacter(FString CharacterId) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->SetSelectedCharacter(CharacterId);
   }
 }
@@ -306,7 +306,7 @@ void URedwoodClientGameSubsystem::JoinMatchmaking(
   TArray<FString> InRegions,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->JoinMatchmaking(ProfileId, InRegions, OnUpdate);
   } else {
     FRedwoodTicketingUpdate Output;
@@ -320,7 +320,7 @@ void URedwoodClientGameSubsystem::JoinMatchmaking(
 void URedwoodClientGameSubsystem::JoinQueue(
   FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->JoinQueue(ProxyId, ZoneName, OnUpdate);
   } else {
     FRedwoodTicketingUpdate Output;
@@ -334,7 +334,7 @@ void URedwoodClientGameSubsystem::JoinQueue(
 void URedwoodClientGameSubsystem::LeaveTicketing(
   FRedwoodErrorOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->LeaveTicketing(OnOutput);
   } else {
     FString Error =
@@ -347,7 +347,7 @@ void URedwoodClientGameSubsystem::ListServers(
   TArray<FString> PrivateServerReferences,
   FRedwoodListServersOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->ListServers(PrivateServerReferences, OnOutput);
   } else {
     FRedwoodListServersOutput Output;
@@ -360,7 +360,7 @@ void URedwoodClientGameSubsystem::CreateServer(
   FRedwoodCreateServerInput Parameters,
   FRedwoodCreateServerOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->CreateServer(bJoinSession, Parameters, OnOutput);
   } else {
     FRedwoodCreateServerOutput Output;
@@ -375,7 +375,7 @@ void URedwoodClientGameSubsystem::JoinServerInstance(
   FString Password,
   FRedwoodJoinServerOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->JoinServerInstance(ServerReference, Password, OnOutput);
   } else {
     FRedwoodJoinServerOutput Output;
@@ -388,7 +388,7 @@ void URedwoodClientGameSubsystem::JoinServerInstance(
 void URedwoodClientGameSubsystem::StopServer(
   FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->StopServer(ServerProxyId, OnOutput);
   } else {
     FString Error =
@@ -398,7 +398,7 @@ void URedwoodClientGameSubsystem::StopServer(
 }
 
 FString URedwoodClientGameSubsystem::GetConnectionConsoleCommand() {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetConnectionConsoleCommand();
   } else {
     return FString();

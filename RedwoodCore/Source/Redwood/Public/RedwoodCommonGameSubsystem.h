@@ -56,7 +56,7 @@ public:
   );
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
-  static bool ShouldUseBackend();
+  static bool ShouldUseBackend(UWorld *World);
 
 private:
 };

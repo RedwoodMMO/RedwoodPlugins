@@ -2,6 +2,10 @@
 
 #include "RedwoodCommonGameSubsystem.h"
 
+#if WITH_EDITOR
+  #include "RedwoodEditorSettings.h"
+#endif
+
 #include "SIOJsonObject.h"
 
 void URedwoodCommonGameSubsystem::Initialize(
@@ -626,13 +630,17 @@ USIOJsonObject *URedwoodCommonGameSubsystem::SerializeBackendData(
   return nullptr;
 }
 
-bool URedwoodCommonGameSubsystem::ShouldUseBackend() {
+bool URedwoodCommonGameSubsystem::ShouldUseBackend(UWorld *World) {
+  if (!World) {
+    return false;
+  }
+
 #if WITH_EDITOR
-  // get redwoodeditorsettings
   URedwoodEditorSettings *RedwoodEditorSettings =
     GetMutableDefault<URedwoodEditorSettings>();
 
-  return RedwoodEditorSettings->bUseBackendInPIE;
+  return World->WorldType != EWorldType::PIE ||
+    RedwoodEditorSettings->bUseBackendInPIE;
 #else
   return true;
 #endif

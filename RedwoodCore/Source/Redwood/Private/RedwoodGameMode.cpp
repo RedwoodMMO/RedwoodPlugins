@@ -27,7 +27,7 @@ void ARedwoodGameMode::InitGame(
 ) {
   Super::InitGame(MapName, Options, ErrorMessage);
 
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
     URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
@@ -109,7 +109,7 @@ APlayerController *ARedwoodGameMode::Login(
     return PlayerController;
   }
 
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
       FString PlayerId =
         UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));
