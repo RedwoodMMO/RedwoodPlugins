@@ -47,7 +47,38 @@ public:
     return bDataDirty;
   }
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void MarkAllDirty() {
+    bTransformDirty = true;
+    bDataDirty = true;
+  }
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void ClearDirtyFlags() {
+    bTransformDirty = false;
+    bDataDirty = false;
+  }
+
+  // This is called by the URedwoodServerGameSubsystem
+  // if this actor/component is spawned due to existing
+  // persistence. If this isn't called manually then when
+  // the component is spawned otherwise (i.e. through normal gameplay
+  // or initially in the editor) it will be persisted regardless
+  // of dirty flags.
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void SkipInitialSave() {
+    bDoInitialSave = false;
+  }
+
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool ShouldDoInitialSave() const {
+    return bDoInitialSave;
+  }
+
 private:
   bool bTransformDirty = false;
   bool bDataDirty = false;
+
+  // this fla
+  bool bDoInitialSave = true;
 };

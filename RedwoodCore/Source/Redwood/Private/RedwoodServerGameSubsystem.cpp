@@ -1082,6 +1082,7 @@ void URedwoodServerGameSubsystem::UpdatePersistentItem(
     }
 
     PersistentItem->RedwoodId = Item.Id;
+    PersistentItem->SkipInitialSave();
 
     PersistentItems.Add(Item.Id, PersistentItem);
   }
@@ -1114,6 +1115,8 @@ void URedwoodServerGameSubsystem::UpdatePersistentItem(
 void URedwoodServerGameSubsystem::FlushZoneData() {
   TSharedPtr<FJsonObject> ZoneData = MakeShareable(new FJsonObject);
 
+  bool bZoneDataDirty = false;
+
   UWorld *World = GetWorld();
   if (!IsValid(World)) {
     UE_LOG(LogRedwood, Error, TEXT("Can't FlushZoneData: World is not valid"));
@@ -1135,11 +1138,29 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
     URedwoodPersistentItemAsset *ProxyItem =
       PersistentItemTypesByTypeId.FindRef(TEXT("proxy"));
     if (ProxyItem) {
-      USIOJsonObject *DataObject =
-        URedwoodCommonGameSubsystem::SerializeBackendData(
-          GameStatePersistence, ProxyItem->DataVariableName
-        );
-      ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+      if (
+        !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
+        GameStatePersistence->IsDataDirty() ||
+        GameStatePersistence->ShouldDoInitialSave()
+      ) {
+        // always add the data if we're not using the backend
+
+        if (GameStatePersistence->IsDataDirty()) {
+          bZoneDataDirty = true;
+          GameStatePersistence->ClearDirtyFlags();
+        }
+
+        if (GameStatePersistence->ShouldDoInitialSave()) {
+          bZoneDataDirty = true;
+          GameStatePersistence->SkipInitialSave();
+        }
+
+        USIOJsonObject *DataObject =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            GameStatePersistence, ProxyItem->DataVariableName
+          );
+        ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+      }
     } else {
       UE_LOG(
         LogRedwood,
@@ -1153,6 +1174,11 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
   TArray<TSharedPtr<FJsonValue>> PersistentItemsArray;
   for (auto &Pair : PersistentItems) {
     URedwoodPersistenceComponent *PersistentItem = Pair.Value;
+
+    if (PersistentItem->RedwoodId == TEXT("proxy")) {
+      // don't save the proxy/world data here
+      continue;
+    }
 
     FPrimaryAssetId AssetId = PersistentItem->PersistentItem;
     if (!AssetId.IsValid()) {
@@ -1179,79 +1205,128 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
       continue;
     }
 
-    TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject());
+    bool bUpdateItem = PersistentItem->IsTransformDirty() ||
+      PersistentItem->IsDataDirty() || PersistentItem->ShouldDoInitialSave();
 
-    ItemObject->SetStringField(TEXT("id"), PersistentItem->RedwoodId);
-    ItemObject->SetStringField(
-      TEXT("typeId"), PersistenceItemType->RedwoodTypeId
-    );
+    if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) || bUpdateItem) {
+      // always add the data if we're not using the backend
 
-    FTransform Transform = PersistentItem->GetOwner()->GetTransform();
-    FVector Location = Transform.GetLocation();
-    FVector Rotation = Transform.GetRotation().Euler();
-    FVector Scale = Transform.GetScale3D();
+      if (bUpdateItem) {
+        bZoneDataDirty = true;
+      }
 
-    TSharedPtr<FJsonObject> TransformObject = MakeShareable(new FJsonObject());
-    TSharedPtr<FJsonObject> LocationObject = MakeShareable(new FJsonObject());
-    TSharedPtr<FJsonObject> RotationObject = MakeShareable(new FJsonObject());
-    TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
-    LocationObject->SetNumberField(TEXT("x"), Location.X);
-    LocationObject->SetNumberField(TEXT("y"), Location.Y);
-    LocationObject->SetNumberField(TEXT("z"), Location.Z);
-    RotationObject->SetNumberField(TEXT("x"), Rotation.X);
-    RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
-    RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
-    ScaleObject->SetNumberField(TEXT("x"), Scale.X);
-    ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
-    ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
-    TransformObject->SetObjectField(TEXT("location"), LocationObject);
-    TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
-    TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
-    ItemObject->SetObjectField(TEXT("transform"), TransformObject);
+      TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject());
 
-    USIOJsonObject *DataObject =
-      URedwoodCommonGameSubsystem::SerializeBackendData(
-        PersistentItem, PersistenceItemType->DataVariableName
+      ItemObject->SetStringField(TEXT("id"), PersistentItem->RedwoodId);
+      ItemObject->SetStringField(
+        TEXT("typeId"), PersistenceItemType->RedwoodTypeId
       );
-    ItemObject->SetObjectField(TEXT("data"), DataObject->GetRootObject());
 
-    TSharedPtr<FJsonValueObject> Value =
-      MakeShareable(new FJsonValueObject(ItemObject));
-    PersistentItemsArray.Add(Value);
+      // This flag should be redundant as we already checked the bools above
+      // but we'll keep it just for now.
+      bool bItemShouldBeSaved = false;
+
+      if (
+        !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
+        PersistentItem->IsTransformDirty() ||
+        PersistentItem->ShouldDoInitialSave()
+      ) {
+        bItemShouldBeSaved = true;
+
+        FTransform Transform = PersistentItem->GetOwner()->GetTransform();
+        FVector Location = Transform.GetLocation();
+        FVector Rotation = Transform.GetRotation().Euler();
+        FVector Scale = Transform.GetScale3D();
+
+        TSharedPtr<FJsonObject> TransformObject =
+          MakeShareable(new FJsonObject());
+        TSharedPtr<FJsonObject> LocationObject =
+          MakeShareable(new FJsonObject());
+        TSharedPtr<FJsonObject> RotationObject =
+          MakeShareable(new FJsonObject());
+        TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
+        LocationObject->SetNumberField(TEXT("x"), Location.X);
+        LocationObject->SetNumberField(TEXT("y"), Location.Y);
+        LocationObject->SetNumberField(TEXT("z"), Location.Z);
+        RotationObject->SetNumberField(TEXT("x"), Rotation.X);
+        RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
+        RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
+        ScaleObject->SetNumberField(TEXT("x"), Scale.X);
+        ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
+        ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
+        TransformObject->SetObjectField(TEXT("location"), LocationObject);
+        TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
+        TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
+        ItemObject->SetObjectField(TEXT("transform"), TransformObject);
+      }
+
+      if (
+        !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
+        PersistentItem->IsDataDirty() ||
+        PersistentItem->ShouldDoInitialSave()
+      ) {
+        bItemShouldBeSaved = true;
+
+        USIOJsonObject *DataObject =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            PersistentItem, PersistenceItemType->DataVariableName
+          );
+        ItemObject->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+      }
+
+      if (PersistentItem->ShouldDoInitialSave()) {
+        PersistentItem->SkipInitialSave();
+      }
+
+      PersistentItem->ClearDirtyFlags();
+
+      if (bItemShouldBeSaved) {
+        TSharedPtr<FJsonValueObject> Value =
+          MakeShareable(new FJsonValueObject(ItemObject));
+        PersistentItemsArray.Add(Value);
+      }
+    }
   }
 
   ZoneData->SetArrayField(TEXT("persistentItems"), PersistentItemsArray);
 
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend()) {
-    if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT("Sidecar is not connected; cannot flush zone data")
+  if (bZoneDataDirty) {
+    if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+      if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Sidecar is not connected; cannot flush zone data")
+        );
+        return;
+      }
+
+      Sidecar->Emit(
+        TEXT("realm:servers:session:persistence:update-zone"), ZoneData
       );
-      return;
+    } else {
+      // save to disk
+
+      UE_LOG(LogRedwood, Log, TEXT("Saving zone data to disk"));
+
+      FString SavePath =
+        FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Maps");
+      FPaths::NormalizeDirectoryName(SavePath);
+
+      if (!FPaths::DirectoryExists(SavePath)) {
+        IFileManager::Get().MakeDirectory(*SavePath, true);
+      }
+
+      FString MapName = World->GetMapName();
+      FString MapSavePath = SavePath / MapName + TEXT(".json");
+
+      FString JsonString;
+      TSharedRef<TJsonWriter<>> Writer =
+        TJsonWriterFactory<>::Create(&JsonString);
+      FJsonSerializer::Serialize(ZoneData.ToSharedRef(), Writer);
+
+      FFileHelper::SaveStringToFile(JsonString, *MapSavePath);
     }
-
-    // TODO MIKE HERE
-  } else {
-    // save to disk
-    FString SavePath =
-      FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Maps");
-    FPaths::NormalizeDirectoryName(SavePath);
-
-    if (!FPaths::DirectoryExists(SavePath)) {
-      IFileManager::Get().MakeDirectory(*SavePath, true);
-    }
-
-    FString MapName = World->GetMapName();
-    FString MapSavePath = SavePath / MapName + TEXT(".json");
-
-    FString JsonString;
-    TSharedRef<TJsonWriter<>> Writer =
-      TJsonWriterFactory<>::Create(&JsonString);
-    FJsonSerializer::Serialize(ZoneData.ToSharedRef(), Writer);
-
-    FFileHelper::SaveStringToFile(JsonString, *MapSavePath);
   }
 }
 
