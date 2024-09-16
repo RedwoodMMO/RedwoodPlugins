@@ -28,7 +28,7 @@ struct FRedwoodZoneData {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject *Data;
+  USIOJsonObject *Data = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<FRedwoodPersistentItem> PersistentItems;

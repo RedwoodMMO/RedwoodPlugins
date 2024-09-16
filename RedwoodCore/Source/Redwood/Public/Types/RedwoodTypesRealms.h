@@ -26,7 +26,7 @@ struct FRedwoodRealm {
   FString Uri;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bListed;
+  bool bListed = false;
 
   // This is always an empty string from the ListRealms API call
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
