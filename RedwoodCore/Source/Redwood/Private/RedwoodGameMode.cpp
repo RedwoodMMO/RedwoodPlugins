@@ -320,7 +320,7 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
   );
 
   TArray<ARedwoodZoneSpawn *> RedwoodZoneSpawns;
-  for (AActor *ZoneSpawn : RedwoodZoneSpawns) {
+  for (AActor *ZoneSpawn : ZoneSpawns) {
     ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
     if (IsValid(RedwoodZoneSpawn)) {
       if (RedwoodZoneSpawn->ZoneName == RedwoodServerGameSubsystem->ZoneName) {
@@ -341,7 +341,7 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
         for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
           if (ZoneSpawn->SpawnName == LastSpawnName) {
             return Super::SpawnDefaultPawnAtTransform_Implementation(
-              NewPlayer, ZoneSpawn->GetActorTransform()
+              NewPlayer, ZoneSpawn->GetSpawnTransform()
             );
           }
         }
@@ -382,14 +382,14 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
     for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
       if (ZoneSpawn->SpawnName == TEXT("default")) {
         return Super::SpawnDefaultPawnAtTransform_Implementation(
-          NewPlayer, ZoneSpawn->GetActorTransform()
+          NewPlayer, ZoneSpawn->GetSpawnTransform()
         );
       }
     }
 
     if (RedwoodZoneSpawns.Num() > 0) {
       return Super::SpawnDefaultPawnAtTransform_Implementation(
-        NewPlayer, RedwoodZoneSpawns[0]->GetActorTransform()
+        NewPlayer, RedwoodZoneSpawns[0]->GetSpawnTransform()
       );
     }
   }
