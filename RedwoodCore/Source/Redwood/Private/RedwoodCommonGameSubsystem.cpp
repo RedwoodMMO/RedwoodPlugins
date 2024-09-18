@@ -459,15 +459,23 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
         if (!JsonObject->TryGetNumberField(
               TEXT("schemaVersion"), SchemaVersion
             )) {
-          UE_LOG(
-            LogRedwood,
-            Error,
-            TEXT(
-              "schemaVersion not found in Redwood backend field for %s, did you add one to your struct? Not updating %s."
-            ),
-            *VariableName,
-            *VariableName
-          );
+          // Empty objects don't need an error because it means they
+          // just haven't persisted to the database yet (i.e. character
+          // was created by the client but the metadata/etc hasn't been
+          // synced by the game server). Nonempty objects however imply
+          // they've tried to save something but it's missing schemaVersion
+          if (JsonObject->Values.Num() > 0) {
+            UE_LOG(
+              LogRedwood,
+              Error,
+              TEXT(
+                "schemaVersion not found in Redwood backend field for %s, did you add one to your struct? Not updating %s."
+              ),
+              *VariableName,
+              *VariableName
+            );
+          }
+
           return;
         }
 

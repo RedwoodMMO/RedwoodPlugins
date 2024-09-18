@@ -151,15 +151,9 @@ void URedwoodServerGameSubsystem::Initialize(
 
     URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
     if (RedwoodSettings->bServersAutoConnectToSidecar) {
-#if WITH_EDITOR
-      URedwoodEditorSettings *RedwoodEditorSettings =
-        GetMutableDefault<URedwoodEditorSettings>();
-      if (!GIsEditor || RedwoodEditorSettings->bUseBackendInPIE) {
+      if (URedwoodCommonGameSubsystem::ShouldUseBackend(World)) {
         InitializeSidecar();
       }
-#else
-      InitializeSidecar();
-#endif
     }
 
     UGameplayMessageSubsystem &MessageSubsystem =
@@ -229,10 +223,13 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         ActualObject->TryGetStringField(TEXT("password"), Password);
         ActualObject->TryGetStringField(TEXT("shortCode"), ShortCode);
         MaxPlayers = ActualObject->GetIntegerField(TEXT("maxPlayers"));
-        TSharedPtr<FJsonObject> DataObj =
-          ActualObject->GetObjectField(TEXT("data"));
+        const TSharedPtr<FJsonObject> *DataObj;
         Data = NewObject<USIOJsonObject>();
-        Data->SetRootObject(DataObj);
+        if (ActualObject->TryGetObjectField(TEXT("data"), DataObj)) {
+          Data->SetRootObject(*DataObj);
+        } else {
+          Data->SetRootObject(MakeShareable(new FJsonObject));
+        }
         ActualObject->TryGetStringField(TEXT("ownerPlayerId"), OwnerPlayerId);
         Channel = ActualObject->GetStringField(TEXT("channel"));
 
@@ -296,10 +293,10 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         Url.AddOption(*FString("game=" + (*GameModeToLoad)->GetPathName()));
 
         TArray<FString> Keys;
-        DataObj->Values.GetKeys(Keys);
+        Data->GetRootObject()->Values.GetKeys(Keys);
         for (FString Key : Keys) {
           FString Value;
-          if (DataObj->TryGetStringField(Key, Value)) {
+          if (Data->GetRootObject()->TryGetStringField(Key, Value)) {
             Url.AddOption(*FString(Key + "=" + Value));
           }
         }
@@ -406,17 +403,29 @@ void URedwoodServerGameSubsystem::SendUpdateToSidecar() {
     // We get these options from the URL instead of the member variables to
     // ensure the map got loaded
 
-    JsonObject->SetStringField(
-      TEXT("id"), World->URL.GetOption(TEXT("requestId="), TEXT(""))
-    );
+#if WITH_EDITOR
+    if (World->WorldType == EWorldType::PIE) {
+      // we skip loading the level in PIE, so we just use the options
+      // that got set earlier and assuming we're already in the correct
+      // level
+      JsonObject->SetStringField(TEXT("id"), RequestId);
+      JsonObject->SetStringField(TEXT("mapId"), MapId);
+      JsonObject->SetStringField(TEXT("modeId"), ModeId);
+    } else
+#endif
+    {
+      JsonObject->SetStringField(
+        TEXT("id"), World->URL.GetOption(TEXT("requestId="), TEXT(""))
+      );
 
-    JsonObject->SetStringField(
-      TEXT("mapId"), World->URL.GetOption(TEXT("mapId="), TEXT(""))
-    );
+      JsonObject->SetStringField(
+        TEXT("mapId"), World->URL.GetOption(TEXT("mapId="), TEXT(""))
+      );
 
-    JsonObject->SetStringField(
-      TEXT("modeId"), World->URL.GetOption(TEXT("modeId="), TEXT(""))
-    );
+      JsonObject->SetStringField(
+        TEXT("modeId"), World->URL.GetOption(TEXT("modeId="), TEXT(""))
+      );
+    }
 
     Sidecar->Emit(TEXT("realm:servers:update-state"), JsonObject);
   }
@@ -777,15 +786,6 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
       }
     }
 
-    if (CharactersArray.Num() == 0) {
-      UE_LOG(LogRedwood, Log, TEXT("No characters to flush"));
-      return;
-    }
-
-    UE_LOG(
-      LogRedwood, Log, TEXT("Flushing %d characters"), CharactersArray.Num()
-    );
-
     Payload->SetArrayField(TEXT("characters"), CharactersArray);
     Payload->SetStringField(TEXT("id"), TEXT("game-server"));
 
@@ -818,13 +818,6 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             ) {
               continue;
             }
-
-            UE_LOG(
-              LogRedwood,
-              Log,
-              TEXT("Flushing character %s to disk"),
-              *RedwoodCharacter->RedwoodCharacterName
-            );
 
             // since we save the whole json to disk, we update all
             // of the data here to ensure proper variable name serialization
@@ -885,7 +878,9 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
   }
 }
 
-void URedwoodServerGameSubsystem::InitialDataLoad() {
+void URedwoodServerGameSubsystem::InitialDataLoad(FRedwoodDelegate OnComplete) {
+  InitialDataLoadCompleteDelegate = OnComplete;
+
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
       UE_LOG(
@@ -898,7 +893,7 @@ void URedwoodServerGameSubsystem::InitialDataLoad() {
 
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
     Sidecar->Emit(
-      TEXT("realm:servers:session:persistence::initial-load"),
+      TEXT("realm:servers:session:persistence:initial-load"),
       Payload,
       [this](auto Response) {
         TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
@@ -1010,6 +1005,8 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
   for (FRedwoodPersistentItem &Item : InitialLoad.PersistentItems) {
     UpdatePersistentItem(Item);
   }
+
+  InitialDataLoadCompleteDelegate.ExecuteIfBound();
 }
 
 void URedwoodServerGameSubsystem::UpdatePersistentItem(
@@ -1350,7 +1347,8 @@ void URedwoodServerGameSubsystem::RegisterPersistenceComponent(
     UE_LOG(
       LogRedwood,
       Error,
-      TEXT("Can't register URedwoodPersistenceComponent %s with empty RedwoodId"
+      TEXT(
+        "Can't register URedwoodPersistenceComponent '%s' with empty RedwoodId"
       ),
       *InComponent->GetName()
     );

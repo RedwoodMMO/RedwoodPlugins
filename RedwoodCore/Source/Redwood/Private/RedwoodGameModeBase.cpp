@@ -38,18 +38,6 @@ void ARedwoodGameModeBase::InitGame(
   FGameModeEvents::GameModeLogoutEvent.AddUObject(
     this, &ARedwoodGameModeBase::OnGameModeLogout
   );
-
-  // create a looping timer to flush player character data
-  if (DatabasePersistenceInterval > 0) {
-    FTimerManager &TimerManager = GetWorld()->GetTimerManager();
-    TimerManager.SetTimer(
-      FlushPlayerCharacterDataTimerHandle,
-      this,
-      &ARedwoodGameModeBase::FlushPersistence,
-      DatabasePersistenceInterval,
-      true
-    );
-  }
 }
 
 void ARedwoodGameModeBase::BeginPlay() {
@@ -70,7 +58,21 @@ void ARedwoodGameModeBase::PostBeginPlay() {
     GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
 
   if (RedwoodServerGameSubsystem) {
-    RedwoodServerGameSubsystem->InitialDataLoad();
+    RedwoodServerGameSubsystem->InitialDataLoad(
+      FRedwoodDelegate::CreateLambda([this]() {
+        // create a looping timer to flush player character data
+        if (DatabasePersistenceInterval > 0) {
+          FTimerManager &TimerManager = GetWorld()->GetTimerManager();
+          TimerManager.SetTimer(
+            FlushPlayerCharacterDataTimerHandle,
+            this,
+            &ARedwoodGameModeBase::FlushPersistence,
+            DatabasePersistenceInterval,
+            true
+          );
+        }
+      })
+    );
   }
 }
 
@@ -109,14 +111,31 @@ APlayerController *ARedwoodGameModeBase::Login(
     return PlayerController;
   }
 
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
-      FString PlayerId =
-        UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));
-      FString CharacterId =
-        UGameplayStatics::ParseOption(Options, TEXT("CharacterId"));
-      FString Token = UGameplayStatics::ParseOption(Options, TEXT("Token"));
+  UWorld *World = GetWorld();
 
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(World)) {
+    FString PlayerId;
+    FString CharacterId;
+    FString Token;
+
+#if WITH_EDITOR
+    if (World->WorldType == EWorldType::PIE) {
+      // Redwood has an option that is only available when the backend
+      // the "dev-debug" game server provider is being used.
+      int32 PlayerIndex = GameState->PlayerArray.Num() - 1;
+      PlayerId = FString::Printf(TEXT("development_%d"), PlayerIndex);
+      CharacterId = FString::Printf(TEXT("development_%d"), PlayerIndex);
+      Token = TEXT("development");
+    }
+#endif
+
+    if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
+      PlayerId = UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));
+      CharacterId = UGameplayStatics::ParseOption(Options, TEXT("CharacterId"));
+      Token = UGameplayStatics::ParseOption(Options, TEXT("Token"));
+    }
+
+    if (!PlayerId.IsEmpty() && !CharacterId.IsEmpty() && !Token.IsEmpty()) {
       // query for player legitimacy
       TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
       JsonObject->SetStringField(TEXT("playerId"), PlayerId);

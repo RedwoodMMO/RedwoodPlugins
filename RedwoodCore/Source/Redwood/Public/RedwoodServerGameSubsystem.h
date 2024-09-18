@@ -93,7 +93,7 @@ public:
   void FlushPlayerCharacterData();
   void FlushZoneData();
 
-  void InitialDataLoad();
+  void InitialDataLoad(FRedwoodDelegate OnComplete);
 
   void RegisterPersistenceComponent(URedwoodPersistenceComponent *InComponent);
 
@@ -119,6 +119,7 @@ private:
   FGameplayMessageListenerHandle ListenerHandle;
   void OnShutdownMessage(FGameplayTag InChannel, const FRedwoodReason &Message);
 
+  FRedwoodDelegate InitialDataLoadCompleteDelegate;
   void PostInitialDataLoad(TSharedPtr<FJsonObject> ZoneJsonObject);
   void UpdatePersistentItem(FRedwoodPersistentItem &Item);
 };

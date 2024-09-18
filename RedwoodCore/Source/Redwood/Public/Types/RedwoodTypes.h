@@ -39,5 +39,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodErrorOutputDynamicDelegate, FString, Error
 );
 
+typedef TDelegate<void()> FRedwoodDelegate;
+
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRedwoodDynamicDelegate);
