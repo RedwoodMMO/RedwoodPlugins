@@ -16,7 +16,7 @@ The Redwood backend's source code is only available for users with custom licens
 
 ⚠️ **You cannot use GitHub's "Download ZIP" option!** ⚠️
 
-This repository containers submodules (that are recursive), and GitHub's ZIP functionality will not pull these for you.
+This repository containers submodules (that are recursive) and LFS data, and GitHub's ZIP functionality will not pull these for you.
 
 ### Using git
 
