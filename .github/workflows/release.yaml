@@ -16,7 +16,13 @@ jobs:
           submodules: "recursive"
       - name: Create ZIP archive
         run: zip -r RedwoodPlugins-${{ github.ref_name }}.zip . -x .git/\* .github/\* ThirdParty/**/.git
+      - name: Downloads Backend
+        continue-on-error: true
+        run: wget https://cdn.incanta.games/redwood/backend/RedwoodBackend-${{ github.ref_name }}.zip
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: RedwoodPlugins-${{ github.ref_name }}.zip
+          fail_on_unmatched_files: false
+          files: |
+            RedwoodPlugins-${{ github.ref_name }}.zip
+            RedwoodBackend-${{ github.ref_name }}.zip
