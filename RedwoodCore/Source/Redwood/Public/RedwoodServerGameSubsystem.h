@@ -4,6 +4,7 @@
 
 #include "RedwoodGameplayTags.h"
 #include "RedwoodModule.h"
+#include "Types/RedwoodTypes.h"
 
 #include "CoreMinimal.h"
 #include "Engine/TimerHandle.h"

@@ -9,6 +9,7 @@
 #include "RedwoodMapAsset.h"
 #include "RedwoodPersistenceComponent.h"
 #include "RedwoodPersistentItemAsset.h"
+#include "RedwoodPlayerState.h"
 #include "RedwoodSettings.h"
 #include "Types/RedwoodTypesPersistence.h"
 
@@ -19,8 +20,10 @@
 #include "Engine/AssetManager.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameSession.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "JsonObjectConverter.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetStringLibrary.h"
 
 #include "SocketIOClient.h"
@@ -49,17 +52,13 @@ void URedwoodServerGameSubsystem::Initialize(
       URedwoodGameModeAsset::StaticClass()->GetFName();
     FPrimaryAssetType MapAssetType =
       URedwoodMapAsset::StaticClass()->GetFName();
-    FPrimaryAssetType PersistentItemAssetType =
-      URedwoodPersistentItemAsset::StaticClass()->GetFName();
 
     UAssetManager &AssetManager = UAssetManager::Get();
 
     UE_LOG(
       LogRedwood,
       Log,
-      TEXT(
-        "Waiting for RedwoodGameModeAsset, RedwoodMapAsset, and RedwoodPersistentItemAsset to load"
-      )
+      TEXT("Waiting for RedwoodGameModeAsset amd RedwoodMapAsset to load")
     );
 
     // Load Redwood GameMode and Map assets so we can know which underlying GameMode and Map to load later
@@ -67,15 +66,13 @@ void URedwoodServerGameSubsystem::Initialize(
       AssetManager.LoadPrimaryAssetsWithType(GameModeAssetType);
     TSharedPtr<FStreamableHandle> HandleMaps =
       AssetManager.LoadPrimaryAssetsWithType(MapAssetType);
-    TSharedPtr<FStreamableHandle> HandlePersistentItems =
-      AssetManager.LoadPrimaryAssetsWithType(PersistentItemAssetType);
 
-    if (!HandleModes.IsValid() || !HandleMaps.IsValid() || !HandlePersistentItems.IsValid()) {
+    if (!HandleModes.IsValid() || !HandleMaps.IsValid()) {
       UE_LOG(
         LogRedwood,
         Error,
         TEXT(
-          "Failed to load RedwoodGameModeAsset, RedwoodMapAsset, or RedwoodPersistentItemAsset asset types; not initializing RedwoodServerGameSubsystem"
+          "Failed to load RedwoodGameModeAsset or RedwoodMapAsset asset types; not initializing RedwoodServerGameSubsystem"
         )
       );
       return;
@@ -83,17 +80,12 @@ void URedwoodServerGameSubsystem::Initialize(
 
     HandleModes->WaitUntilComplete();
     HandleMaps->WaitUntilComplete();
-    HandlePersistentItems->WaitUntilComplete();
 
     TArray<UObject *> GameModesAssets;
     TArray<UObject *> MapsAssets;
-    TArray<UObject *> PersistentItemAssets;
 
     AssetManager.GetPrimaryAssetObjectList(GameModeAssetType, GameModesAssets);
     AssetManager.GetPrimaryAssetObjectList(MapAssetType, MapsAssets);
-    AssetManager.GetPrimaryAssetObjectList(
-      PersistentItemAssetType, PersistentItemAssets
-    );
 
     for (UObject *Object : GameModesAssets) {
       URedwoodGameModeAsset *RedwoodGameMode =
@@ -122,32 +114,61 @@ void URedwoodServerGameSubsystem::Initialize(
       }
     }
 
-    for (UObject *Object : PersistentItemAssets) {
-      URedwoodPersistentItemAsset *RedwoodPersistentItem =
-        Cast<URedwoodPersistentItemAsset>(Object);
-      if (ensure(RedwoodPersistentItem)) {
-        if (!RedwoodPersistentItem->RedwoodTypeId.IsEmpty()) {
-          PersistentItemTypesByTypeId.Add(
-            RedwoodPersistentItem->RedwoodTypeId, RedwoodPersistentItem
-          );
-          PersistentItemTypesByPrimaryAssetId.Add(
-            RedwoodPersistentItem->GetPrimaryAssetId().ToString(),
-            RedwoodPersistentItem
-          );
-        }
-      }
-    }
-
     UE_LOG(
       LogRedwood,
       Log,
-      TEXT(
-        "Loaded %d GameMode assets, %d Map assets, and %d PersistentItem assets"
-      ),
+      TEXT("Loaded %d GameMode assets and %d Map assets"),
       GameModeClasses.Num(),
-      Maps.Num(),
-      PersistentItemAssets.Num()
+      Maps.Num()
     );
+
+    FPrimaryAssetType PersistentItemAssetType =
+      URedwoodPersistentItemAsset::StaticClass()->GetFName();
+    TSharedPtr<FStreamableHandle> HandlePersistentItems =
+      AssetManager.LoadPrimaryAssetsWithType(PersistentItemAssetType);
+
+    if (HandlePersistentItems.IsValid()) {
+      UE_LOG(
+        LogRedwood, Log, TEXT("Waiting for RedwoodPersistentItemAsset to load")
+      );
+
+      HandlePersistentItems->WaitUntilComplete();
+      TArray<UObject *> PersistentItemAssets;
+      AssetManager.GetPrimaryAssetObjectList(
+        PersistentItemAssetType, PersistentItemAssets
+      );
+
+      for (UObject *Object : PersistentItemAssets) {
+        URedwoodPersistentItemAsset *RedwoodPersistentItem =
+          Cast<URedwoodPersistentItemAsset>(Object);
+        if (ensure(RedwoodPersistentItem)) {
+          if (!RedwoodPersistentItem->RedwoodTypeId.IsEmpty()) {
+            PersistentItemTypesByTypeId.Add(
+              RedwoodPersistentItem->RedwoodTypeId, RedwoodPersistentItem
+            );
+            PersistentItemTypesByPrimaryAssetId.Add(
+              RedwoodPersistentItem->GetPrimaryAssetId().ToString(),
+              RedwoodPersistentItem
+            );
+          }
+        }
+      }
+
+      UE_LOG(
+        LogRedwood,
+        Log,
+        TEXT("Loaded %d PersistentItem assets"),
+        PersistentItemAssets.Num()
+      );
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Warning,
+        TEXT(
+          "No RedwoodPersistentItemAsset asset type in the Asset Manager; continuing without loading"
+        )
+      );
+    }
 
     URedwoodSettings *RedwoodSettings = GetMutableDefault<URedwoodSettings>();
     if (RedwoodSettings->bServersAutoConnectToSidecar) {

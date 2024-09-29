@@ -2,6 +2,8 @@
 
 #include "Interactables/RedwoodProxy.h"
 
+#include "Net/UnrealNetwork.h"
+
 ARedwoodProxy::ARedwoodProxy() {
   bReplicates = true;
   bNetUseOwnerRelevancy = false;

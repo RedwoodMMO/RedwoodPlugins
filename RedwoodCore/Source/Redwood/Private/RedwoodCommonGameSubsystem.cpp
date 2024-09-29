@@ -6,6 +6,7 @@
   #include "RedwoodEditorSettings.h"
 #endif
 
+#include "SIOJConvert.h"
 #include "SIOJsonObject.h"
 
 void URedwoodCommonGameSubsystem::Initialize(

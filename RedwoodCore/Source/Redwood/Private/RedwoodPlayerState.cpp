@@ -2,6 +2,8 @@
 
 #include "RedwoodPlayerState.h"
 
+#include "Net/OnlineEngineInterface.h"
+
 void ARedwoodPlayerState::SetClientReady_Implementation() {
   if (GetLocalRole() == ROLE_Authority) {
     bClientReady = true;

@@ -2,6 +2,8 @@
 
 #include "BlueprintAsync/RedwoodLoginWithSteamAsync.h"
 
+#include "RedwoodSteamClientInterface.h"
+
 URedwoodLoginWithSteamAsync *URedwoodLoginWithSteamAsync::LoginWithSteam(
   URedwoodClientGameSubsystem *Target, UObject *WorldContextObject
 ) {

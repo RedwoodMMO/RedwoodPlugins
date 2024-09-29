@@ -15,8 +15,6 @@
 #include "SocketIOClient.h"
 #include "TimerManager.h"
 
-#include "JsonModern.h"
-
 void URedwoodClientInterface::Deinitialize() {
   if (Director.IsValid()) {
     ISocketIOClientModule::Get().ReleaseNativePointer(Director);
@@ -345,9 +343,6 @@ void URedwoodClientInterface::Login(
     OnUpdate.ExecuteIfBound(Update);
     return;
   }
-
-  // JsonModern::FJson Payload = {
-  //   {"username", Username}, {"secret", PasswordOrToken}};
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("username"), Username);

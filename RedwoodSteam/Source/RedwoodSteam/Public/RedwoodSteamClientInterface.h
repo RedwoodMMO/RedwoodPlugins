@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "Types/RedwoodTypes.h"
+
 #include "RedwoodSteamClientInterface.generated.h"
 
-class URedwoodTitleInterface;
+class URedwoodClientInterface;
 
 UCLASS() class REDWOODSTEAM_API URedwoodSteamClientInterface : public UObject {
   GENERATED_BODY()
