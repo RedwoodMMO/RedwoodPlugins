@@ -1,6 +1,6 @@
 [submodule "ThirdParty/LatencyChecker"]
 	path = ThirdParty/LatencyChecker
-	url = https://github.com:Incanta/LatencyChecker.git
+	url = https://github.com/Incanta/LatencyChecker.git
 [submodule "ThirdParty/SocketIOClient"]
 	path = ThirdParty/SocketIOClient
-	url = https://github.com:RedwoodMMO/SocketIOClient-Unreal.git
+	url = https://github.com/RedwoodMMO/SocketIOClient-Unreal.git
