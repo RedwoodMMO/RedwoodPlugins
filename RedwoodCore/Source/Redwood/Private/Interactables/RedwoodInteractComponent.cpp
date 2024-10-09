@@ -2,10 +2,9 @@
 
 #include "Interactables/RedwoodInteractComponent.h"
 #include "Interactables/RedwoodInteractable.h"
-#include "RedwoodCharacter.h"
 #include "RedwoodModule.h"
 
-#include "Components/CapsuleComponent.h"
+#include "Components/ShapeComponent.h"
 
 URedwoodInteractComponent::URedwoodInteractComponent() {
   SetIsReplicatedByDefault(true);
@@ -14,23 +13,28 @@ URedwoodInteractComponent::URedwoodInteractComponent() {
 void URedwoodInteractComponent::BeginPlay() {
   Super::BeginPlay();
 
-  ARedwoodCharacter *Character = Cast<ARedwoodCharacter>(GetOwner());
-  if (!IsValid(Character)) {
+  APawn *Pawn = Cast<APawn>(GetOwner());
+  if (!IsValid(Pawn)) {
     return;
   }
 
-  UCapsuleComponent *CapsuleComponent = Character->GetCapsuleComponent();
-  if (!IsValid(CapsuleComponent)) {
+  USceneComponent *RootComponent = Pawn->GetRootComponent();
+  if (!IsValid(RootComponent)) {
     return;
   }
 
-  if (!Character->HasAuthority()) {
-    CapsuleComponent->OnComponentBeginOverlap.AddDynamic(
-      this, &URedwoodInteractComponent::OnCapsuleComponentBeginOverlap
+  UShapeComponent *ShapeComponent = Cast<UShapeComponent>(RootComponent);
+  if (!IsValid(ShapeComponent)) {
+    return;
+  }
+
+  if (!Pawn->HasAuthority()) {
+    ShapeComponent->OnComponentBeginOverlap.AddDynamic(
+      this, &URedwoodInteractComponent::OnComponentBeginOverlap
     );
 
-    CapsuleComponent->OnComponentEndOverlap.AddDynamic(
-      this, &URedwoodInteractComponent::OnCapsuleComponentEndOverlap
+    ShapeComponent->OnComponentEndOverlap.AddDynamic(
+      this, &URedwoodInteractComponent::OnComponentEndOverlap
     );
   }
 }
@@ -39,7 +43,7 @@ void URedwoodInteractComponent::OnInteractionAvailability_Implementation(
   bool bAvailable
 ) {}
 
-void URedwoodInteractComponent::OnCapsuleComponentBeginOverlap(
+void URedwoodInteractComponent::OnComponentBeginOverlap(
   UPrimitiveComponent *OverlappedComponent,
   AActor *OtherActor,
   UPrimitiveComponent *OtherComp,
@@ -58,7 +62,7 @@ void URedwoodInteractComponent::OnCapsuleComponentBeginOverlap(
   }
 }
 
-void URedwoodInteractComponent::OnCapsuleComponentEndOverlap(
+void URedwoodInteractComponent::OnComponentEndOverlap(
   UPrimitiveComponent *OverlappedComponent,
   AActor *OtherActor,
   UPrimitiveComponent *OtherComp,
@@ -71,18 +75,23 @@ void URedwoodInteractComponent::OnCapsuleComponentEndOverlap(
 }
 
 TArray<ARedwoodInteractable *> URedwoodInteractComponent::GetInteractables() {
-  ARedwoodCharacter *Character = Cast<ARedwoodCharacter>(GetOwner());
-  if (!IsValid(Character)) {
+  APawn *Pawn = Cast<APawn>(GetOwner());
+  if (!IsValid(Pawn)) {
     return TArray<ARedwoodInteractable *>();
   }
 
-  UCapsuleComponent *CapsuleComponent = Character->GetCapsuleComponent();
-  if (!IsValid(CapsuleComponent)) {
+  USceneComponent *RootComponent = Pawn->GetRootComponent();
+  if (!IsValid(RootComponent)) {
+    return TArray<ARedwoodInteractable *>();
+  }
+
+  UShapeComponent *ShapeComponent = Cast<UShapeComponent>(RootComponent);
+  if (!IsValid(ShapeComponent)) {
     return TArray<ARedwoodInteractable *>();
   }
 
   TArray<AActor *> OverlappingActors;
-  CapsuleComponent->GetOverlappingActors(
+  ShapeComponent->GetOverlappingActors(
     OverlappingActors, ARedwoodInteractable::StaticClass()
   );
 
@@ -123,9 +132,20 @@ void URedwoodInteractComponent::RPC_Interact_Implementation() {
   ARedwoodInteractable *Interactable = PickInteractable(GetInteractables());
 
   if (IsValid(Interactable)) {
-    ARedwoodCharacter *Character = Cast<ARedwoodCharacter>(GetOwner());
-    if (IsValid(Character)) {
-      Interactable->OnInteract(Character);
+    APawn *Pawn = Cast<APawn>(GetOwner());
+    if (IsValid(Pawn)) {
+      URedwoodCharacterComponent *CharacterComponent =
+        Pawn->GetComponentByClass<URedwoodCharacterComponent>();
+      if (IsValid(CharacterComponent)) {
+        Interactable->OnInteract(Pawn, CharacterComponent);
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Could not find URedwoodCharacterComponent on Pawn %s"),
+          *Pawn->GetName()
+        );
+      }
     }
   }
 }

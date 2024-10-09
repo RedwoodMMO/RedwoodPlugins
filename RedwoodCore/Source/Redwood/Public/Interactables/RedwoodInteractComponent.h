@@ -41,7 +41,7 @@ private:
   bool bReportedInteractionAvailability = false;
 
   UFUNCTION()
-  void OnCapsuleComponentBeginOverlap(
+  void OnComponentBeginOverlap(
     UPrimitiveComponent *OverlappedComponent,
     AActor *OtherActor,
     UPrimitiveComponent *OtherComp,
@@ -51,7 +51,7 @@ private:
   );
 
   UFUNCTION()
-  void OnCapsuleComponentEndOverlap(
+  void OnComponentEndOverlap(
     UPrimitiveComponent *OverlappedComponent,
     AActor *OtherActor,
     UPrimitiveComponent *OtherComp,

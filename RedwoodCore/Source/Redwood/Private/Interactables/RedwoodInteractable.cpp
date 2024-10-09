@@ -1,7 +1,8 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "Interactables/RedwoodInteractable.h"
-#include "RedwoodCharacter.h"
+#include "GameFramework/Pawn.h"
+#include "RedwoodCharacterComponent.h"
 
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
@@ -42,11 +43,11 @@ void ARedwoodInteractable::BeginPlay() {
 void ARedwoodInteractable::OnInteraction(
   FGameplayTag InChannel, const FRedwoodPlayerInteraction &Message
 ) {
-  if (IsValid(Message.Character) && SphereComponent->IsOverlappingComponent(Message.Character->GetCapsuleComponent())) {
-    OnInteract(Message.Character);
+  if (IsValid(Message.Pawn) && SphereComponent->IsOverlappingActor(Message.Pawn) && IsValid(Message.CharacterComponent)) {
+    OnInteract(Message.Pawn, Message.CharacterComponent);
   }
 }
 
 void ARedwoodInteractable::OnInteract_Implementation(
-  ARedwoodCharacter *Character
+  APawn *Pawn, URedwoodCharacterComponent *CharacterComponent
 ) {}

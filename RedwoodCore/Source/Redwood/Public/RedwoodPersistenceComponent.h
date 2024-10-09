@@ -7,7 +7,12 @@
 
 #include "RedwoodPersistenceComponent.generated.h"
 
-UCLASS(Blueprintable, BlueprintType, ClassGroup = (Redwood))
+UCLASS(
+  Blueprintable,
+  BlueprintType,
+  ClassGroup = (Redwood),
+  meta = (BlueprintSpawnableComponent)
+)
 class REDWOOD_API URedwoodPersistenceComponent : public UActorComponent {
   GENERATED_BODY()
 
@@ -15,6 +20,9 @@ public:
   //~ Begin UActorComponent Interface
   virtual void BeginPlay() override;
   //~ End UActorComponent Interface
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  bool bStoreDataInActor = true;
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   FString RedwoodId;

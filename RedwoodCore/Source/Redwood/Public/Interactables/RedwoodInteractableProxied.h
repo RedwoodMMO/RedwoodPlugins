@@ -9,12 +9,16 @@
 
 #include "RedwoodInteractableProxied.generated.h"
 
+class URedwoodCharacterComponent;
+
 UCLASS(BlueprintType, Blueprintable)
 class REDWOOD_API ARedwoodInteractableProxied : public ARedwoodInteractable {
   GENERATED_BODY()
 
 public:
-  virtual void OnInteract_Implementation(ARedwoodCharacter *Character) override;
+  virtual void OnInteract_Implementation(
+    APawn *Pawn, URedwoodCharacterComponent *CharacterComponent
+  ) override;
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   TSubclassOf<ARedwoodProxy> ProxyClass;

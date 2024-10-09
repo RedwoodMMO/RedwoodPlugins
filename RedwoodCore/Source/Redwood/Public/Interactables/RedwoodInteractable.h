@@ -11,7 +11,8 @@
 #include "RedwoodInteractable.generated.h"
 
 class USphereComponent;
-class ARedwoodCharacter;
+class URedwoodCharacterComponent;
+class APawn;
 
 UCLASS(BlueprintType, Blueprintable)
 class REDWOOD_API ARedwoodInteractable : public AActor {
@@ -25,7 +26,9 @@ public:
   //~ End AActor Interface
 
   UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Redwood")
-  void OnInteract(ARedwoodCharacter *Character);
+  void OnInteract(
+    APawn *Pawn, URedwoodCharacterComponent *CharacterPersistence
+  );
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   USphereComponent *SphereComponent;

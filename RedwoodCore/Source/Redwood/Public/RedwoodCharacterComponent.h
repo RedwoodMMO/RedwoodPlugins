@@ -2,30 +2,34 @@
 
 #pragma once
 
+#include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
 
-#include "RedwoodCharacter.generated.h"
+#include "RedwoodCharacterComponent.generated.h"
 
 class USIOJsonObject;
 
-UCLASS(Blueprintable, BlueprintType, ClassGroup = (Redwood))
-class REDWOOD_API ARedwoodCharacter : public ACharacter {
+UCLASS(
+  Blueprintable,
+  BlueprintType,
+  ClassGroup = (Redwood),
+  meta = (BlueprintSpawnableComponent)
+)
+class REDWOOD_API URedwoodCharacterComponent : public UActorComponent {
   GENERATED_BODY()
 
 public:
-  ARedwoodCharacter(const FObjectInitializer &ObjectInitializer);
+  URedwoodCharacterComponent(const FObjectInitializer &ObjectInitializer);
 
-  //~AActor interface
+  //~ Begin UActorComponent Interface
   virtual void BeginPlay() override;
-  //~End of AActor interface
+  //~ End UActorComponent Interface
 
-  //~APawn interface
-  virtual void PossessedBy(AController *NewController) override;
-  //~End of APawn interface
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnRedwoodCharacterUpdated;
 
-  UFUNCTION(BlueprintNativeEvent, Category = "Redwood")
-  void OnRedwoodCharacterUpdated();
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  bool bStoreDataInActor = true;
 
   UPROPERTY(Replicated, BlueprintReadOnly, Category = "Redwood")
   FString RedwoodPlayerId;
@@ -126,6 +130,11 @@ public:
   }
 
 private:
+  UFUNCTION()
+  void OnControllerChanged(
+    APawn *Pawn, AController *OldController, AController *NewController
+  );
+
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void RedwoodPlayerStateCharacterUpdated();
 
