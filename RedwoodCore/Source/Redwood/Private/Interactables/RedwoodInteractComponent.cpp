@@ -2,6 +2,7 @@
 
 #include "Interactables/RedwoodInteractComponent.h"
 #include "Interactables/RedwoodInteractable.h"
+#include "RedwoodCharacterComponent.h"
 #include "RedwoodModule.h"
 
 #include "Components/ShapeComponent.h"

@@ -5,6 +5,8 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 
+#include "Types/RedwoodTypes.h"
+
 #include "RedwoodCharacterComponent.generated.h"
 
 class USIOJsonObject;

@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"
+#include "TimerManager.h"
 
 #include "SocketIOFunctionLibrary.h"
 #include "SocketIONative.h"
@@ -17,8 +18,6 @@
 // This class is separated from URedwoodClientGameSubsystem
 // so that we can use it in automated tests without instantiating
 // a whole world.
-
-class FTimerManager;
 
 UCLASS()
 class REDWOOD_API URedwoodClientInterface : public UObject,
