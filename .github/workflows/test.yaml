@@ -1,4 +1,4 @@
-name: Release
+name: Test
 
 on:
   workflow_call:
@@ -15,7 +15,7 @@ on:
         required: true
 
 jobs:
-  release:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -27,5 +27,3 @@ jobs:
           repository: RedwoodMMO/Backend
           ref: ${{ github.event_name == 'workflow_call' && 'refs/heads/' || '' }}${{ github.event_name == 'push' && github.ref || inputs.branch }}
           token: ${{ secrets.PAT }}
-      - name: Create ZIP archive
-        run: zip -r RedwoodPlugins-${{ inputs.version }}.zip . -x .git/\* .github/\* ThirdParty/**/.git
