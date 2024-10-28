@@ -21,6 +21,6 @@ jobs:
           lfs: true
           submodules: "recursive"
           set-safe-directory: false
-          repository: RedwoodMMO/Backend
+          repository: RedwoodMMO/RedwoodPlugins
           ref: ${{ github.event_name == 'workflow_call' && 'refs/heads/' || '' }}${{ github.event_name == 'push' && github.ref || inputs.branch }}
           token: ${{ secrets.PAT }}
