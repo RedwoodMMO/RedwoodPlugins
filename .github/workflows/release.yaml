@@ -16,7 +16,7 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
