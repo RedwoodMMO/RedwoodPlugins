@@ -6,9 +6,6 @@ on:
       branch:
         required: true
         type: string
-      version:
-        required: false
-        type: string
     secrets:
       PAT:
         description: 'Clone personal access token'
