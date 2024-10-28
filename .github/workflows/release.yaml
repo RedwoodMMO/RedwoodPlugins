@@ -28,4 +28,4 @@ jobs:
           ref: ${{ github.event_name == 'workflow_call' && 'refs/heads/' || '' }}${{ github.event_name == 'push' && github.ref || inputs.branch }}
           token: ${{ secrets.PAT }}
       - name: Create ZIP archive
-        run: 7z a -tzip RedwoodPlugins-${{ inputs.version }}.zip . -xr .git -xr .github
+        run: 7z a -tzip RedwoodPlugins-${{ inputs.version }}.zip . '-xr!.git' '-xr!.github' '-xr!Binaries' '-xr!Intermediate' '-xr!Saved' '-xr!*.zip'
