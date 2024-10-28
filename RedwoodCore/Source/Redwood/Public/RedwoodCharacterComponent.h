@@ -44,10 +44,16 @@ public:
   FString RedwoodCharacterName;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUseCharacterCreatorData = true;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   FString CharacterCreatorDataVariableName = TEXT("CharacterCreatorData");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestCharacterCreatorDataSchemaVersion = 0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUseMetadata = true;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   FString MetadataVariableName = TEXT("Metadata");
@@ -56,16 +62,25 @@ public:
   int32 LatestMetadataSchemaVersion = 0;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUseEquippedInventory = true;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   FString EquippedInventoryVariableName = TEXT("EquippedInventory");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestEquippedInventorySchemaVersion = 0;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUseNonequippedInventory = true;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   FString NonequippedInventoryVariableName = TEXT("NonequippedInventory");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestNonequippedInventorySchemaVersion = 0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUseData = true;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   FString DataVariableName = TEXT("Data");
@@ -75,27 +90,37 @@ public:
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkCharacterCreatorDataDirty() {
-    bCharacterCreatorDataDirty = true;
+    if (bUseCharacterCreatorData) {
+      bCharacterCreatorDataDirty = true;
+    }
   }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkMetadataDirty() {
-    bMetadataDirty = true;
+    if (bUseMetadata) {
+      bMetadataDirty = true;
+    }
   }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkEquippedInventoryDirty() {
-    bEquippedInventoryDirty = true;
+    if (bUseEquippedInventory) {
+      bEquippedInventoryDirty = true;
+    }
   }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkNonequippedInventoryDirty() {
-    bNonequippedInventoryDirty = true;
+    if (bUseNonequippedInventory) {
+      bNonequippedInventoryDirty = true;
+    }
   }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkDataDirty() {
-    bDataDirty = true;
+    if (bUseData) {
+      bDataDirty = true;
+    }
   }
 
   UFUNCTION(BlueprintPure, Category = "Redwood")

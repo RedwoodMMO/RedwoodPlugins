@@ -70,40 +70,50 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     RedwoodPlayerId = RedwoodCharacterBackend.PlayerId;
     RedwoodCharacterId = RedwoodCharacterBackend.Id;
 
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
-      bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
-      RedwoodCharacterBackend.CharacterCreatorData,
-      *CharacterCreatorDataVariableName,
-      LatestMetadataSchemaVersion
-    );
+    if (bUseCharacterCreatorData) {
+      URedwoodCommonGameSubsystem::DeserializeBackendData(
+        bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
+        RedwoodCharacterBackend.CharacterCreatorData,
+        *CharacterCreatorDataVariableName,
+        LatestMetadataSchemaVersion
+      );
+    }
 
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
-      bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
-      RedwoodCharacterBackend.Metadata,
-      *MetadataVariableName,
-      LatestMetadataSchemaVersion
-    );
+    if (bUseMetadata) {
+      URedwoodCommonGameSubsystem::DeserializeBackendData(
+        bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
+        RedwoodCharacterBackend.Metadata,
+        *MetadataVariableName,
+        LatestMetadataSchemaVersion
+      );
+    }
 
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
-      bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
-      RedwoodCharacterBackend.EquippedInventory,
-      *EquippedInventoryVariableName,
-      LatestEquippedInventorySchemaVersion
-    );
+    if (bUseEquippedInventory) {
+      URedwoodCommonGameSubsystem::DeserializeBackendData(
+        bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
+        RedwoodCharacterBackend.EquippedInventory,
+        *EquippedInventoryVariableName,
+        LatestEquippedInventorySchemaVersion
+      );
+    }
 
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
-      bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
-      RedwoodCharacterBackend.NonequippedInventory,
-      *NonequippedInventoryVariableName,
-      LatestNonequippedInventorySchemaVersion
-    );
+    if (bUseNonequippedInventory) {
+      URedwoodCommonGameSubsystem::DeserializeBackendData(
+        bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
+        RedwoodCharacterBackend.NonequippedInventory,
+        *NonequippedInventoryVariableName,
+        LatestNonequippedInventorySchemaVersion
+      );
+    }
 
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
-      bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
-      RedwoodCharacterBackend.Data,
-      *DataVariableName,
-      LatestDataSchemaVersion
-    );
+    if (bUseData) {
+      URedwoodCommonGameSubsystem::DeserializeBackendData(
+        bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
+        RedwoodCharacterBackend.Data,
+        *DataVariableName,
+        LatestDataSchemaVersion
+      );
+    }
 
     OnRedwoodCharacterUpdated.Broadcast();
   }
