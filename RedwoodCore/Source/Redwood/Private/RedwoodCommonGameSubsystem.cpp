@@ -255,7 +255,7 @@ FRedwoodGameServerProxy URedwoodCommonGameSubsystem::ParseServerProxy(
 
   Server.ModeId = ServerProxy->GetStringField(TEXT("modeId"));
 
-  Server.MapId = ServerProxy->GetStringField(TEXT("mapId"));
+  ServerProxy->TryGetStringField(TEXT("mapId"), Server.MapId);
 
   Server.bContinuousPlay = ServerProxy->GetBoolField(TEXT("continuousPlay"));
 
