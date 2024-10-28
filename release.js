@@ -30,6 +30,7 @@ const args = [
   "-xr!Intermediate",
   "-xr!Saved",
   "-xr!*.zip",
+  "-xr!release.js",
 ];
 
 execSync(args.join(" "), { cwd: baseDir, stdio: "inherit" });
