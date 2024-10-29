@@ -1,0 +1,26 @@
+name: Test
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+    secrets:
+      PAT:
+        description: 'Clone personal access token'
+        required: true
+
+jobs:
+  test:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: "recursive"
+          set-safe-directory: false
+          repository: RedwoodMMO/RedwoodPlugins
+          ref: ${{ github.event_name == 'workflow_call' && 'refs/heads/' || '' }}${{ github.event_name == 'push' && github.ref || inputs.branch }}
+          token: ${{ secrets.PAT }}
