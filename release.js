@@ -18,14 +18,14 @@ for (const plugin of plugins) {
   fs.writeFileSync(pluginFile, JSON.stringify(pluginContent, null, 2) + "\n");
 }
 
-// execSync("git add .", { cwd: baseDir, stdio: "inherit" });
-// execSync(`git commit -m "Release ${version}"`, {
-//   cwd: baseDir,
-//   stdio: "inherit",
-// });
-// execSync(`git tag ${version}`, { cwd: baseDir, stdio: "inherit" });
-// execSync("git push", { cwd: baseDir, stdio: "inherit" });
-// execSync(`git push origin tag ${version}`, { cwd: baseDir, stdio: "inherit" });
+execSync("git add .", { cwd: baseDir, stdio: "inherit" });
+execSync(`git commit -m "Release ${version}"`, {
+  cwd: baseDir,
+  stdio: "inherit",
+});
+execSync(`git tag ${version}`, { cwd: baseDir, stdio: "inherit" });
+execSync("git push", { cwd: baseDir, stdio: "inherit" });
+execSync(`git push origin tag ${version}`, { cwd: baseDir, stdio: "inherit" });
 
 const args = [
   "7z",
