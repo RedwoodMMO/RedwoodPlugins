@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
   "Version": 0,
-  "VersionName": "2.1.0",
+  "VersionName": "2.1.1",
   "FriendlyName": "Redwood MMO Framework",
   "Description": "All of the necessary support for the Redwood MMO framework",
   "Category": "Code Plugins",
