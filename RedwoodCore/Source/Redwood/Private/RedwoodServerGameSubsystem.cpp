@@ -26,6 +26,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetStringLibrary.h"
 
+#include "SIOJsonValue.h"
 #include "SocketIOClient.h"
 
 void URedwoodServerGameSubsystem::Initialize(
@@ -1417,4 +1418,97 @@ void URedwoodServerGameSubsystem::RegisterPersistenceComponent(
   }
 
   PersistentItems.Add(InComponent->RedwoodId, InComponent);
+}
+
+void URedwoodServerGameSubsystem::PutBlob(
+  const FString &Key,
+  const TArray<uint8> &Value,
+  FRedwoodErrorOutputDelegate OnComplete
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+  Payload->SetStringField(TEXT("id"), "game-server");
+  Payload->SetStringField(TEXT("key"), Key);
+
+  TSharedPtr<FJsonValueBinary> BinaryValue =
+    MakeShareable(new FJsonValueBinary(Value));
+  Payload->SetField(TEXT("blob"), BinaryValue);
+
+  Sidecar->Emit(TEXT("realm:blobs:put"), Payload, [OnComplete](auto Response) {
+    TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+    FString Error = MessageStruct->GetStringField(TEXT("error"));
+
+    OnComplete.ExecuteIfBound(Error);
+  });
+}
+
+void URedwoodServerGameSubsystem::GetBlob(
+  const FString &Key, FRedwoodGetBlobOutputDelegate OnComplete
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+  Payload->SetStringField(TEXT("id"), "game-server");
+  Payload->SetStringField(TEXT("key"), Key);
+
+  Sidecar
+    ->Emit(TEXT("realm:blobs:get"), Payload, [this, OnComplete](auto Response) {
+      TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+      FString Error = MessageStruct->GetStringField(TEXT("error"));
+
+      if (!Error.IsEmpty()) {
+        FRedwoodGetBlobOutput Output;
+        Output.Error = Error;
+        OnComplete.ExecuteIfBound(Output);
+        return;
+      }
+
+      FRedwoodGetBlobOutput Output;
+
+      TSharedPtr<FJsonValue> Value = MessageStruct->TryGetField(TEXT("blob"));
+      if (Value.IsValid() && FJsonValueBinary::IsBinary(Value)) {
+        Output.Blob = FJsonValueBinary::AsBinary(Value);
+      } else {
+        Output.Error = TEXT("Failed to parse blob");
+      }
+
+      OnComplete.ExecuteIfBound(Output);
+    });
+}
+
+void URedwoodServerGameSubsystem::PutSaveGame(
+  const FString &Key, USaveGame *Value, FRedwoodErrorOutputDelegate OnComplete
+) {
+  TSharedRef<TArray<uint8>> ObjectBytes(new TArray<uint8>());
+
+  if (UGameplayStatics::SaveGameToMemory(Value, *ObjectBytes) && (ObjectBytes->Num() > 0)) {
+    PutBlob(Key, *ObjectBytes, OnComplete);
+  } else {
+    OnComplete.ExecuteIfBound(TEXT("Failed to serialize SaveGame"));
+  }
+}
+
+void URedwoodServerGameSubsystem::GetSaveGame(
+  const FString &Key, FRedwoodGetSaveGameOutputDelegate OnComplete
+) {
+  GetBlob(
+    Key,
+    FRedwoodGetBlobOutputDelegate::CreateLambda(
+      [this, OnComplete](FRedwoodGetBlobOutput Response) {
+        FRedwoodGetSaveGameOutput Output;
+
+        if (!Response.Error.IsEmpty()) {
+          Output.Error = Response.Error;
+          Output.SaveGame = nullptr;
+          OnComplete.ExecuteIfBound(Output);
+          return;
+        }
+
+        if (Response.Blob.Num() > 0) {
+          Output.SaveGame = UGameplayStatics::LoadGameFromMemory(Response.Blob);
+        }
+
+        OnComplete.ExecuteIfBound(Output);
+      }
+    )
+  );
 }

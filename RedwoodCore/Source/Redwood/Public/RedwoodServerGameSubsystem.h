@@ -98,6 +98,20 @@ public:
 
   void RegisterPersistenceComponent(URedwoodPersistenceComponent *InComponent);
 
+  void PutBlob(
+    const FString &Key,
+    const TArray<uint8> &Value,
+    FRedwoodErrorOutputDelegate OnComplete
+  );
+  void GetBlob(const FString &Key, FRedwoodGetBlobOutputDelegate OnComplete);
+
+  void PutSaveGame(
+    const FString &Key, USaveGame *Value, FRedwoodErrorOutputDelegate OnComplete
+  );
+  void GetSaveGame(
+    const FString &Key, FRedwoodGetSaveGameOutputDelegate OnComplete
+  );
+
 private:
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FString, FPrimaryAssetId> Maps;
