@@ -22,6 +22,7 @@
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "JsonObjectConverter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetStringLibrary.h"
@@ -254,6 +255,7 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         }
         ActualObject->TryGetStringField(TEXT("ownerPlayerId"), OwnerPlayerId);
         Channel = ActualObject->GetStringField(TEXT("channel"));
+        ActualObject->TryGetStringField(TEXT("parentProxyId"), ParentProxyId);
 
         UE_LOG(
           LogRedwood,
@@ -475,7 +477,8 @@ void URedwoodServerGameSubsystem::CallExecCommandOnAllClients(
 void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   APlayerController *PlayerController,
   const FString &InZoneName,
-  const FTransform &InTransform
+  const FTransform &InTransform,
+  const FString &OptionalProxyId
 ) {
   FString UniqueId = PlayerController->PlayerState->GetUniqueId().ToString();
 
@@ -490,6 +493,12 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   Payload->SetStringField(TEXT("zoneName"), InZoneName);
 
   TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  if (!OptionalProxyId.IsEmpty()) {
+    Payload->SetStringField(TEXT("proxyId"), OptionalProxyId);
+  } else {
+    Payload->SetField(TEXT("proxyId"), NullValue);
+  }
 
   Payload->SetField(TEXT("spawnName"), NullValue);
 
@@ -566,7 +575,8 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
 void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
   APlayerController *PlayerController,
   const FString &InZoneName,
-  const FString &InSpawnName
+  const FString &InSpawnName,
+  const FString &OptionalProxyId
 ) {
   if (InSpawnName.IsEmpty()) {
     UE_LOG(
@@ -591,6 +601,12 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
   Payload->SetStringField(TEXT("zoneName"), InZoneName);
 
   TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  if (!OptionalProxyId.IsEmpty()) {
+    Payload->SetStringField(TEXT("proxyId"), OptionalProxyId);
+  } else {
+    Payload->SetField(TEXT("proxyId"), NullValue);
+  }
 
   Payload->SetStringField(TEXT("spawnName"), InSpawnName);
   Payload->SetField(TEXT("transform"), NullValue);
@@ -1511,4 +1527,8 @@ void URedwoodServerGameSubsystem::GetSaveGame(
       }
     )
   );
+}
+
+void URedwoodServerGameSubsystem::RequestEngineExit(bool bForce) {
+  FGenericPlatformMisc::RequestExit(bForce);
 }
