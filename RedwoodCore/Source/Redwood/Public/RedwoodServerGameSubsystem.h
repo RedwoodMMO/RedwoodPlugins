@@ -74,20 +74,25 @@ public:
   FString ShardName;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ParentProxyId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString SidecarUri;
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void TravelPlayerToZoneTransform(
     APlayerController *PlayerController,
     const FString &InZoneName,
-    const FTransform &InTransform
+    const FTransform &InTransform,
+    const FString &OptionalProxyId = TEXT("")
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void TravelPlayerToZoneSpawnName(
     APlayerController *PlayerController,
     const FString &InZoneName,
-    const FString &InSpawnName = TEXT("default")
+    const FString &InSpawnName = TEXT("default"),
+    const FString &OptionalProxyId = TEXT("")
   );
 
   void FlushPersistence();
@@ -97,6 +102,23 @@ public:
   void InitialDataLoad(FRedwoodDelegate OnComplete);
 
   void RegisterPersistenceComponent(URedwoodPersistenceComponent *InComponent);
+
+  void PutBlob(
+    const FString &Key,
+    const TArray<uint8> &Value,
+    FRedwoodErrorOutputDelegate OnComplete
+  );
+  void GetBlob(const FString &Key, FRedwoodGetBlobOutputDelegate OnComplete);
+
+  void PutSaveGame(
+    const FString &Key, USaveGame *Value, FRedwoodErrorOutputDelegate OnComplete
+  );
+  void GetSaveGame(
+    const FString &Key, FRedwoodGetSaveGameOutputDelegate OnComplete
+  );
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void RequestEngineExit(bool bForce);
 
 private:
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;

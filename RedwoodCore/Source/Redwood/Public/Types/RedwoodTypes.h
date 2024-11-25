@@ -7,6 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodTypesAuth.h"
+#include "RedwoodTypesBlobs.h"
 #include "RedwoodTypesCharacters.h"
 #include "RedwoodTypesPersistence.h"
 #include "RedwoodTypesRealms.h"
