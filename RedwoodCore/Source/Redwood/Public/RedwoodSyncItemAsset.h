@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 
-#include "RedwoodPersistentItemAsset.generated.h"
+#include "RedwoodSyncItemAsset.generated.h"
 
 UCLASS(BlueprintType)
-class URedwoodPersistentItemAsset : public UPrimaryDataAsset {
+class URedwoodSyncItemAsset : public UPrimaryDataAsset {
   GENERATED_BODY()
 
 public:

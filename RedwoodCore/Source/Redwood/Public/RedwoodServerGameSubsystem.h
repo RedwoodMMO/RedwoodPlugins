@@ -17,8 +17,8 @@
 #include "RedwoodServerGameSubsystem.generated.h"
 
 class AGameModeBase;
-class URedwoodPersistentItemAsset;
-class URedwoodPersistenceComponent;
+class URedwoodSyncItemAsset;
+class URedwoodSyncComponent;
 
 UCLASS(BlueprintType)
 class REDWOOD_API URedwoodServerGameSubsystem : public UGameInstanceSubsystem {
@@ -101,7 +101,7 @@ public:
 
   void InitialDataLoad(FRedwoodDelegate OnComplete);
 
-  void RegisterPersistenceComponent(URedwoodPersistenceComponent *InComponent);
+  void RegisterSyncComponent(URedwoodSyncComponent *InComponent);
 
   void PutBlob(
     const FString &Key,
@@ -123,10 +123,9 @@ public:
 private:
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FString, FPrimaryAssetId> Maps;
-  TMap<FString, URedwoodPersistentItemAsset *> PersistentItemTypesByTypeId;
-  TMap<FString, URedwoodPersistentItemAsset *>
-    PersistentItemTypesByPrimaryAssetId;
-  TMap<FString, URedwoodPersistenceComponent *> PersistentItems;
+  TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByTypeId;
+  TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByPrimaryAssetId;
+  TMap<FString, URedwoodSyncComponent *> SyncItemComponentsById;
 
   void InitializeSidecar();
   void SendUpdateToSidecar();
@@ -144,5 +143,5 @@ private:
 
   FRedwoodDelegate InitialDataLoadCompleteDelegate;
   void PostInitialDataLoad(TSharedPtr<FJsonObject> ZoneJsonObject);
-  void UpdatePersistentItem(FRedwoodPersistentItem &Item);
+  void UpdateSyncItem(FRedwoodSyncItem &Item);
 };

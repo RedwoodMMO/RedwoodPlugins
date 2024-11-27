@@ -5,7 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 
-#include "RedwoodPersistenceComponent.generated.h"
+#include "RedwoodSyncComponent.generated.h"
 
 UCLASS(
   Blueprintable,
@@ -13,7 +13,7 @@ UCLASS(
   ClassGroup = (Redwood),
   meta = (BlueprintSpawnableComponent)
 )
-class REDWOOD_API URedwoodPersistenceComponent : public UActorComponent {
+class REDWOOD_API URedwoodSyncComponent : public UActorComponent {
   GENERATED_BODY()
 
 public:
@@ -24,16 +24,16 @@ public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   bool bStoreDataInActor = true;
 
-  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   FString RedwoodId;
 
   UPROPERTY(
     BlueprintReadWrite,
     EditAnywhere,
     Category = "Redwood",
-    meta = (AllowedTypes = "RedwoodPersistentItemAsset")
+    meta = (AllowedTypes = "RedwoodSyncItemAsset")
   )
-  FPrimaryAssetId PersistentItem;
+  FPrimaryAssetId SyncItemType;
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void MarkTransformDirty() {

@@ -7,7 +7,7 @@
 #include "RedwoodTypesPersistence.generated.h"
 
 USTRUCT(BlueprintType)
-struct FRedwoodPersistentItem {
+struct FRedwoodSyncItem {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -31,5 +31,5 @@ struct FRedwoodZoneData {
   USIOJsonObject *Data = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  TArray<FRedwoodPersistentItem> PersistentItems;
+  TArray<FRedwoodSyncItem> PersistentItems;
 };

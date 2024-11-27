@@ -378,7 +378,7 @@ FRedwoodZoneData URedwoodCommonGameSubsystem::ParseZoneData(
     for (const TSharedPtr<FJsonValue> &Item : *PersistentItems) {
       if (Item->Type == EJson::Object) {
         TSharedPtr<FJsonObject> ItemObj = Item->AsObject();
-        FRedwoodPersistentItem PersistentItem = ParsePersistentItem(ItemObj);
+        FRedwoodSyncItem PersistentItem = ParseSyncItem(ItemObj);
         Data.PersistentItems.Add(PersistentItem);
       }
     }
@@ -387,17 +387,17 @@ FRedwoodZoneData URedwoodCommonGameSubsystem::ParseZoneData(
   return Data;
 }
 
-FRedwoodPersistentItem URedwoodCommonGameSubsystem::ParsePersistentItem(
-  TSharedPtr<FJsonObject> PersistentItem
+FRedwoodSyncItem URedwoodCommonGameSubsystem::ParseSyncItem(
+  TSharedPtr<FJsonObject> SyncItem
 ) {
-  FRedwoodPersistentItem Item;
+  FRedwoodSyncItem Item;
 
-  Item.Id = PersistentItem->GetStringField(TEXT("id"));
+  Item.Id = SyncItem->GetStringField(TEXT("id"));
 
-  Item.TypeId = PersistentItem->GetStringField(TEXT("typeId"));
+  Item.TypeId = SyncItem->GetStringField(TEXT("typeId"));
 
   TSharedPtr<FJsonObject> TransformObj =
-    PersistentItem->GetObjectField(TEXT("transform"));
+    SyncItem->GetObjectField(TEXT("transform"));
   if (TransformObj.IsValid()) {
     FVector Location;
     FRotator Rotation;
@@ -432,7 +432,7 @@ FRedwoodPersistentItem URedwoodCommonGameSubsystem::ParsePersistentItem(
   }
 
   const TSharedPtr<FJsonObject> *DataObj;
-  if (PersistentItem->TryGetObjectField(TEXT("data"), DataObj)) {
+  if (SyncItem->TryGetObjectField(TEXT("data"), DataObj)) {
     Item.Data = NewObject<USIOJsonObject>();
     Item.Data->SetRootObject(*DataObj);
   }
