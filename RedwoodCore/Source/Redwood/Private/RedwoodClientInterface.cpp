@@ -178,7 +178,10 @@ void URedwoodClientInterface::InitiatePings() {
           Minimum = RTT;
         }
       }
-      PingAverages.Add(Itr.Key, Minimum);
+
+      if (Minimum > 0) {
+        PingAverages.Add(Itr.Key, Minimum);
+      }
     }
 
     OnPingsReceived.Broadcast();
