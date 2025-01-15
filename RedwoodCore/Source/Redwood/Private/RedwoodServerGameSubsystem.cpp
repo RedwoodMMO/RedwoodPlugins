@@ -11,7 +11,7 @@
 #include "RedwoodSettings.h"
 #include "RedwoodSyncComponent.h"
 #include "RedwoodSyncItemAsset.h"
-#include "Types/RedwoodTypesPersistence.h"
+#include "Types/RedwoodTypesSync.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -479,8 +479,29 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
-  Payload->SetStringField(TEXT("playerId"), PlayerId);
-  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  TArray<TSharedPtr<FJsonValue>> PlayersArray;
+  TSharedPtr<FJsonObject> PlayerObject = MakeShareable(new FJsonObject);
+
+  PlayerObject->SetStringField(TEXT("characterId"), CharacterId);
+
+  TSharedPtr<FJsonObject> TransformOffset = MakeShareable(new FJsonObject);
+  TSharedPtr<FJsonObject> VectorOffset = MakeShareable(new FJsonObject);
+  VectorOffset->SetNumberField(TEXT("x"), 0);
+  VectorOffset->SetNumberField(TEXT("y"), 0);
+  VectorOffset->SetNumberField(TEXT("z"), 0);
+  TransformOffset->SetObjectField(TEXT("location"), VectorOffset);
+  TransformOffset->SetObjectField(TEXT("rotation"), VectorOffset);
+  TransformOffset->SetObjectField(TEXT("controlRotation"), VectorOffset);
+  PlayerObject->SetObjectField(TEXT("transformOffset"), TransformOffset);
+
+  PlayersArray.Add(MakeShareable(new FJsonValueObject(PlayerObject)));
+
+  Payload->SetArrayField(TEXT("players"), PlayersArray);
+
+  TArray<TSharedPtr<FJsonValue>> ItemsArray;
+
+  Payload->SetArrayField(TEXT("items"), ItemsArray);
+
   Payload->SetStringField(TEXT("priorZoneName"), ZoneName);
   Payload->SetStringField(TEXT("zoneName"), InZoneName);
 
@@ -587,12 +608,33 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
-  Payload->SetStringField(TEXT("playerId"), PlayerId);
-  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  TArray<TSharedPtr<FJsonValue>> PlayersArray;
+  TSharedPtr<FJsonObject> PlayerObject = MakeShareable(new FJsonObject);
+
+  PlayerObject->SetStringField(TEXT("characterId"), CharacterId);
+
+  TSharedPtr<FJsonObject> TransformOffset = MakeShareable(new FJsonObject);
+  TSharedPtr<FJsonObject> VectorOffset = MakeShareable(new FJsonObject);
+  VectorOffset->SetNumberField(TEXT("x"), 0);
+  VectorOffset->SetNumberField(TEXT("y"), 0);
+  VectorOffset->SetNumberField(TEXT("z"), 0);
+  TransformOffset->SetObjectField(TEXT("location"), VectorOffset);
+  TransformOffset->SetObjectField(TEXT("rotation"), VectorOffset);
+  TransformOffset->SetObjectField(TEXT("controlRotation"), VectorOffset);
+  PlayerObject->SetObjectField(TEXT("transformOffset"), TransformOffset);
+
+  PlayersArray.Add(MakeShareable(new FJsonValueObject(PlayerObject)));
+
+  Payload->SetArrayField(TEXT("players"), PlayersArray);
+
+  TArray<TSharedPtr<FJsonValue>> ItemsArray;
+
+  Payload->SetArrayField(TEXT("items"), ItemsArray);
+
   Payload->SetStringField(TEXT("priorZoneName"), ZoneName);
   Payload->SetStringField(TEXT("zoneName"), InZoneName);
-
-  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
 
   if (!OptionalProxyId.IsEmpty()) {
     Payload->SetStringField(TEXT("proxyId"), OptionalProxyId);
@@ -1068,7 +1110,7 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
     }
   }
 
-  for (FRedwoodSyncItem &Item : InitialLoad.PersistentItems) {
+  for (FRedwoodSyncItem &Item : InitialLoad.Items) {
     UpdateSyncItem(Item);
   }
 
@@ -1084,9 +1126,10 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
 
   URedwoodSyncComponent *SyncItemComponent;
 
-  SyncItemComponent = SyncItemComponentsById.FindRef(Item.Id);
+  SyncItemComponent = SyncItemComponentsById.FindRef(Item.State.Id);
 
-  URedwoodSyncItemAsset *ItemType = SyncItemTypesByTypeId.FindRef(Item.TypeId);
+  URedwoodSyncItemAsset *ItemType =
+    SyncItemTypesByTypeId.FindRef(Item.State.TypeId);
 
   if (ItemType == nullptr) {
     UE_LOG(
@@ -1095,7 +1138,7 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
       TEXT(
         "Can't spawn SyncItemComponent of type %s because it's not registered"
       ),
-      *Item.TypeId
+      *Item.State.TypeId
     );
     return;
   }
@@ -1110,7 +1153,7 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
         TEXT(
           "Can't spawn SyncItemComponent of type %s because it has no ActorClass"
         ),
-        *Item.TypeId
+        *Item.State.TypeId
       );
       return;
     }
@@ -1122,7 +1165,7 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
         LogRedwood,
         Error,
         TEXT("Failed to spawn SyncItemComponent of type %s"),
-        *Item.TypeId
+        *Item.State.TypeId
       );
       return;
     }
@@ -1136,15 +1179,15 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
         TEXT(
           "Spawned actor for SyncItemComponent of type %s, but the actor has no RedwoodSyncComponent"
         ),
-        *Item.TypeId
+        *Item.State.TypeId
       );
       return;
     }
 
-    SyncItemComponent->RedwoodId = Item.Id;
+    SyncItemComponent->RedwoodId = Item.State.Id;
     SyncItemComponent->SkipInitialSave();
 
-    SyncItemComponentsById.Add(Item.Id, SyncItemComponent);
+    SyncItemComponentsById.Add(Item.State.Id, SyncItemComponent);
   }
 
   AActor *Actor = SyncItemComponent->GetOwner();
@@ -1156,12 +1199,12 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
       Error,
       TEXT("SyncItemComponent %s has no root component; can't update transform"
       ),
-      *Item.Id
+      *Item.State.Id
     );
     return;
   }
 
-  ActorRootComponent->SetWorldTransform(Item.Transform);
+  ActorRootComponent->SetWorldTransform(Item.Movement.Transform);
 
   if (Item.Data) {
     URedwoodCommonGameSubsystem::DeserializeBackendData(
@@ -1281,9 +1324,7 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
       TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject());
 
       ItemObject->SetStringField(TEXT("id"), SyncItemComponent->RedwoodId);
-      ItemObject->SetStringField(
-        TEXT("typeId"), SyncItemType->RedwoodTypeId
-      );
+      ItemObject->SetStringField(TEXT("typeId"), SyncItemType->RedwoodTypeId);
 
       // This flag should be redundant as we already checked the bools above
       // but we'll keep it just for now.
