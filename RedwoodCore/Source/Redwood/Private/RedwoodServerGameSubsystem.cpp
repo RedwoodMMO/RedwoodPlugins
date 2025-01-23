@@ -491,7 +491,17 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   VectorOffset->SetNumberField(TEXT("z"), 0);
   TransformOffset->SetObjectField(TEXT("location"), VectorOffset);
   TransformOffset->SetObjectField(TEXT("rotation"), VectorOffset);
-  TransformOffset->SetObjectField(TEXT("controlRotation"), VectorOffset);
+  TSharedPtr<FJsonObject> ControlRotation = MakeShareable(new FJsonObject);
+  ControlRotation->SetNumberField(
+    TEXT("x"), PlayerController->GetControlRotation().Roll
+  );
+  ControlRotation->SetNumberField(
+    TEXT("y"), PlayerController->GetControlRotation().Pitch
+  );
+  ControlRotation->SetNumberField(
+    TEXT("z"), PlayerController->GetControlRotation().Yaw
+  );
+  TransformOffset->SetObjectField(TEXT("controlRotation"), ControlRotation);
   PlayerObject->SetObjectField(TEXT("transformOffset"), TransformOffset);
 
   PlayersArray.Add(MakeShareable(new FJsonValueObject(PlayerObject)));
@@ -530,17 +540,11 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   Rotation->SetNumberField(TEXT("z"), RotationEuler.Z);
   Transform->SetObjectField(TEXT("rotation"), Rotation);
 
-  TSharedPtr<FJsonObject> ControlRotation = MakeShareable(new FJsonObject);
-  ControlRotation->SetNumberField(
-    TEXT("x"), PlayerController->GetControlRotation().Roll
-  );
-  ControlRotation->SetNumberField(
-    TEXT("y"), PlayerController->GetControlRotation().Pitch
-  );
-  ControlRotation->SetNumberField(
-    TEXT("z"), PlayerController->GetControlRotation().Yaw
-  );
-  Transform->SetObjectField(TEXT("controlRotation"), ControlRotation);
+  TSharedPtr<FJsonObject> Scale = MakeShareable(new FJsonObject);
+  Scale->SetNumberField(TEXT("x"), 0);
+  Scale->SetNumberField(TEXT("y"), 0);
+  Scale->SetNumberField(TEXT("z"), 0);
+  Transform->SetObjectField(TEXT("scale"), Scale);
 
   Payload->SetObjectField(TEXT("transform"), Transform);
 
