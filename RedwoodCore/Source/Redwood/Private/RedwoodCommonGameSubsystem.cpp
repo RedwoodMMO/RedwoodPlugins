@@ -393,104 +393,140 @@ FRedwoodSyncItem URedwoodCommonGameSubsystem::ParseSyncItem(
   FRedwoodSyncItem Item;
 
   TSharedPtr<FJsonObject> StateObj = SyncItem->GetObjectField(TEXT("state"));
-
-  Item.State.Id = StateObj->GetStringField(TEXT("id"));
-  Item.State.TypeId = StateObj->GetStringField(TEXT("typeId"));
-  Item.State.bDestroyed = StateObj->GetBoolField(TEXT("destroyed"));
-  Item.State.ZoneName = StateObj->GetStringField(TEXT("zoneName"));
+  Item.State = ParseSyncItemState(StateObj);
 
   TSharedPtr<FJsonObject> MovementObj =
     SyncItem->GetObjectField(TEXT("movement"));
-
-  TSharedPtr<FJsonObject> TransformObj =
-    MovementObj->GetObjectField(TEXT("transform"));
-  if (TransformObj.IsValid()) {
-    FVector Location;
-    FRotator Rotation;
-    FVector Scale;
-
-    TSharedPtr<FJsonObject> LocationObj =
-      TransformObj->GetObjectField(TEXT("location"));
-    if (LocationObj.IsValid()) {
-      Location.X = LocationObj->GetNumberField(TEXT("x"));
-      Location.Y = LocationObj->GetNumberField(TEXT("y"));
-      Location.Z = LocationObj->GetNumberField(TEXT("z"));
-    }
-
-    TSharedPtr<FJsonObject> RotationObj =
-      TransformObj->GetObjectField(TEXT("rotation"));
-    if (RotationObj.IsValid()) {
-      float Roll = RotationObj->GetNumberField(TEXT("x"));
-      float Pitch = RotationObj->GetNumberField(TEXT("y"));
-      float Yaw = RotationObj->GetNumberField(TEXT("z"));
-      Rotation = FRotator(Pitch, Yaw, Roll);
-    }
-
-    TSharedPtr<FJsonObject> ScaleObj =
-      TransformObj->GetObjectField(TEXT("scale"));
-    if (ScaleObj.IsValid()) {
-      Scale.X = ScaleObj->GetNumberField(TEXT("x"));
-      Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
-      Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
-    }
-
-    Item.Movement.Transform = FTransform(Rotation, Location, Scale);
-  }
-
-  TSharedPtr<FJsonObject> RatePerSecondObj =
-    MovementObj->GetObjectField(TEXT("ratePerSecond"));
-  if (RatePerSecondObj.IsValid()) {
-    FVector Location;
-    FRotator Rotation;
-    FVector Scale;
-
-    TSharedPtr<FJsonObject> LocationObj =
-      RatePerSecondObj->GetObjectField(TEXT("location"));
-    if (LocationObj.IsValid()) {
-      Location.X = LocationObj->GetNumberField(TEXT("x"));
-      Location.Y = LocationObj->GetNumberField(TEXT("y"));
-      Location.Z = LocationObj->GetNumberField(TEXT("z"));
-    }
-
-    TSharedPtr<FJsonObject> RotationObj =
-      RatePerSecondObj->GetObjectField(TEXT("rotation"));
-    if (RotationObj.IsValid()) {
-      float Roll = RotationObj->GetNumberField(TEXT("x"));
-      float Pitch = RotationObj->GetNumberField(TEXT("y"));
-      float Yaw = RotationObj->GetNumberField(TEXT("z"));
-      Rotation = FRotator(Pitch, Yaw, Roll);
-    }
-
-    TSharedPtr<FJsonObject> ScaleObj =
-      RatePerSecondObj->GetObjectField(TEXT("scale"));
-    if (ScaleObj.IsValid()) {
-      Scale.X = ScaleObj->GetNumberField(TEXT("x"));
-      Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
-      Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
-    }
-
-    Item.Movement.RatePerSecond = FTransform(Rotation, Location, Scale);
-  } else {
-    Item.Movement.RatePerSecond = FTransform(
-      FRotator::ZeroRotator, FVector::ZeroVector, FVector::ZeroVector
-    );
-  }
-
-  const TSharedPtr<FJsonObject> *AnimationStateObj;
-  if (MovementObj->TryGetObjectField(
-        TEXT("animationState"), AnimationStateObj
-      )) {
-    Item.Movement.AnimationState = NewObject<USIOJsonObject>();
-    Item.Movement.AnimationState->SetRootObject(*AnimationStateObj);
-  }
+  Item.Movement = ParseSyncItemMovement(MovementObj);
 
   const TSharedPtr<FJsonObject> *DataObj;
   if (SyncItem->TryGetObjectField(TEXT("data"), DataObj)) {
-    Item.Data = NewObject<USIOJsonObject>();
-    Item.Data->SetRootObject(*DataObj);
+    Item.Data = ParseSyncItemData(*DataObj);
   }
 
   return Item;
+}
+
+FRedwoodSyncItemState URedwoodCommonGameSubsystem::ParseSyncItemState(
+  TSharedPtr<FJsonObject> SyncItemState
+) {
+  FRedwoodSyncItemState State;
+
+  if (SyncItemState.IsValid()) {
+    State.Id = SyncItemState->GetStringField(TEXT("id"));
+    State.TypeId = SyncItemState->GetStringField(TEXT("typeId"));
+    State.bDestroyed = SyncItemState->GetBoolField(TEXT("destroyed"));
+    State.ZoneName = SyncItemState->GetStringField(TEXT("zoneName"));
+  }
+
+  return State;
+}
+
+FRedwoodSyncItemMovement URedwoodCommonGameSubsystem::ParseSyncItemMovement(
+  TSharedPtr<FJsonObject> SyncItemMovement
+) {
+  FRedwoodSyncItemMovement Movement;
+
+  if (SyncItemMovement.IsValid()) {
+    TSharedPtr<FJsonObject> TransformObj =
+      SyncItemMovement->GetObjectField(TEXT("transform"));
+    if (TransformObj.IsValid()) {
+      FVector Location;
+      FRotator Rotation;
+      FVector Scale;
+
+      TSharedPtr<FJsonObject> LocationObj =
+        TransformObj->GetObjectField(TEXT("location"));
+      if (LocationObj.IsValid()) {
+        Location.X = LocationObj->GetNumberField(TEXT("x"));
+        Location.Y = LocationObj->GetNumberField(TEXT("y"));
+        Location.Z = LocationObj->GetNumberField(TEXT("z"));
+      }
+
+      TSharedPtr<FJsonObject> RotationObj =
+        TransformObj->GetObjectField(TEXT("rotation"));
+      if (RotationObj.IsValid()) {
+        float Roll = RotationObj->GetNumberField(TEXT("x"));
+        float Pitch = RotationObj->GetNumberField(TEXT("y"));
+        float Yaw = RotationObj->GetNumberField(TEXT("z"));
+        Rotation = FRotator(Pitch, Yaw, Roll);
+      }
+
+      TSharedPtr<FJsonObject> ScaleObj =
+        TransformObj->GetObjectField(TEXT("scale"));
+      if (ScaleObj.IsValid()) {
+        Scale.X = ScaleObj->GetNumberField(TEXT("x"));
+        Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
+        Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
+      }
+
+      Movement.Transform = FTransform(Rotation, Location, Scale);
+    }
+
+    const TSharedPtr<FJsonObject> *RatePerSecondObjPtr;
+    if (SyncItemMovement->TryGetObjectField(
+          TEXT("ratePerSecond"), RatePerSecondObjPtr
+        )) {
+      TSharedPtr<FJsonObject> RatePerSecondObj = *RatePerSecondObjPtr;
+      FVector Location;
+      FRotator Rotation;
+      FVector Scale;
+
+      TSharedPtr<FJsonObject> LocationObj =
+        RatePerSecondObj->GetObjectField(TEXT("location"));
+      if (LocationObj.IsValid()) {
+        Location.X = LocationObj->GetNumberField(TEXT("x"));
+        Location.Y = LocationObj->GetNumberField(TEXT("y"));
+        Location.Z = LocationObj->GetNumberField(TEXT("z"));
+      }
+
+      TSharedPtr<FJsonObject> RotationObj =
+        RatePerSecondObj->GetObjectField(TEXT("rotation"));
+      if (RotationObj.IsValid()) {
+        float Roll = RotationObj->GetNumberField(TEXT("x"));
+        float Pitch = RotationObj->GetNumberField(TEXT("y"));
+        float Yaw = RotationObj->GetNumberField(TEXT("z"));
+        Rotation = FRotator(Pitch, Yaw, Roll);
+      }
+
+      TSharedPtr<FJsonObject> ScaleObj =
+        RatePerSecondObj->GetObjectField(TEXT("scale"));
+      if (ScaleObj.IsValid()) {
+        Scale.X = ScaleObj->GetNumberField(TEXT("x"));
+        Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
+        Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
+      }
+
+      Movement.RatePerSecond = FTransform(Rotation, Location, Scale);
+    } else {
+      Movement.RatePerSecond = FTransform(
+        FRotator::ZeroRotator, FVector::ZeroVector, FVector::ZeroVector
+      );
+    }
+
+    const TSharedPtr<FJsonObject> *AnimationStateObj;
+    if (SyncItemMovement->TryGetObjectField(
+          TEXT("animationState"), AnimationStateObj
+        )) {
+      Movement.AnimationState = NewObject<USIOJsonObject>();
+      Movement.AnimationState->SetRootObject(*AnimationStateObj);
+    }
+  }
+
+  return Movement;
+}
+
+USIOJsonObject *URedwoodCommonGameSubsystem::ParseSyncItemData(
+  TSharedPtr<FJsonObject> SyncItemData
+) {
+  USIOJsonObject *Data = nullptr;
+
+  if (SyncItemData.IsValid()) {
+    Data = NewObject<USIOJsonObject>();
+    Data->SetRootObject(SyncItemData);
+  }
+
+  return Data;
 }
 
 void URedwoodCommonGameSubsystem::DeserializeBackendData(

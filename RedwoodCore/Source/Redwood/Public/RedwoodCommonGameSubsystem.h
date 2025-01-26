@@ -40,8 +40,15 @@ public:
     TSharedPtr<FJsonObject> ServerInstance
   );
   static FRedwoodZoneData ParseZoneData(TSharedPtr<FJsonObject> ZoneData);
-  static FRedwoodSyncItem ParseSyncItem(
-    TSharedPtr<FJsonObject> SyncItem
+
+  static FRedwoodSyncItem ParseSyncItem(TSharedPtr<FJsonObject> SyncItem);
+  static FRedwoodSyncItemState ParseSyncItemState(
+    TSharedPtr<FJsonObject> SyncItemState
+  );
+  static FRedwoodSyncItemMovement ParseSyncItemMovement(
+    TSharedPtr<FJsonObject> SyncItemMovement
+  );
+  static USIOJsonObject *ParseSyncItemData(TSharedPtr<FJsonObject> SyncItemData
   );
 
   static USIOJsonObject *SerializeBackendData(

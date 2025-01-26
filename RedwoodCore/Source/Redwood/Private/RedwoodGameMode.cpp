@@ -22,6 +22,14 @@
 
 #include "SocketIOClient.h"
 
+ARedwoodGameMode::
+  ARedwoodGameMode(const FObjectInitializer
+                     &ObjectInitializer /*= FObjectInitializer::Get()*/) :
+  Super(ObjectInitializer) {
+  PrimaryActorTick.bCanEverTick = true;
+  bAllowTickBeforeBeginPlay = false;
+}
+
 void ARedwoodGameMode::InitGame(
   const FString &MapName, const FString &Options, FString &ErrorMessage
 ) {
@@ -60,6 +68,8 @@ void ARedwoodGameMode::PostBeginPlay() {
   if (RedwoodServerGameSubsystem) {
     RedwoodServerGameSubsystem->InitialDataLoad(
       FRedwoodDelegate::CreateLambda([this]() {
+        bPostBeganPlay = true;
+
         // create a looping timer to flush player character data
         if (DatabasePersistenceInterval > 0) {
           FTimerManager &TimerManager = GetWorld()->GetTimerManager();
@@ -73,6 +83,19 @@ void ARedwoodGameMode::PostBeginPlay() {
         }
       })
     );
+  }
+}
+
+void ARedwoodGameMode::Tick(float DeltaTime) {
+  Super::Tick(DeltaTime);
+
+  if (bPostBeganPlay && !GetWorld()->bIsTearingDown) {
+    if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+      URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+        GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
+
+      RedwoodServerGameSubsystem->FlushSync();
+    }
   }
 }
 

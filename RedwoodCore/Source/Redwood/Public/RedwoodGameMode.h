@@ -11,11 +11,12 @@
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup = (Redwood))
 class REDWOOD_API ARedwoodGameMode : public AGameMode {
-  GENERATED_BODY()
+  GENERATED_UCLASS_BODY()
 
 public:
   //~AActor interface
   virtual void BeginPlay() override;
+  virtual void Tick(float DeltaTime) override;
   //~End of AActor interface
 
   //~AGameModeBase interface
@@ -67,4 +68,6 @@ private:
 
   FTimerHandle FlushPlayerCharacterDataTimerHandle;
   FTimerHandle PostBeginPlayTimerHandle;
+
+  bool bPostBeganPlay = false;
 };

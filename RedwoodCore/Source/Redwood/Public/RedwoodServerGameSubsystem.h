@@ -37,6 +37,9 @@ public:
   FString RequestId;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString InstanceId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString Name;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
@@ -95,6 +98,7 @@ public:
     const FString &OptionalProxyId = TEXT("")
   );
 
+  void FlushSync();
   void FlushPersistence();
   void FlushPlayerCharacterData();
   void FlushZoneData();
@@ -143,5 +147,16 @@ private:
 
   FRedwoodDelegate InitialDataLoadCompleteDelegate;
   void PostInitialDataLoad(TSharedPtr<FJsonObject> ZoneJsonObject);
+
   void UpdateSyncItem(FRedwoodSyncItem &Item);
+  void UpdateSyncItemState(
+    URedwoodSyncComponent *SyncItemComponent, FRedwoodSyncItemState &ItemState
+  );
+  void UpdateSyncItemMovement(
+    URedwoodSyncComponent *SyncItemComponent,
+    FRedwoodSyncItemMovement &ItemMovement
+  );
+  void UpdateSyncItemData(
+    URedwoodSyncComponent *SyncItemComponent, USIOJsonObject *InData
+  );
 };

@@ -17,12 +17,6 @@ public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
   FString RedwoodTypeId;
 
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
-  int32 LatestSchemaVersion;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
-  FString DataVariableName = TEXT("Data");
-
   // This class can be empty for the asset used for world data
   // because the current GameState will be referenced instead
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)

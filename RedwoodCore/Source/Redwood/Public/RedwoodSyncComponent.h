@@ -7,6 +7,12 @@
 
 #include "RedwoodSyncComponent.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE(
+  FOnRedwoodSyncComponentInitiallySpawned,
+  URedwoodSyncComponent,
+  InitiallySpawned
+);
+
 UCLASS(
   Blueprintable,
   BlueprintType,
@@ -25,46 +31,96 @@ public:
   bool bStoreDataInActor = true;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  bool bPersistChanges = true;
+
+  // You can specify a unique identifier if you'd like, but
+  // Redwood will generate a random one for you during BeginPlay
+  // if you leave this empty
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   FString RedwoodId;
 
-  UPROPERTY(
-    BlueprintReadWrite,
-    EditAnywhere,
-    Category = "Redwood",
-    meta = (AllowedTypes = "RedwoodSyncItemAsset")
-  )
-  FPrimaryAssetId SyncItemType;
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  bool bUseData = true;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  FString DataVariableName = TEXT("Data");
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  int32 LatestDataSchemaVersion;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  bool bUseAnimationState = false;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  FString AnimationStateVariableName = TEXT("AnimationState");
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  int32 LatestAnimationStateSchemaVersion;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString RedwoodTypeId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ZoneName;
+
+  // How often you want to automatically sync movement data
+  // (transform only currently) in seconds. If this is < 0
+  // then it will only sync when the movement is marked dirty.
+  // If this is set to 0 then it will sync every frame.
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  float MovementSyncIntervalSeconds = -1;
+
+  // This is fired shortly after Begin Play on the server that initially
+  // spawned this sync component via spawning the owning actor.
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FOnRedwoodSyncComponentInitiallySpawned InitiallySpawned;
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
-  void MarkTransformDirty() {
-    bTransformDirty = true;
+  void MarkMovementDirty() {
+    bMovementDirty = true;
+    if (bPersistChanges) {
+      bMovementDirtyPersistence = true;
+    }
   }
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
-  bool IsTransformDirty() const {
-    return bTransformDirty;
+  bool IsMovementDirty(bool bForPersistence) const {
+    return bForPersistence ? bMovementDirtyPersistence : bMovementDirty;
   }
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void MarkDataDirty() {
     bDataDirty = true;
+    if (bPersistChanges) {
+      bDataDirtyPersistence = true;
+    }
   }
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
-  bool IsDataDirty() const {
-    return bDataDirty;
+  bool IsDataDirty(bool bForPersistence) const {
+    return bForPersistence ? bDataDirtyPersistence : bDataDirty;
   }
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void MarkAllDirty() {
-    bTransformDirty = true;
+    bMovementDirty = true;
     bDataDirty = true;
+
+    if (bPersistChanges) {
+      bMovementDirtyPersistence = true;
+      bDataDirtyPersistence = true;
+    }
   }
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
-  void ClearDirtyFlags() {
-    bTransformDirty = false;
-    bDataDirty = false;
+  void ClearDirtyFlags(bool bForPersistence) {
+    if (bForPersistence) {
+      bMovementDirtyPersistence = false;
+      bDataDirtyPersistence = false;
+    } else {
+      bMovementDirty = false;
+      bDataDirty = false;
+    }
   }
 
   // This is called by the URedwoodServerGameSubsystem
@@ -83,10 +139,23 @@ public:
     return bDoInitialSave;
   }
 
-private:
-  bool bTransformDirty = false;
-  bool bDataDirty = false;
+  double GetLastMovementSyncTime() const {
+    return LastMovementSyncTime;
+  }
 
-  // this fla
+  void SetLastMovementSyncTime(double NewTime) {
+    LastMovementSyncTime = NewTime;
+  }
+
+private:
+  void InitSyncComponent();
+
+  bool bMovementDirty = false;
+  bool bMovementDirtyPersistence = false;
+  bool bDataDirty = false;
+  bool bDataDirtyPersistence = false;
+
   bool bDoInitialSave = true;
+
+  double LastMovementSyncTime = 0;
 };
