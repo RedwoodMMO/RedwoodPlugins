@@ -313,11 +313,10 @@ void ARedwoodGameMode::FinishRestartPlayer(
 
     if (IsValid(RedwoodPlayerState)) {
       if (RedwoodPlayerState->RedwoodCharacter.RedwoodData) {
-        USIOJsonObject *LastTransform =
-          RedwoodPlayerState->RedwoodCharacter.RedwoodData->GetObjectField(
-            TEXT("lastTransform")
-          );
-        if (IsValid(LastTransform)) {
+        USIOJsonObject *LastTransform;
+        if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
+              TEXT("lastTransform"), LastTransform
+            )) {
           USIOJsonObject *ControlRotation =
             LastTransform->GetObjectField(TEXT("controlRotation"));
           if (ControlRotation) {
@@ -389,11 +388,10 @@ APawn *ARedwoodGameMode::SpawnDefaultPawnAtTransform_Implementation(
         }
       }
 
-      USIOJsonObject *LastTransform =
-        RedwoodPlayerState->RedwoodCharacter.RedwoodData->GetObjectField(
-          TEXT("lastTransform")
-        );
-      if (IsValid(LastTransform)) {
+      USIOJsonObject *LastTransform;
+      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
+            TEXT("lastTransform"), LastTransform
+          )) {
         USIOJsonObject *Location =
           LastTransform->GetObjectField(TEXT("location"));
         USIOJsonObject *Rotation =
