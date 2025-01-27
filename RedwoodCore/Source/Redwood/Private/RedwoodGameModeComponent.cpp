@@ -341,15 +341,6 @@ void URedwoodGameModeComponent::FinishRestartPlayer(
             float Pitch = ControlRotation->GetNumberField(TEXT("y"));
             float Yaw = ControlRotation->GetNumberField(TEXT("z"));
 
-            UE_LOG(
-              LogRedwood,
-              Log,
-              TEXT("Control Rotation for transfer: %f %f %f"),
-              Roll,
-              Pitch,
-              Yaw
-            );
-
             NewControlRotation = FRotator(Pitch, Yaw, Roll);
           } else {
             UE_LOG(
@@ -427,15 +418,6 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
           float RotX = Rotation->GetNumberField(TEXT("x"));
           float RotY = Rotation->GetNumberField(TEXT("y"));
           float RotZ = Rotation->GetNumberField(TEXT("z"));
-
-          UE_LOG(
-            LogRedwood,
-            Log,
-            TEXT("Rotation for transfer: %f %f %f"),
-            RotX,
-            RotY,
-            RotZ
-          );
 
           FTransform Transform =
             FTransform(FRotator(RotY, RotZ, RotX), FVector(LocX, LocY, LocZ));
