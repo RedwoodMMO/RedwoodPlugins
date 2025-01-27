@@ -555,14 +555,19 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
           // synced by the game server). Nonempty objects however imply
           // they've tried to save something but it's missing schemaVersion
           if (JsonObject->Values.Num() > 0) {
+            FString JsonString;
+            TSharedRef<TJsonWriter<>> Writer =
+              TJsonWriterFactory<>::Create(&JsonString);
+            FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
             UE_LOG(
               LogRedwood,
               Error,
               TEXT(
-                "schemaVersion not found in Redwood backend field for %s, did you add one to your struct? Not updating %s."
+                "schemaVersion not found in Redwood backend field for %s, did you add one to your struct? Not updating %s. %s"
               ),
               *VariableName,
-              *VariableName
+              *VariableName,
+              *JsonString
             );
           }
 

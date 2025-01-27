@@ -407,8 +407,10 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         SyncItemComponent = SyncItemComponentsById.FindRef(ItemId);
 
         if (IsValid(SyncItemComponent)) {
+          TSharedPtr<FJsonObject> DataObj =
+            ActualObject->GetObjectField(TEXT("data"));
           USIOJsonObject *SyncItemData =
-            URedwoodCommonGameSubsystem::ParseSyncItemData(ActualObject);
+            URedwoodCommonGameSubsystem::ParseSyncItemData(DataObj);
 
           UpdateSyncItemData(SyncItemComponent, SyncItemData);
         }
