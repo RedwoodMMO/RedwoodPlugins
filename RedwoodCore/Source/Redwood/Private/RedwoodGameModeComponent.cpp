@@ -21,6 +21,14 @@
 
 #include "SocketIOClient.h"
 
+URedwoodGameModeComponent::URedwoodGameModeComponent(
+  const FObjectInitializer &ObjectInitializer
+) :
+  Super(ObjectInitializer) {
+  PrimaryComponentTick.bStartWithTickEnabled = true;
+  PrimaryComponentTick.bCanEverTick = true;
+}
+
 void URedwoodGameModeComponent::BeginPlay() {
   Super::BeginPlay();
 

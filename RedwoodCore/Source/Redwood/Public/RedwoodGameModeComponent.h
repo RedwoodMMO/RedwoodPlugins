@@ -14,6 +14,8 @@ class REDWOOD_API URedwoodGameModeComponent : public UActorComponent {
   GENERATED_BODY()
 
 public:
+  URedwoodGameModeComponent(const FObjectInitializer &ObjectInitializer);
+
   //~UActorComponent interface
   virtual void BeginPlay() override;
   virtual void TickComponent(
