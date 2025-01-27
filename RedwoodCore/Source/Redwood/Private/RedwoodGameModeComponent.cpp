@@ -3,7 +3,6 @@
 #include "RedwoodGameModeComponent.h"
 #include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
-#include "RedwoodPlayerController.h"
 #include "RedwoodPlayerState.h"
 #include "RedwoodServerGameSubsystem.h"
 #include "RedwoodZoneSpawn.h"
@@ -361,12 +360,6 @@ void URedwoodGameModeComponent::FinishRestartPlayer(
           }
         }
       }
-    }
-
-    ARedwoodPlayerController *RedwoodPlayerController =
-      Cast<ARedwoodPlayerController>(NewPlayer);
-    if (IsValid(RedwoodPlayerController)) {
-      RedwoodPlayerController->bSkipPawnFaceRotation = true;
     }
 
     NewPlayer->ClientSetRotation(NewControlRotation, true);
