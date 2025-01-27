@@ -4,8 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
-
-#include "SocketIONative.h"
+#include "RedwoodGameModeComponent.h"
 
 #include "RedwoodGameMode.generated.h"
 
@@ -14,11 +13,6 @@ class REDWOOD_API ARedwoodGameMode : public AGameMode {
   GENERATED_UCLASS_BODY()
 
 public:
-  //~AActor interface
-  virtual void BeginPlay() override;
-  virtual void Tick(float DeltaTime) override;
-  //~End of AActor interface
-
   //~AGameModeBase interface
   virtual void InitGame(
     const FString &MapName, const FString &Options, FString &ErrorMessage
@@ -45,29 +39,7 @@ public:
   );
   //~End of AGameModeBase interface
 
-  UFUNCTION()
-  void PostBeginPlay();
-
-  UFUNCTION(BlueprintCallable, Category = "Redwood|GameMode")
-  TArray<FString> GetExpectedCharacterIds() const;
-
-  UFUNCTION(BlueprintCallable, Category = "Redwood|GameMode")
-  void OnGameModeLogout(AGameModeBase *GameMode, AController *Controller);
-
-  UFUNCTION()
-  void FlushPersistence();
-
-  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
-  float DatabasePersistenceInterval = 0.5f;
-
-  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
-  float PostBeginPlayDelay = 0.2f;
-
 private:
-  TSharedPtr<FSocketIONative> Sidecar;
-
-  FTimerHandle FlushPlayerCharacterDataTimerHandle;
-  FTimerHandle PostBeginPlayTimerHandle;
-
-  bool bPostBeganPlay = false;
+  UPROPERTY()
+  URedwoodGameModeComponent *GameModeComponent;
 };
