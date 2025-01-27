@@ -445,7 +445,7 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
           );
 
           FTransform Transform =
-            FTransform(FRotator(RotX, RotY, RotZ), FVector(LocX, LocY, LocZ));
+            FTransform(FRotator(RotY, RotZ, RotX), FVector(LocX, LocY, LocZ));
 
           return Transform;
         } else {
