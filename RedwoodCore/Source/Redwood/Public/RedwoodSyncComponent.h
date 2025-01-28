@@ -39,6 +39,14 @@ public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   FString RedwoodId;
 
+  // The zone that controls this sync component/actor. This is normally
+  // set automatically for actors spawned by the server, but if you have
+  // some persistent actor that is placed in the editor you may set this
+  // to the zone it's located within (this detection is not automatically
+  // done for you).
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  FString ZoneName;
+
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   bool bUseData = true;
 
@@ -59,9 +67,6 @@ public:
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString RedwoodTypeId;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
-  FString ZoneName;
 
   // How often you want to automatically sync movement data
   // (transform only currently) in seconds. If this is < 0

@@ -83,7 +83,7 @@ public:
 private:
   TSharedPtr<FSocketIONative> Sidecar;
 
-  FTimerHandle FlushPlayerCharacterDataTimerHandle;
+  FTimerHandle FlushPersistentDataTimerHandle;
   FTimerHandle PostBeginPlayTimerHandle;
 
   bool bPostBeganPlay = false;

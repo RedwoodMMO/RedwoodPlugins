@@ -51,11 +51,11 @@ void URedwoodGameModeComponent::PostBeginPlay() {
       FRedwoodDelegate::CreateLambda([this]() {
         bPostBeganPlay = true;
 
-        // create a looping timer to flush player character data
+        // create a looping timer to flush persistent data
         if (DatabasePersistenceInterval > 0) {
           FTimerManager &TimerManager = GetWorld()->GetTimerManager();
           TimerManager.SetTimer(
-            FlushPlayerCharacterDataTimerHandle,
+            FlushPersistentDataTimerHandle,
             this,
             &URedwoodGameModeComponent::FlushPersistence,
             DatabasePersistenceInterval,

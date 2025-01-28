@@ -682,13 +682,39 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
         );
       }
     } else {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT("%s variable not found in %s"),
-        *VariableName,
-        *TargetObject->GetName()
-      );
+      bool bIsActor = TargetObject->IsA<AActor>();
+      bool bIsActorComponent = TargetObject->IsA<UActorComponent>();
+
+      if (bIsActor) {
+        AActor *Actor = Cast<AActor>(TargetObject);
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("%s variable not found in %s (Owner: %s)"),
+          *VariableName,
+          *TargetObject->GetName(),
+          Actor->GetOwner() ? *Actor->GetOwner()->GetName() : TEXT("")
+        );
+      } else if (bIsActorComponent) {
+        UActorComponent *ActorComponent = Cast<UActorComponent>(TargetObject);
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("%s variable not found in %s (Owner: %s)"),
+          *VariableName,
+          *TargetObject->GetName(),
+          ActorComponent->GetOwner() ? *ActorComponent->GetOwner()->GetName()
+                                     : TEXT("")
+        );
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("%s variable not found in %s"),
+          *VariableName,
+          *TargetObject->GetName()
+        );
+      }
     }
   }
 }
@@ -721,13 +747,39 @@ USIOJsonObject *URedwoodCommonGameSubsystem::SerializeBackendData(
       );
     }
   } else {
-    UE_LOG(
-      LogRedwood,
-      Error,
-      TEXT("%s variable not found in %s"),
-      *VariableName,
-      *TargetObject->GetName()
-    );
+    bool bIsActor = TargetObject->IsA<AActor>();
+    bool bIsActorComponent = TargetObject->IsA<UActorComponent>();
+
+    if (bIsActor) {
+      AActor *Actor = Cast<AActor>(TargetObject);
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable not found in %s (Owner: %s)"),
+        *VariableName,
+        *TargetObject->GetName(),
+        Actor->GetOwner() ? *Actor->GetOwner()->GetName() : TEXT("")
+      );
+    } else if (bIsActorComponent) {
+      UActorComponent *ActorComponent = Cast<UActorComponent>(TargetObject);
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable not found in %s (Owner: %s)"),
+        *VariableName,
+        *TargetObject->GetName(),
+        ActorComponent->GetOwner() ? *ActorComponent->GetOwner()->GetName()
+                                   : TEXT("")
+      );
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable not found in %s"),
+        *VariableName,
+        *TargetObject->GetName()
+      );
+    }
   }
 
   return nullptr;

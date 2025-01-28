@@ -1308,7 +1308,8 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
 
   if (InitialLoad.Data && GameStateSync) {
     URedwoodCommonGameSubsystem::DeserializeBackendData(
-      GameStateSync,
+      GameStateSync->bStoreDataInActor ? (UObject *)GameState
+                                       : (UObject *)GameStateSync,
       InitialLoad.Data,
       GameStateSync->DataVariableName,
       GameStateSync->LatestDataSchemaVersion
@@ -1319,7 +1320,9 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
     UpdateSyncItem(Item);
   }
 
+  bInitialDataLoaded = true;
   InitialDataLoadCompleteDelegate.ExecuteIfBound();
+  SendNewSyncForPersistentItemsToSidecar();
 }
 
 void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
@@ -1490,7 +1493,10 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
 
       USIOJsonObject *DataObject =
         URedwoodCommonGameSubsystem::SerializeBackendData(
-          GameStatePersistence, GameStatePersistence->DataVariableName
+          GameStatePersistence->bStoreDataInActor
+            ? (UObject *)GameState
+            : (UObject *)GameStatePersistence,
+          GameStatePersistence->DataVariableName
         );
       ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
     }
@@ -1636,7 +1642,7 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
 }
 
 void URedwoodServerGameSubsystem::RegisterSyncComponent(
-  URedwoodSyncComponent *InComponent
+  URedwoodSyncComponent *InComponent, bool bDelayNewSync
 ) {
   if (InComponent == nullptr) {
     UE_LOG(
@@ -1681,7 +1687,16 @@ void URedwoodServerGameSubsystem::RegisterSyncComponent(
     );
   }
 
-  // send a New sync request to the backend
+  if (!bDelayNewSync || bInitialDataLoaded) {
+    SendNewSyncItemToSidecar(InComponent);
+  } else {
+    DelayedNewSyncItems.Add(InComponent);
+  }
+}
+
+void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
+  URedwoodSyncComponent *InComponent
+) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) && Sidecar.IsValid() && Sidecar->bIsConnected) {
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
@@ -1750,6 +1765,12 @@ void URedwoodServerGameSubsystem::RegisterSyncComponent(
     );
 
     Sidecar->Emit(TEXT("realm:servers:session:sync:new"), Payload);
+  }
+}
+
+void URedwoodServerGameSubsystem::SendNewSyncForPersistentItemsToSidecar() {
+  for (URedwoodSyncComponent *SyncItemComponent : DelayedNewSyncItems) {
+    SendNewSyncItemToSidecar(SyncItemComponent);
   }
 }
 

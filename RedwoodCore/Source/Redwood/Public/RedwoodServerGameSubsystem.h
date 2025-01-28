@@ -105,7 +105,9 @@ public:
 
   void InitialDataLoad(FRedwoodDelegate OnComplete);
 
-  void RegisterSyncComponent(URedwoodSyncComponent *InComponent);
+  void RegisterSyncComponent(
+    URedwoodSyncComponent *InComponent, bool bDelayNewSync
+  );
 
   void PutBlob(
     const FString &Key,
@@ -145,6 +147,8 @@ private:
   FGameplayMessageListenerHandle ListenerHandle;
   void OnShutdownMessage(FGameplayTag InChannel, const FRedwoodReason &Message);
 
+  TSet<URedwoodSyncComponent *> DelayedNewSyncItems;
+  bool bInitialDataLoaded = false;
   FRedwoodDelegate InitialDataLoadCompleteDelegate;
   void PostInitialDataLoad(TSharedPtr<FJsonObject> ZoneJsonObject);
 
@@ -159,4 +163,7 @@ private:
   void UpdateSyncItemData(
     URedwoodSyncComponent *SyncItemComponent, USIOJsonObject *InData
   );
+
+  void SendNewSyncItemToSidecar(URedwoodSyncComponent *InComponent);
+  void SendNewSyncForPersistentItemsToSidecar();
 };

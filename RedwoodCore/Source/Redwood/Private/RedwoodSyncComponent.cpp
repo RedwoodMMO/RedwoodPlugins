@@ -19,13 +19,17 @@ void URedwoodSyncComponent::InitSyncComponent() {
     GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
 
   if (Subsystem) {
-    if (ZoneName == TEXT("")) {
-      // This should only happen on servers that initiated the spawning.
-      // Other servers should set this before Begin Play is fired during
-      // sync creation.
+    if (ZoneName == TEXT("") || ZoneName == Subsystem->ZoneName) {
+      // This should only happen on servers that initiated the spawning;
+      // it can also happen for items placed in the editor that spawn on
+      // level load. Other servers should set this before Begin Play is
+      // fired during sync creation.
+
+      bool bDelayNewSync = ZoneName == Subsystem->ZoneName;
+
       ZoneName = Subsystem->ZoneName;
 
-      Subsystem->RegisterSyncComponent(this);
+      Subsystem->RegisterSyncComponent(this, bDelayNewSync);
 
       InitiallySpawned.Broadcast();
     }
