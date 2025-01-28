@@ -29,12 +29,6 @@ struct FRedwoodSyncItemMovement {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FTransform Transform;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FTransform RatePerSecond;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject *AnimationState = nullptr;
 };
 
 USTRUCT(BlueprintType)

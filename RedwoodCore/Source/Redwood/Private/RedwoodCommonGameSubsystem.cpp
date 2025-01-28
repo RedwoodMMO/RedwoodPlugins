@@ -462,55 +462,6 @@ FRedwoodSyncItemMovement URedwoodCommonGameSubsystem::ParseSyncItemMovement(
 
       Movement.Transform = FTransform(Rotation, Location, Scale);
     }
-
-    const TSharedPtr<FJsonObject> *RatePerSecondObjPtr;
-    if (SyncItemMovement->TryGetObjectField(
-          TEXT("ratePerSecond"), RatePerSecondObjPtr
-        )) {
-      TSharedPtr<FJsonObject> RatePerSecondObj = *RatePerSecondObjPtr;
-      FVector Location;
-      FRotator Rotation;
-      FVector Scale;
-
-      TSharedPtr<FJsonObject> LocationObj =
-        RatePerSecondObj->GetObjectField(TEXT("location"));
-      if (LocationObj.IsValid()) {
-        Location.X = LocationObj->GetNumberField(TEXT("x"));
-        Location.Y = LocationObj->GetNumberField(TEXT("y"));
-        Location.Z = LocationObj->GetNumberField(TEXT("z"));
-      }
-
-      TSharedPtr<FJsonObject> RotationObj =
-        RatePerSecondObj->GetObjectField(TEXT("rotation"));
-      if (RotationObj.IsValid()) {
-        float Roll = RotationObj->GetNumberField(TEXT("x"));
-        float Pitch = RotationObj->GetNumberField(TEXT("y"));
-        float Yaw = RotationObj->GetNumberField(TEXT("z"));
-        Rotation = FRotator(Pitch, Yaw, Roll);
-      }
-
-      TSharedPtr<FJsonObject> ScaleObj =
-        RatePerSecondObj->GetObjectField(TEXT("scale"));
-      if (ScaleObj.IsValid()) {
-        Scale.X = ScaleObj->GetNumberField(TEXT("x"));
-        Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
-        Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
-      }
-
-      Movement.RatePerSecond = FTransform(Rotation, Location, Scale);
-    } else {
-      Movement.RatePerSecond = FTransform(
-        FRotator::ZeroRotator, FVector::ZeroVector, FVector::ZeroVector
-      );
-    }
-
-    const TSharedPtr<FJsonObject> *AnimationStateObj;
-    if (SyncItemMovement->TryGetObjectField(
-          TEXT("animationState"), AnimationStateObj
-        )) {
-      Movement.AnimationState = NewObject<USIOJsonObject>();
-      Movement.AnimationState->SetRootObject(*AnimationStateObj);
-    }
   }
 
   return Movement;

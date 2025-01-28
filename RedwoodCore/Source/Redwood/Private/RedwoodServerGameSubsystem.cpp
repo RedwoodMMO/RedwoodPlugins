@@ -857,19 +857,6 @@ void URedwoodServerGameSubsystem::FlushSync() {
         TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
         MovementObject->SetObjectField(TEXT("transform"), TransformObject);
 
-        TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-
-        // TODO: add sync for ratePerSecond
-        MovementObject->SetField(TEXT("ratePerSecond"), NullValue);
-
-        TSharedPtr<FJsonObject> AnimationStateObject =
-          MakeShareable(new FJsonObject());
-
-        // TODO: add sync for animationState
-        MovementObject->SetObjectField(
-          TEXT("animationState"), AnimationStateObject
-        );
-
         ItemObject->SetObjectField(TEXT("movement"), MovementObject);
 
         SyncItemComponent->SetLastMovementSyncTime(CurrentTime);
@@ -1732,19 +1719,6 @@ void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
     TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
     TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
     MovementObject->SetObjectField(TEXT("transform"), TransformObject);
-
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-
-    // TODO: add sync for ratePerSecond
-    MovementObject->SetField(TEXT("ratePerSecond"), NullValue);
-
-    TSharedPtr<FJsonObject> AnimationStateObject =
-      MakeShareable(new FJsonObject());
-
-    // TODO: add sync for animationState
-    MovementObject->SetObjectField(
-      TEXT("animationState"), AnimationStateObject
-    );
 
     Payload->SetObjectField(TEXT("movement"), MovementObject);
 

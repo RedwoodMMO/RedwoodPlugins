@@ -56,15 +56,6 @@ public:
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   int32 LatestDataSchemaVersion;
 
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
-  bool bUseAnimationState = false;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
-  FString AnimationStateVariableName = TEXT("AnimationState");
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
-  int32 LatestAnimationStateSchemaVersion;
-
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString RedwoodTypeId;
 
