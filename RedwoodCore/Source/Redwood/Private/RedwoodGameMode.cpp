@@ -19,6 +19,9 @@ void REDWOOD_GAME_MODE_TYPE::InitGame(
 ) {
   Super::InitGame(MapName, Options, ErrorMessage);
 
+  GameModeComponent->InitVariables(
+    DatabasePersistenceInterval, PostBeginPlayDelay
+  );
   GameModeComponent->InitGame(MapName, Options, ErrorMessage);
 }
 

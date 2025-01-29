@@ -74,13 +74,17 @@ public:
   UFUNCTION()
   void FlushPersistence();
 
-  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
-  float DatabasePersistenceInterval = 0.5f;
-
-  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
-  float PostBeginPlayDelay = 0.2f;
+  void InitVariables(
+    float InDatabasePersistenceInterval, float InPostBeginPlayDelay
+  ) {
+    DatabasePersistenceInterval = InDatabasePersistenceInterval;
+    PostBeginPlayDelay = InPostBeginPlayDelay;
+  };
 
 private:
+  float DatabasePersistenceInterval;
+  float PostBeginPlayDelay;
+
   TSharedPtr<FSocketIONative> Sidecar;
 
   FTimerHandle FlushPersistentDataTimerHandle;

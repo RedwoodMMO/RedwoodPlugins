@@ -39,6 +39,12 @@ public:
   );
   //~End of AGameModeBase interface
 
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  float DatabasePersistenceInterval = 0.5f;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  float PostBeginPlayDelay = 0.2f;
+
 private:
   UPROPERTY()
   URedwoodGameModeComponent *GameModeComponent;
