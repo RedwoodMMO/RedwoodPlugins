@@ -31,7 +31,7 @@ public:
   bool bStoreDataInActor = true;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
-  bool bPersistChanges = true;
+  bool bPersistChanges = false;
 
   // You can specify a unique identifier if you'd like, but
   // Redwood will generate a random one for you during BeginPlay
