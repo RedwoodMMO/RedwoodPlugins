@@ -60,20 +60,40 @@ void URedwoodClientInterface::InitializeDirectorConnection(
 
   FString Uri = *URedwoodSettings::GetDirectorUri();
 
-  Director->OnDisconnectedCallback =
-    [Uri, this](const ESIOConnectionCloseReason Reason) {
-      if (Reason == ESIOConnectionCloseReason::CLOSE_REASON_DROP) {
-        UE_LOG(
-          LogRedwood, Error, TEXT("Lost connection to Director at %s"), *Uri
-        );
-        OnDirectorConnectionLost.Broadcast();
-      }
-    };
+  Director->OnReconnectionCallback = [Uri, this](
+                                       unsigned ReconnectionAttempt,
+                                       unsigned AttemptDelay
+                                     ) {
+    if (!bSentDirectorConnected && !bSentInitialDirectorConnectionFailureLog) {
+      bSentInitialDirectorConnectionFailureLog = true;
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "Unable to establish initial connection to Director at %s; will continue to try to establish connection. See SocketIO plugin logs for retry attempts."
+        ),
+        *Uri
+      );
+    } else if (!bDirectorDisconnected) {
+      bDirectorDisconnected = true;
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "Lost connection to Director at %s; will continue to try to reestablish connection. See SocketIO plugin logs for retry attempts."
+        ),
+        *Uri
+      );
+      OnDirectorConnectionLost.Broadcast();
+    }
+  };
 
   Director->OnConnectedCallback =
     [Uri,
      OnDirectorConnected,
      this](const FString &InSocketId, const FString &InSessionId) {
+      bDirectorDisconnected = false;
+
       if (!bSentDirectorConnected) {
         bSentDirectorConnected = true;
         FRedwoodSocketConnected Details;
@@ -521,18 +541,29 @@ void URedwoodClientInterface::InitiateRealmHandshake(
       }
 
       Realm = ISocketIOClientModule::Get().NewValidNativePointer();
-      Realm->MaxReconnectionAttempts = 0; // don't reattempt a realm connection
       bSentRealmConnected = false;
 
-      Realm->OnDisconnectedCallback = [InRealm, this](
-                                        const ESIOConnectionCloseReason Reason
+      Realm->OnReconnectionCallback = [InRealm, this](
+                                        unsigned ReconnectionAttempt,
+                                        unsigned AttemptDelay
                                       ) {
-        if (Reason == ESIOConnectionCloseReason::CLOSE_REASON_DROP) {
+        if (!bSentRealmConnected && !bSentInitialRealmConnectionFailureLog) {
+          bSentInitialRealmConnectionFailureLog = true;
           UE_LOG(
             LogRedwood,
             Error,
             TEXT(
-              "Lost connection to Realm at %s; you will need to reinitialize the connection to restart the handshake."
+              "Unable to establish initial connection to Realm at %s; will continue to try to establish connection. See SocketIO plugin logs for retry attempts."
+            ),
+            *InRealm.Uri
+          );
+        } else if (!bRealmDisconnected) {
+          bRealmDisconnected = true;
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "Lost connection to Realm at %s; will continue to try to reestablish connection. See SocketIO plugin logs for retry attempts."
             ),
             *InRealm.Uri
           );
@@ -544,12 +575,22 @@ void URedwoodClientInterface::InitiateRealmHandshake(
                                      const FString &InSocketId,
                                      const FString &InSessionId
                                    ) {
+        bRealmDisconnected = false;
+
         if (!bSentRealmConnected) {
           UE_LOG(
             LogRedwood, Log, TEXT("Connected to Realm at %s"), *InRealm.Uri
           );
           bSentRealmConnected = true;
           FinalizeRealmHandshake(Token, OnRealmConnected);
+        } else {
+          UE_LOG(
+            LogRedwood,
+            Log,
+            TEXT("Reestablished connection to Realm at %s"),
+            *InRealm.Uri
+          );
+          OnRealmConnectionReestablished.Broadcast();
         }
       };
 
