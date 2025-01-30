@@ -7,11 +7,11 @@
 #include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodMapAsset.h"
-#include "RedwoodPersistenceComponent.h"
-#include "RedwoodPersistentItemAsset.h"
 #include "RedwoodPlayerState.h"
 #include "RedwoodSettings.h"
-#include "Types/RedwoodTypesPersistence.h"
+#include "RedwoodSyncComponent.h"
+#include "RedwoodSyncItemAsset.h"
+#include "Types/RedwoodTypesSync.h"
 
 #if WITH_EDITOR
   #include "RedwoodEditorSettings.h"
@@ -124,50 +124,42 @@ void URedwoodServerGameSubsystem::Initialize(
       Maps.Num()
     );
 
-    FPrimaryAssetType PersistentItemAssetType =
-      URedwoodPersistentItemAsset::StaticClass()->GetFName();
-    TSharedPtr<FStreamableHandle> HandlePersistentItems =
-      AssetManager.LoadPrimaryAssetsWithType(PersistentItemAssetType);
+    FPrimaryAssetType SyncItemAssetType =
+      URedwoodSyncItemAsset::StaticClass()->GetFName();
+    TSharedPtr<FStreamableHandle> HandleSyncItems =
+      AssetManager.LoadPrimaryAssetsWithType(SyncItemAssetType);
 
-    if (HandlePersistentItems.IsValid()) {
-      UE_LOG(
-        LogRedwood, Log, TEXT("Waiting for RedwoodPersistentItemAsset to load")
-      );
+    if (HandleSyncItems.IsValid()) {
+      UE_LOG(LogRedwood, Log, TEXT("Waiting for RedwoodSyncItemAsset to load"));
 
-      HandlePersistentItems->WaitUntilComplete();
-      TArray<UObject *> PersistentItemAssets;
-      AssetManager.GetPrimaryAssetObjectList(
-        PersistentItemAssetType, PersistentItemAssets
-      );
+      HandleSyncItems->WaitUntilComplete();
+      TArray<UObject *> SyncItemAssets;
+      AssetManager.GetPrimaryAssetObjectList(SyncItemAssetType, SyncItemAssets);
 
-      for (UObject *Object : PersistentItemAssets) {
-        URedwoodPersistentItemAsset *RedwoodPersistentItem =
-          Cast<URedwoodPersistentItemAsset>(Object);
-        if (ensure(RedwoodPersistentItem)) {
-          if (!RedwoodPersistentItem->RedwoodTypeId.IsEmpty()) {
-            PersistentItemTypesByTypeId.Add(
-              RedwoodPersistentItem->RedwoodTypeId, RedwoodPersistentItem
+      for (UObject *Object : SyncItemAssets) {
+        URedwoodSyncItemAsset *RedwoodSyncItem =
+          Cast<URedwoodSyncItemAsset>(Object);
+        if (ensure(RedwoodSyncItem)) {
+          if (!RedwoodSyncItem->RedwoodTypeId.IsEmpty()) {
+            SyncItemTypesByTypeId.Add(
+              RedwoodSyncItem->RedwoodTypeId, RedwoodSyncItem
             );
-            PersistentItemTypesByPrimaryAssetId.Add(
-              RedwoodPersistentItem->GetPrimaryAssetId().ToString(),
-              RedwoodPersistentItem
+            SyncItemTypesByPrimaryAssetId.Add(
+              RedwoodSyncItem->GetPrimaryAssetId().ToString(), RedwoodSyncItem
             );
           }
         }
       }
 
       UE_LOG(
-        LogRedwood,
-        Log,
-        TEXT("Loaded %d PersistentItem assets"),
-        PersistentItemAssets.Num()
+        LogRedwood, Log, TEXT("Loaded %d SyncItem assets"), SyncItemAssets.Num()
       );
     } else {
       UE_LOG(
         LogRedwood,
         Warning,
         TEXT(
-          "No RedwoodPersistentItemAsset asset type in the Asset Manager; continuing without loading"
+          "No RedwoodSyncItemAsset asset type in the Asset Manager; continuing without loading"
         )
       );
     }
@@ -239,6 +231,7 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         UE_LOG(LogRedwood, Log, TEXT("LoadMap message is valid object"));
         TSharedPtr<FJsonObject> ActualObject = *Object;
         RequestId = ActualObject->GetStringField(TEXT("requestId"));
+        InstanceId = ActualObject->GetStringField(TEXT("instanceId"));
         Name = ActualObject->GetStringField(TEXT("name"));
         MapId = ActualObject->GetStringField(TEXT("mapId"));
         ModeId = ActualObject->GetStringField(TEXT("modeId"));
@@ -335,6 +328,93 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
       }
 
       Sidecar->Emit(TEXT("realm:servers:session:load-map:response"), Response);
+    }
+  );
+
+  Sidecar->OnEvent(
+    TEXT("realm:servers:session:sync:new"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (Message->TryGetObject(Object) && Object) {
+        TSharedPtr<FJsonObject> ActualObject = *Object;
+        FRedwoodSyncItem SyncItem =
+          URedwoodCommonGameSubsystem::ParseSyncItem(ActualObject);
+        UpdateSyncItem(SyncItem);
+      }
+    }
+  );
+
+  Sidecar->OnEvent(
+    TEXT("realm:servers:session:sync:state"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (Message->TryGetObject(Object) && Object) {
+        TSharedPtr<FJsonObject> ActualObject = *Object;
+        FString ItemId = ActualObject->GetStringField(TEXT("id"));
+
+        URedwoodSyncComponent *SyncItemComponent;
+
+        SyncItemComponent = SyncItemComponentsById.FindRef(ItemId);
+
+        if (IsValid(SyncItemComponent)) {
+          FRedwoodSyncItemState SyncItemState =
+            URedwoodCommonGameSubsystem::ParseSyncItemState(ActualObject);
+
+          UpdateSyncItemState(SyncItemComponent, SyncItemState);
+        }
+      }
+    }
+  );
+
+  Sidecar->OnEvent(
+    TEXT("realm:servers:session:sync:movement"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (Message->TryGetObject(Object) && Object) {
+        TSharedPtr<FJsonObject> ActualObject = *Object;
+        FString ItemId = ActualObject->GetStringField(TEXT("id"));
+
+        URedwoodSyncComponent *SyncItemComponent;
+
+        SyncItemComponent = SyncItemComponentsById.FindRef(ItemId);
+
+        if (IsValid(SyncItemComponent)) {
+          TSharedPtr<FJsonObject> MovementObj =
+            ActualObject->GetObjectField(TEXT("movement"));
+          FRedwoodSyncItemMovement SyncItemMovement =
+            URedwoodCommonGameSubsystem::ParseSyncItemMovement(MovementObj);
+
+          UpdateSyncItemMovement(SyncItemComponent, SyncItemMovement);
+        }
+      }
+    }
+  );
+
+  Sidecar->OnEvent(
+    TEXT("realm:servers:session:sync:data"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (Message->TryGetObject(Object) && Object) {
+        TSharedPtr<FJsonObject> ActualObject = *Object;
+        FString ItemId = ActualObject->GetStringField(TEXT("id"));
+
+        URedwoodSyncComponent *SyncItemComponent;
+
+        SyncItemComponent = SyncItemComponentsById.FindRef(ItemId);
+
+        if (IsValid(SyncItemComponent)) {
+          TSharedPtr<FJsonObject> DataObj =
+            ActualObject->GetObjectField(TEXT("data"));
+          USIOJsonObject *SyncItemData =
+            URedwoodCommonGameSubsystem::ParseSyncItemData(DataObj);
+
+          UpdateSyncItemData(SyncItemComponent, SyncItemData);
+        }
+      }
     }
   );
 
@@ -487,8 +567,39 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
-  Payload->SetStringField(TEXT("playerId"), PlayerId);
-  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  TArray<TSharedPtr<FJsonValue>> PlayersArray;
+  TSharedPtr<FJsonObject> PlayerObject = MakeShareable(new FJsonObject);
+
+  PlayerObject->SetStringField(TEXT("characterId"), CharacterId);
+
+  TSharedPtr<FJsonObject> TransformOffset = MakeShareable(new FJsonObject);
+  TSharedPtr<FJsonObject> VectorOffset = MakeShareable(new FJsonObject);
+  VectorOffset->SetNumberField(TEXT("x"), 0);
+  VectorOffset->SetNumberField(TEXT("y"), 0);
+  VectorOffset->SetNumberField(TEXT("z"), 0);
+  TransformOffset->SetObjectField(TEXT("location"), VectorOffset);
+  TransformOffset->SetObjectField(TEXT("rotation"), VectorOffset);
+  TSharedPtr<FJsonObject> ControlRotation = MakeShareable(new FJsonObject);
+  ControlRotation->SetNumberField(
+    TEXT("x"), PlayerController->GetControlRotation().Roll
+  );
+  ControlRotation->SetNumberField(
+    TEXT("y"), PlayerController->GetControlRotation().Pitch
+  );
+  ControlRotation->SetNumberField(
+    TEXT("z"), PlayerController->GetControlRotation().Yaw
+  );
+  TransformOffset->SetObjectField(TEXT("controlRotation"), ControlRotation);
+  PlayerObject->SetObjectField(TEXT("transformOffset"), TransformOffset);
+
+  PlayersArray.Add(MakeShareable(new FJsonValueObject(PlayerObject)));
+
+  Payload->SetArrayField(TEXT("players"), PlayersArray);
+
+  TArray<TSharedPtr<FJsonValue>> ItemsArray;
+
+  Payload->SetArrayField(TEXT("items"), ItemsArray);
+
   Payload->SetStringField(TEXT("priorZoneName"), ZoneName);
   Payload->SetStringField(TEXT("zoneName"), InZoneName);
 
@@ -517,17 +628,11 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   Rotation->SetNumberField(TEXT("z"), RotationEuler.Z);
   Transform->SetObjectField(TEXT("rotation"), Rotation);
 
-  TSharedPtr<FJsonObject> ControlRotation = MakeShareable(new FJsonObject);
-  ControlRotation->SetNumberField(
-    TEXT("x"), PlayerController->GetControlRotation().Roll
-  );
-  ControlRotation->SetNumberField(
-    TEXT("y"), PlayerController->GetControlRotation().Pitch
-  );
-  ControlRotation->SetNumberField(
-    TEXT("z"), PlayerController->GetControlRotation().Yaw
-  );
-  Transform->SetObjectField(TEXT("controlRotation"), ControlRotation);
+  TSharedPtr<FJsonObject> Scale = MakeShareable(new FJsonObject);
+  Scale->SetNumberField(TEXT("x"), 0);
+  Scale->SetNumberField(TEXT("y"), 0);
+  Scale->SetNumberField(TEXT("z"), 0);
+  Transform->SetObjectField(TEXT("scale"), Scale);
 
   Payload->SetObjectField(TEXT("transform"), Transform);
 
@@ -595,12 +700,33 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
-  Payload->SetStringField(TEXT("playerId"), PlayerId);
-  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  TArray<TSharedPtr<FJsonValue>> PlayersArray;
+  TSharedPtr<FJsonObject> PlayerObject = MakeShareable(new FJsonObject);
+
+  PlayerObject->SetStringField(TEXT("characterId"), CharacterId);
+
+  TSharedPtr<FJsonObject> TransformOffset = MakeShareable(new FJsonObject);
+  TSharedPtr<FJsonObject> VectorOffset = MakeShareable(new FJsonObject);
+  VectorOffset->SetNumberField(TEXT("x"), 0);
+  VectorOffset->SetNumberField(TEXT("y"), 0);
+  VectorOffset->SetNumberField(TEXT("z"), 0);
+  TransformOffset->SetObjectField(TEXT("location"), VectorOffset);
+  TransformOffset->SetObjectField(TEXT("rotation"), VectorOffset);
+  TransformOffset->SetObjectField(TEXT("controlRotation"), VectorOffset);
+  PlayerObject->SetObjectField(TEXT("transformOffset"), TransformOffset);
+
+  PlayersArray.Add(MakeShareable(new FJsonValueObject(PlayerObject)));
+
+  Payload->SetArrayField(TEXT("players"), PlayersArray);
+
+  TArray<TSharedPtr<FJsonValue>> ItemsArray;
+
+  Payload->SetArrayField(TEXT("items"), ItemsArray);
+
   Payload->SetStringField(TEXT("priorZoneName"), ZoneName);
   Payload->SetStringField(TEXT("zoneName"), InZoneName);
-
-  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
 
   if (!OptionalProxyId.IsEmpty()) {
     Payload->SetStringField(TEXT("proxyId"), OptionalProxyId);
@@ -650,6 +776,116 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
       }
     }
   );
+}
+
+void URedwoodServerGameSubsystem::FlushSync() {
+  if (Sidecar == nullptr || !Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Sidecar is not connected; cannot flush sync data")
+    );
+    return;
+  }
+
+  double CurrentTime = FPlatformTime::Seconds();
+
+  TArray<TSharedPtr<FJsonValue>> ItemsArray;
+  for (auto &Pair : SyncItemComponentsById) {
+    URedwoodSyncComponent *SyncItemComponent = Pair.Value;
+
+    if (SyncItemComponent->ZoneName != ZoneName && SyncItemComponent->RedwoodId != TEXT("proxy")) {
+      // don't flush items that this server isn't responsible for controlling at all
+      continue;
+    }
+
+    if (!IsValid(SyncItemComponent) || !IsValid(SyncItemComponent->GetOwner())) {
+      // item was destroyed
+      TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject);
+      ItemObject->SetStringField(TEXT("id"), SyncItemComponent->RedwoodId);
+      ItemObject->SetBoolField(TEXT("destroyed"), true);
+      ItemsArray.Add(MakeShareable(new FJsonValueObject(ItemObject)));
+
+      SyncItemComponentsById.Remove(Pair.Key);
+
+      continue;
+    }
+
+    bool bSyncMovement = false;
+    bool bSyncData = SyncItemComponent->IsDataDirty(false);
+
+    if (SyncItemComponent->IsMovementDirty(false) || SyncItemComponent->MovementSyncIntervalSeconds == 0) {
+      bSyncMovement = true;
+    } else {
+      if (SyncItemComponent->MovementSyncIntervalSeconds > 0) {
+        if (CurrentTime - SyncItemComponent->GetLastMovementSyncTime() <= SyncItemComponent->MovementSyncIntervalSeconds) {
+          bSyncMovement = true;
+        }
+      }
+    }
+
+    if (bSyncMovement || bSyncData) {
+      TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject);
+      ItemObject->SetStringField(TEXT("id"), SyncItemComponent->RedwoodId);
+
+      if (bSyncMovement) {
+        TSharedPtr<FJsonObject> MovementObject = MakeShareable(new FJsonObject);
+
+        FTransform Transform = SyncItemComponent->GetOwner()->GetTransform();
+        FVector Location = Transform.GetLocation();
+        FVector Rotation = Transform.GetRotation().Euler();
+        FVector Scale = Transform.GetScale3D();
+
+        TSharedPtr<FJsonObject> TransformObject =
+          MakeShareable(new FJsonObject());
+        TSharedPtr<FJsonObject> LocationObject =
+          MakeShareable(new FJsonObject());
+        TSharedPtr<FJsonObject> RotationObject =
+          MakeShareable(new FJsonObject());
+        TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
+        LocationObject->SetNumberField(TEXT("x"), Location.X);
+        LocationObject->SetNumberField(TEXT("y"), Location.Y);
+        LocationObject->SetNumberField(TEXT("z"), Location.Z);
+        RotationObject->SetNumberField(TEXT("x"), Rotation.X);
+        RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
+        RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
+        ScaleObject->SetNumberField(TEXT("x"), Scale.X);
+        ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
+        ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
+        TransformObject->SetObjectField(TEXT("location"), LocationObject);
+        TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
+        TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
+        MovementObject->SetObjectField(TEXT("transform"), TransformObject);
+
+        ItemObject->SetObjectField(TEXT("movement"), MovementObject);
+
+        SyncItemComponent->SetLastMovementSyncTime(CurrentTime);
+      }
+
+      if (bSyncData) {
+        USIOJsonObject *DataObject =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            SyncItemComponent->bStoreDataInActor
+              ? (UObject *)SyncItemComponent->GetOwner()
+              : (UObject *)SyncItemComponent,
+            SyncItemComponent->DataVariableName
+          );
+        ItemObject->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+      }
+
+      ItemsArray.Add(MakeShareable(new FJsonValueObject(ItemObject)));
+
+      SyncItemComponent->ClearDirtyFlags(false);
+    }
+  }
+
+  if (ItemsArray.Num() > 0) {
+    TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+    Payload->SetArrayField(TEXT("items"), ItemsArray);
+
+    Sidecar->Emit(TEXT("realm:servers:session:sync:batch"), Payload);
+  }
 }
 
 void URedwoodServerGameSubsystem::FlushPersistence() {
@@ -1054,132 +1290,150 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
     return;
   }
 
-  URedwoodPersistenceComponent *GameStatePersistence =
-    GameState->GetComponentByClass<URedwoodPersistenceComponent>();
+  URedwoodSyncComponent *GameStateSync =
+    GameState->GetComponentByClass<URedwoodSyncComponent>();
 
-  if (InitialLoad.Data && GameStatePersistence) {
-    URedwoodPersistentItemAsset *ProxyItem =
-      PersistentItemTypesByTypeId.FindRef(TEXT("proxy"));
-    if (ProxyItem) {
-      URedwoodCommonGameSubsystem::DeserializeBackendData(
-        GameStatePersistence,
-        InitialLoad.Data,
-        ProxyItem->DataVariableName,
-        ProxyItem->LatestSchemaVersion
-      );
-    } else {
-      UE_LOG(
-        LogRedwood,
-        Warning,
-        TEXT("No 'proxy' persistent item type found, can't load world data")
-      );
-    }
+  if (InitialLoad.Data && GameStateSync) {
+    URedwoodCommonGameSubsystem::DeserializeBackendData(
+      GameStateSync->bStoreDataInActor ? (UObject *)GameState
+                                       : (UObject *)GameStateSync,
+      InitialLoad.Data,
+      GameStateSync->DataVariableName,
+      GameStateSync->LatestDataSchemaVersion
+    );
   }
 
-  for (FRedwoodPersistentItem &Item : InitialLoad.PersistentItems) {
-    UpdatePersistentItem(Item);
+  for (FRedwoodSyncItem &Item : InitialLoad.Items) {
+    UpdateSyncItem(Item);
   }
 
+  bInitialDataLoaded = true;
   InitialDataLoadCompleteDelegate.ExecuteIfBound();
+  SendNewSyncForPersistentItemsToSidecar();
 }
 
-void URedwoodServerGameSubsystem::UpdatePersistentItem(
-  FRedwoodPersistentItem &Item
-) {
+void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
   UWorld *World = GetWorld();
   if (!IsValid(World)) {
-    UE_LOG(
-      LogRedwood, Error, TEXT("Can't UpdatePersistentItem: World is not valid")
-    );
+    UE_LOG(LogRedwood, Error, TEXT("Can't UpdateSyncItem: World is not valid"));
     return;
   }
 
-  URedwoodPersistenceComponent *PersistentItem;
+  URedwoodSyncComponent *SyncItemComponent;
 
-  PersistentItem = PersistentItems.FindRef(Item.Id);
+  SyncItemComponent = SyncItemComponentsById.FindRef(Item.State.Id);
 
-  URedwoodPersistentItemAsset *ItemType =
-    PersistentItemTypesByTypeId.FindRef(Item.TypeId);
-
-  if (ItemType == nullptr) {
-    UE_LOG(
-      LogRedwood,
-      Error,
-      TEXT("Can't spawn PersistentItem of type %s because it's not registered"),
-      *Item.TypeId
-    );
-    return;
-  }
-
-  if (PersistentItem == nullptr) {
+  URedwoodSyncItemAsset *ItemType = nullptr;
+  AActor *Actor = nullptr;
+  if (SyncItemComponent == nullptr) {
     // spawn it
+    ItemType = SyncItemTypesByTypeId.FindRef(Item.State.TypeId);
+
+    if (ItemType == nullptr) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "Can't spawn SyncItemComponent of type %s because it's not registered"
+        ),
+        *Item.State.TypeId
+      );
+      return;
+    }
+
     TSoftClassPtr<AActor> ActorClass = ItemType->ActorClass;
     if (ActorClass.IsNull()) {
       UE_LOG(
         LogRedwood,
         Error,
         TEXT(
-          "Can't spawn PersistentItem of type %s because it has no ActorClass"
+          "Can't spawn SyncItemComponent of type %s because it has no ActorClass"
         ),
-        *Item.TypeId
+        *Item.State.TypeId
       );
       return;
     }
 
-    AActor *Actor = World->SpawnActor<AActor>(ActorClass.Get());
+    Actor = World->SpawnActor<AActor>(ActorClass.Get());
 
     if (Actor == nullptr) {
       UE_LOG(
         LogRedwood,
         Error,
-        TEXT("Failed to spawn PersistentItem of type %s"),
-        *Item.TypeId
+        TEXT("Failed to spawn SyncItemComponent of type %s"),
+        *Item.State.TypeId
       );
       return;
     }
 
-    PersistentItem = Actor->GetComponentByClass<URedwoodPersistenceComponent>();
+    SyncItemComponent = Actor->GetComponentByClass<URedwoodSyncComponent>();
 
-    if (PersistentItem == nullptr) {
+    if (SyncItemComponent == nullptr) {
       UE_LOG(
         LogRedwood,
         Error,
         TEXT(
-          "Spawned actor for PersistentItem of type %s, but the actor has no RedwoodPersistenceComponent"
+          "Spawned actor for SyncItemComponent of type %s, but the actor has no RedwoodSyncComponent"
         ),
-        *Item.TypeId
+        *Item.State.TypeId
       );
       return;
     }
 
-    PersistentItem->RedwoodId = Item.Id;
-    PersistentItem->SkipInitialSave();
+    SyncItemComponent->RedwoodId = Item.State.Id;
+    SyncItemComponent->SkipInitialSave();
 
-    PersistentItems.Add(Item.Id, PersistentItem);
+    SyncItemComponentsById.Add(Item.State.Id, SyncItemComponent);
   }
 
-  AActor *Actor = PersistentItem->GetOwner();
-  USceneComponent *ActorRootComponent = Actor->GetRootComponent();
+  UpdateSyncItemState(SyncItemComponent, Item.State);
+  UpdateSyncItemData(SyncItemComponent, Item.Data);
+  UpdateSyncItemMovement(SyncItemComponent, Item.Movement);
+}
 
-  if (ActorRootComponent == nullptr) {
-    UE_LOG(
-      LogRedwood,
-      Error,
-      TEXT("PersistentItem %s has no root component; can't update transform"),
-      *Item.Id
-    );
-    return;
+void URedwoodServerGameSubsystem::UpdateSyncItemState(
+  URedwoodSyncComponent *SyncItemComponent, FRedwoodSyncItemState &ItemState
+) {
+  if (IsValid(SyncItemComponent)) {
+    SyncItemComponent->ZoneName = ItemState.ZoneName;
   }
+}
 
-  ActorRootComponent->SetWorldTransform(Item.Transform);
+void URedwoodServerGameSubsystem::UpdateSyncItemMovement(
+  URedwoodSyncComponent *SyncItemComponent,
+  FRedwoodSyncItemMovement &ItemMovement
+) {
+  if (IsValid(SyncItemComponent)) {
+    AActor *Actor = SyncItemComponent->GetOwner();
+    USceneComponent *ActorRootComponent = Actor->GetRootComponent();
 
-  if (Item.Data) {
+    if (ActorRootComponent == nullptr) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "SyncItemComponent %s has no root component; can't update transform"
+        ),
+        *SyncItemComponent->RedwoodId
+      );
+      return;
+    }
+
+    ActorRootComponent->SetWorldTransform(ItemMovement.Transform);
+  }
+}
+
+void URedwoodServerGameSubsystem::UpdateSyncItemData(
+  URedwoodSyncComponent *SyncItemComponent, USIOJsonObject *InData
+) {
+  if (IsValid(SyncItemComponent) && IsValid(Data)) {
+    AActor *Actor = SyncItemComponent->GetOwner();
     URedwoodCommonGameSubsystem::DeserializeBackendData(
-      PersistentItem->bStoreDataInActor ? (UObject *)Actor
-                                        : (UObject *)PersistentItem,
-      Item.Data,
-      ItemType->DataVariableName,
-      ItemType->LatestSchemaVersion
+      SyncItemComponent->bStoreDataInActor ? (UObject *)Actor
+                                           : (UObject *)SyncItemComponent,
+      InData,
+      SyncItemComponent->DataVariableName,
+      SyncItemComponent->LatestDataSchemaVersion
     );
   }
 }
@@ -1203,82 +1457,51 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
     return;
   }
 
-  URedwoodPersistenceComponent *GameStatePersistence =
-    GameState->GetComponentByClass<URedwoodPersistenceComponent>();
+  URedwoodSyncComponent *GameStatePersistence =
+    GameState->GetComponentByClass<URedwoodSyncComponent>();
 
   if (GameStatePersistence) {
-    URedwoodPersistentItemAsset *ProxyItem =
-      PersistentItemTypesByTypeId.FindRef(TEXT("proxy"));
-    if (ProxyItem) {
-      if (
+    if (
         !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
-        GameStatePersistence->IsDataDirty() ||
+        GameStatePersistence->IsDataDirty(true) ||
         GameStatePersistence->ShouldDoInitialSave()
       ) {
-        // always add the data if we're not using the backend
+      // always add the data if we're not using the backend
 
-        if (GameStatePersistence->IsDataDirty()) {
-          bZoneDataDirty = true;
-          GameStatePersistence->ClearDirtyFlags();
-        }
-
-        if (GameStatePersistence->ShouldDoInitialSave()) {
-          bZoneDataDirty = true;
-          GameStatePersistence->SkipInitialSave();
-        }
-
-        USIOJsonObject *DataObject =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            GameStatePersistence, ProxyItem->DataVariableName
-          );
-        ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+      if (GameStatePersistence->IsDataDirty(true)) {
+        bZoneDataDirty = true;
+        GameStatePersistence->ClearDirtyFlags(true);
       }
-    } else {
-      UE_LOG(
-        LogRedwood,
-        Warning,
-        TEXT("No 'proxy' persistent item type found, can't save world data")
-      );
+
+      if (GameStatePersistence->ShouldDoInitialSave()) {
+        bZoneDataDirty = true;
+        GameStatePersistence->SkipInitialSave();
+      }
+
+      USIOJsonObject *DataObject =
+        URedwoodCommonGameSubsystem::SerializeBackendData(
+          GameStatePersistence->bStoreDataInActor
+            ? (UObject *)GameState
+            : (UObject *)GameStatePersistence,
+          GameStatePersistence->DataVariableName
+        );
+      ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
     }
   }
 
-  // get data from PersistentItems
+  // get data from SyncItemComponentsById
   TArray<TSharedPtr<FJsonValue>> PersistentItemsArray;
-  for (auto &Pair : PersistentItems) {
-    URedwoodPersistenceComponent *PersistentItem = Pair.Value;
+  for (auto &Pair : SyncItemComponentsById) {
+    URedwoodSyncComponent *SyncItemComponent = Pair.Value;
 
-    if (PersistentItem->RedwoodId == TEXT("proxy")) {
+    if (SyncItemComponent->RedwoodId == TEXT("proxy")) {
       // don't save the proxy/world data here
       continue;
     }
 
-    FPrimaryAssetId AssetId = PersistentItem->PersistentItem;
-    if (!AssetId.IsValid()) {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT("PersistentItem %s has no PrimaryAssetId"),
-        *PersistentItem->GetName()
-      );
-      continue;
-    }
-
-    // load the data from the PersistentItemAsset from the asset manager
-    URedwoodPersistentItemAsset *PersistenceItemType =
-      PersistentItemTypesByPrimaryAssetId.FindRef(AssetId.ToString());
-
-    if (PersistenceItemType == nullptr) {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT("Couldn't find PersistentItem %s PrimaryAssetId in map"),
-        *PersistentItem->GetName()
-      );
-      continue;
-    }
-
-    bool bUpdateItem = PersistentItem->IsTransformDirty() ||
-      PersistentItem->IsDataDirty() || PersistentItem->ShouldDoInitialSave();
+    bool bUpdateItem = SyncItemComponent->IsMovementDirty(true) ||
+      SyncItemComponent->IsDataDirty(true) ||
+      SyncItemComponent->ShouldDoInitialSave();
 
     if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) || bUpdateItem) {
       // always add the data if we're not using the backend
@@ -1289,9 +1512,9 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
 
       TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject());
 
-      ItemObject->SetStringField(TEXT("id"), PersistentItem->RedwoodId);
+      ItemObject->SetStringField(TEXT("id"), SyncItemComponent->RedwoodId);
       ItemObject->SetStringField(
-        TEXT("typeId"), PersistenceItemType->RedwoodTypeId
+        TEXT("typeId"), SyncItemComponent->RedwoodTypeId
       );
 
       // This flag should be redundant as we already checked the bools above
@@ -1300,12 +1523,12 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
 
       if (
         !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
-        PersistentItem->IsTransformDirty() ||
-        PersistentItem->ShouldDoInitialSave()
+        SyncItemComponent->IsMovementDirty(true) ||
+        SyncItemComponent->ShouldDoInitialSave()
       ) {
         bItemShouldBeSaved = true;
 
-        FTransform Transform = PersistentItem->GetOwner()->GetTransform();
+        FTransform Transform = SyncItemComponent->GetOwner()->GetTransform();
         FVector Location = Transform.GetLocation();
         FVector Rotation = Transform.GetRotation().Euler();
         FVector Scale = Transform.GetScale3D();
@@ -1334,26 +1557,26 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
 
       if (
         !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
-        PersistentItem->IsDataDirty() ||
-        PersistentItem->ShouldDoInitialSave()
+        SyncItemComponent->IsDataDirty(true) ||
+        SyncItemComponent->ShouldDoInitialSave()
       ) {
         bItemShouldBeSaved = true;
 
         USIOJsonObject *DataObject =
           URedwoodCommonGameSubsystem::SerializeBackendData(
-            PersistentItem->bStoreDataInActor
-              ? (UObject *)PersistentItem->GetOwner()
-              : (UObject *)PersistentItem,
-            PersistenceItemType->DataVariableName
+            SyncItemComponent->bStoreDataInActor
+              ? (UObject *)SyncItemComponent->GetOwner()
+              : (UObject *)SyncItemComponent,
+            SyncItemComponent->DataVariableName
           );
         ItemObject->SetObjectField(TEXT("data"), DataObject->GetRootObject());
       }
 
-      if (PersistentItem->ShouldDoInitialSave()) {
-        PersistentItem->SkipInitialSave();
+      if (SyncItemComponent->ShouldDoInitialSave()) {
+        SyncItemComponent->SkipInitialSave();
       }
 
-      PersistentItem->ClearDirtyFlags();
+      SyncItemComponent->ClearDirtyFlags(true);
 
       if (bItemShouldBeSaved) {
         TSharedPtr<FJsonValueObject> Value =
@@ -1405,35 +1628,124 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
   }
 }
 
-void URedwoodServerGameSubsystem::RegisterPersistenceComponent(
-  URedwoodPersistenceComponent *InComponent
+void URedwoodServerGameSubsystem::RegisterSyncComponent(
+  URedwoodSyncComponent *InComponent, bool bDelayNewSync
 ) {
   if (InComponent == nullptr) {
     UE_LOG(
-      LogRedwood,
-      Error,
-      TEXT("Can't register null URedwoodPersistenceComponent")
+      LogRedwood, Error, TEXT("Can't register null URedwoodSyncComponent")
     );
     return;
   }
 
-  if (PersistentItems.Find(InComponent->RedwoodId) != nullptr) {
+  if (SyncItemComponentsById.FindRef(InComponent->RedwoodId) != nullptr) {
     return;
   }
 
+  // this should be a newly spawned item that didn't get synced in externally,
+  // register it as a new sync item
+
   if (InComponent->RedwoodId.IsEmpty()) {
+    InComponent->RedwoodId = FGuid::NewGuid().ToString();
+  }
+
+  InComponent->ZoneName = ZoneName;
+
+  SyncItemComponentsById.Add(InComponent->RedwoodId, InComponent);
+
+  UClass *ActorClass = InComponent->GetOwner()->GetClass();
+  for (auto &Pair : SyncItemTypesByTypeId) {
+    URedwoodSyncItemAsset *SyncItemType = Pair.Value;
+    if (SyncItemType->ActorClass.Get() == ActorClass) {
+      InComponent->RedwoodTypeId = Pair.Key;
+      break;
+    }
+  }
+
+  if (InComponent->RedwoodTypeId.IsEmpty()) {
     UE_LOG(
       LogRedwood,
       Error,
       TEXT(
-        "Can't register URedwoodPersistenceComponent '%s' with empty RedwoodId"
+        "Failed to find a SyncItemAsset with an ActorClass of %s for SyncItemComponent %s"
       ),
-      *InComponent->GetName()
+      *ActorClass->GetName(),
+      *InComponent->RedwoodId
     );
-    return;
   }
 
-  PersistentItems.Add(InComponent->RedwoodId, InComponent);
+  if (!bDelayNewSync || bInitialDataLoaded) {
+    SendNewSyncItemToSidecar(InComponent);
+  } else {
+    DelayedNewSyncItems.Add(InComponent);
+  }
+}
+
+void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
+  URedwoodSyncComponent *InComponent
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) && Sidecar.IsValid() && Sidecar->bIsConnected) {
+    TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+    TSharedPtr<FJsonObject> StateObject = MakeShareable(new FJsonObject);
+    StateObject->SetStringField(TEXT("id"), InComponent->RedwoodId);
+    StateObject->SetStringField(TEXT("typeId"), InComponent->RedwoodTypeId);
+    StateObject->SetBoolField(TEXT("destroyed"), false);
+    StateObject->SetStringField(TEXT("zoneName"), InComponent->ZoneName);
+
+    Payload->SetObjectField(TEXT("state"), StateObject);
+
+    TSharedPtr<FJsonObject> MovementObject = MakeShareable(new FJsonObject);
+
+    FTransform Transform = InComponent->GetOwner()->GetTransform();
+    FVector Location = Transform.GetLocation();
+    FVector Rotation = Transform.GetRotation().Euler();
+    FVector Scale = Transform.GetScale3D();
+
+    TSharedPtr<FJsonObject> TransformObject = MakeShareable(new FJsonObject());
+    TSharedPtr<FJsonObject> LocationObject = MakeShareable(new FJsonObject());
+    TSharedPtr<FJsonObject> RotationObject = MakeShareable(new FJsonObject());
+    TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
+    LocationObject->SetNumberField(TEXT("x"), Location.X);
+    LocationObject->SetNumberField(TEXT("y"), Location.Y);
+    LocationObject->SetNumberField(TEXT("z"), Location.Z);
+    RotationObject->SetNumberField(TEXT("x"), Rotation.X);
+    RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
+    RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
+    ScaleObject->SetNumberField(TEXT("x"), Scale.X);
+    ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
+    ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
+    TransformObject->SetObjectField(TEXT("location"), LocationObject);
+    TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
+    TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
+    MovementObject->SetObjectField(TEXT("transform"), TransformObject);
+
+    Payload->SetObjectField(TEXT("movement"), MovementObject);
+
+    USIOJsonObject *DataObject =
+      URedwoodCommonGameSubsystem::SerializeBackendData(
+        InComponent->bStoreDataInActor ? (UObject *)InComponent->GetOwner()
+                                       : (UObject *)InComponent,
+        InComponent->DataVariableName
+      );
+    Payload->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+
+    UE_LOG(
+      LogRedwood,
+      Log,
+      TEXT("Sending new sync item %s (type %s) to backend"),
+      *InComponent->RedwoodId,
+      *InComponent->RedwoodTypeId
+    );
+
+    Sidecar->Emit(TEXT("realm:servers:session:sync:new"), Payload);
+  }
+}
+
+void URedwoodServerGameSubsystem::SendNewSyncForPersistentItemsToSidecar() {
+  for (URedwoodSyncComponent *SyncItemComponent : DelayedNewSyncItems) {
+    SendNewSyncItemToSidecar(SyncItemComponent);
+  }
 }
 
 void URedwoodServerGameSubsystem::PutBlob(

@@ -17,8 +17,8 @@
 #include "RedwoodServerGameSubsystem.generated.h"
 
 class AGameModeBase;
-class URedwoodPersistentItemAsset;
-class URedwoodPersistenceComponent;
+class URedwoodSyncItemAsset;
+class URedwoodSyncComponent;
 
 UCLASS(BlueprintType)
 class REDWOOD_API URedwoodServerGameSubsystem : public UGameInstanceSubsystem {
@@ -35,6 +35,9 @@ public:
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString RequestId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString InstanceId;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString Name;
@@ -95,13 +98,16 @@ public:
     const FString &OptionalProxyId = TEXT("")
   );
 
+  void FlushSync();
   void FlushPersistence();
   void FlushPlayerCharacterData();
   void FlushZoneData();
 
   void InitialDataLoad(FRedwoodDelegate OnComplete);
 
-  void RegisterPersistenceComponent(URedwoodPersistenceComponent *InComponent);
+  void RegisterSyncComponent(
+    URedwoodSyncComponent *InComponent, bool bDelayNewSync
+  );
 
   void PutBlob(
     const FString &Key,
@@ -123,10 +129,9 @@ public:
 private:
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FString, FPrimaryAssetId> Maps;
-  TMap<FString, URedwoodPersistentItemAsset *> PersistentItemTypesByTypeId;
-  TMap<FString, URedwoodPersistentItemAsset *>
-    PersistentItemTypesByPrimaryAssetId;
-  TMap<FString, URedwoodPersistenceComponent *> PersistentItems;
+  TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByTypeId;
+  TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByPrimaryAssetId;
+  TMap<FString, URedwoodSyncComponent *> SyncItemComponentsById;
 
   void InitializeSidecar();
   void SendUpdateToSidecar();
@@ -142,7 +147,23 @@ private:
   FGameplayMessageListenerHandle ListenerHandle;
   void OnShutdownMessage(FGameplayTag InChannel, const FRedwoodReason &Message);
 
+  TSet<URedwoodSyncComponent *> DelayedNewSyncItems;
+  bool bInitialDataLoaded = false;
   FRedwoodDelegate InitialDataLoadCompleteDelegate;
   void PostInitialDataLoad(TSharedPtr<FJsonObject> ZoneJsonObject);
-  void UpdatePersistentItem(FRedwoodPersistentItem &Item);
+
+  void UpdateSyncItem(FRedwoodSyncItem &Item);
+  void UpdateSyncItemState(
+    URedwoodSyncComponent *SyncItemComponent, FRedwoodSyncItemState &ItemState
+  );
+  void UpdateSyncItemMovement(
+    URedwoodSyncComponent *SyncItemComponent,
+    FRedwoodSyncItemMovement &ItemMovement
+  );
+  void UpdateSyncItemData(
+    URedwoodSyncComponent *SyncItemComponent, USIOJsonObject *InData
+  );
+
+  void SendNewSyncItemToSidecar(URedwoodSyncComponent *InComponent);
+  void SendNewSyncForPersistentItemsToSidecar();
 };

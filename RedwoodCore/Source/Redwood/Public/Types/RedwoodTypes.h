@@ -9,10 +9,10 @@
 #include "RedwoodTypesAuth.h"
 #include "RedwoodTypesBlobs.h"
 #include "RedwoodTypesCharacters.h"
-#include "RedwoodTypesPersistence.h"
 #include "RedwoodTypesRealms.h"
 #include "RedwoodTypesRegions.h"
 #include "RedwoodTypesServers.h"
+#include "RedwoodTypesSync.h"
 #include "RedwoodTypesTicketing.h"
 
 #include "RedwoodTypes.generated.h"

@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 
-#include "RedwoodPersistentItemAsset.generated.h"
+#include "RedwoodSyncItemAsset.generated.h"
 
 UCLASS(BlueprintType)
-class URedwoodPersistentItemAsset : public UPrimaryDataAsset {
+class URedwoodSyncItemAsset : public UPrimaryDataAsset {
   GENERATED_BODY()
 
 public:
@@ -16,12 +16,6 @@ public:
   // data (aka world data)
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
   FString RedwoodTypeId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
-  int32 LatestSchemaVersion;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Redwood)
-  FString DataVariableName = TEXT("Data");
 
   // This class can be empty for the asset used for world data
   // because the current GameState will be referenced instead

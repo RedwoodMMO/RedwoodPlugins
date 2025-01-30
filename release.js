@@ -24,8 +24,6 @@ execSync(`git commit -m "Release ${version}"`, {
   stdio: "inherit",
 });
 execSync(`git tag ${version}`, { cwd: baseDir, stdio: "inherit" });
-execSync("git push", { cwd: baseDir, stdio: "inherit" });
-execSync(`git push origin tag ${version}`, { cwd: baseDir, stdio: "inherit" });
 
 const args = [
   "7z",

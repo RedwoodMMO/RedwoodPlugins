@@ -29,7 +29,7 @@ void URedwoodInteractComponent::BeginPlay() {
     return;
   }
 
-  if (!Pawn->HasAuthority()) {
+  if (Pawn->IsLocallyControlled()) {
     ShapeComponent->OnComponentBeginOverlap.AddDynamic(
       this, &URedwoodInteractComponent::OnComponentBeginOverlap
     );

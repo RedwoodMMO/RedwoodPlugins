@@ -374,12 +374,12 @@ FRedwoodZoneData URedwoodCommonGameSubsystem::ParseZoneData(
   }
 
   const TArray<TSharedPtr<FJsonValue>> *PersistentItems;
-  if (ZoneData->TryGetArrayField(TEXT("persistentItems"), PersistentItems)) {
+  if (ZoneData->TryGetArrayField(TEXT("items"), PersistentItems)) {
     for (const TSharedPtr<FJsonValue> &Item : *PersistentItems) {
       if (Item->Type == EJson::Object) {
         TSharedPtr<FJsonObject> ItemObj = Item->AsObject();
-        FRedwoodPersistentItem PersistentItem = ParsePersistentItem(ItemObj);
-        Data.PersistentItems.Add(PersistentItem);
+        FRedwoodSyncItem SyncItem = ParseSyncItem(ItemObj);
+        Data.Items.Add(SyncItem);
       }
     }
   }
@@ -387,57 +387,97 @@ FRedwoodZoneData URedwoodCommonGameSubsystem::ParseZoneData(
   return Data;
 }
 
-FRedwoodPersistentItem URedwoodCommonGameSubsystem::ParsePersistentItem(
-  TSharedPtr<FJsonObject> PersistentItem
+FRedwoodSyncItem URedwoodCommonGameSubsystem::ParseSyncItem(
+  TSharedPtr<FJsonObject> SyncItem
 ) {
-  FRedwoodPersistentItem Item;
+  FRedwoodSyncItem Item;
 
-  Item.Id = PersistentItem->GetStringField(TEXT("id"));
+  TSharedPtr<FJsonObject> StateObj = SyncItem->GetObjectField(TEXT("state"));
+  Item.State = ParseSyncItemState(StateObj);
 
-  Item.TypeId = PersistentItem->GetStringField(TEXT("typeId"));
-
-  TSharedPtr<FJsonObject> TransformObj =
-    PersistentItem->GetObjectField(TEXT("transform"));
-  if (TransformObj.IsValid()) {
-    FVector Location;
-    FRotator Rotation;
-    FVector Scale;
-
-    TSharedPtr<FJsonObject> LocationObj =
-      TransformObj->GetObjectField(TEXT("location"));
-    if (LocationObj.IsValid()) {
-      Location.X = LocationObj->GetNumberField(TEXT("x"));
-      Location.Y = LocationObj->GetNumberField(TEXT("y"));
-      Location.Z = LocationObj->GetNumberField(TEXT("z"));
-    }
-
-    TSharedPtr<FJsonObject> RotationObj =
-      TransformObj->GetObjectField(TEXT("rotation"));
-    if (RotationObj.IsValid()) {
-      float Roll = RotationObj->GetNumberField(TEXT("x"));
-      float Pitch = RotationObj->GetNumberField(TEXT("y"));
-      float Yaw = RotationObj->GetNumberField(TEXT("z"));
-      Rotation = FRotator(Pitch, Yaw, Roll);
-    }
-
-    TSharedPtr<FJsonObject> ScaleObj =
-      TransformObj->GetObjectField(TEXT("scale"));
-    if (ScaleObj.IsValid()) {
-      Scale.X = ScaleObj->GetNumberField(TEXT("x"));
-      Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
-      Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
-    }
-
-    Item.Transform = FTransform(Rotation, Location, Scale);
-  }
+  TSharedPtr<FJsonObject> MovementObj =
+    SyncItem->GetObjectField(TEXT("movement"));
+  Item.Movement = ParseSyncItemMovement(MovementObj);
 
   const TSharedPtr<FJsonObject> *DataObj;
-  if (PersistentItem->TryGetObjectField(TEXT("data"), DataObj)) {
-    Item.Data = NewObject<USIOJsonObject>();
-    Item.Data->SetRootObject(*DataObj);
+  if (SyncItem->TryGetObjectField(TEXT("data"), DataObj)) {
+    Item.Data = ParseSyncItemData(*DataObj);
   }
 
   return Item;
+}
+
+FRedwoodSyncItemState URedwoodCommonGameSubsystem::ParseSyncItemState(
+  TSharedPtr<FJsonObject> SyncItemState
+) {
+  FRedwoodSyncItemState State;
+
+  if (SyncItemState.IsValid()) {
+    State.Id = SyncItemState->GetStringField(TEXT("id"));
+    State.TypeId = SyncItemState->GetStringField(TEXT("typeId"));
+    State.bDestroyed = SyncItemState->GetBoolField(TEXT("destroyed"));
+    State.ZoneName = SyncItemState->GetStringField(TEXT("zoneName"));
+  }
+
+  return State;
+}
+
+FRedwoodSyncItemMovement URedwoodCommonGameSubsystem::ParseSyncItemMovement(
+  TSharedPtr<FJsonObject> SyncItemMovement
+) {
+  FRedwoodSyncItemMovement Movement;
+
+  if (SyncItemMovement.IsValid()) {
+    TSharedPtr<FJsonObject> TransformObj =
+      SyncItemMovement->GetObjectField(TEXT("transform"));
+    if (TransformObj.IsValid()) {
+      FVector Location;
+      FRotator Rotation;
+      FVector Scale;
+
+      TSharedPtr<FJsonObject> LocationObj =
+        TransformObj->GetObjectField(TEXT("location"));
+      if (LocationObj.IsValid()) {
+        Location.X = LocationObj->GetNumberField(TEXT("x"));
+        Location.Y = LocationObj->GetNumberField(TEXT("y"));
+        Location.Z = LocationObj->GetNumberField(TEXT("z"));
+      }
+
+      TSharedPtr<FJsonObject> RotationObj =
+        TransformObj->GetObjectField(TEXT("rotation"));
+      if (RotationObj.IsValid()) {
+        float Roll = RotationObj->GetNumberField(TEXT("x"));
+        float Pitch = RotationObj->GetNumberField(TEXT("y"));
+        float Yaw = RotationObj->GetNumberField(TEXT("z"));
+        Rotation = FRotator(Pitch, Yaw, Roll);
+      }
+
+      TSharedPtr<FJsonObject> ScaleObj =
+        TransformObj->GetObjectField(TEXT("scale"));
+      if (ScaleObj.IsValid()) {
+        Scale.X = ScaleObj->GetNumberField(TEXT("x"));
+        Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
+        Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
+      }
+
+      Movement.Transform = FTransform(Rotation, Location, Scale);
+    }
+  }
+
+  return Movement;
+}
+
+USIOJsonObject *URedwoodCommonGameSubsystem::ParseSyncItemData(
+  TSharedPtr<FJsonObject> SyncItemData
+) {
+  USIOJsonObject *Data = nullptr;
+
+  if (SyncItemData.IsValid()) {
+    Data = NewObject<USIOJsonObject>();
+    Data->SetRootObject(SyncItemData);
+  }
+
+  return Data;
 }
 
 void URedwoodCommonGameSubsystem::DeserializeBackendData(
@@ -466,14 +506,19 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
           // synced by the game server). Nonempty objects however imply
           // they've tried to save something but it's missing schemaVersion
           if (JsonObject->Values.Num() > 0) {
+            FString JsonString;
+            TSharedRef<TJsonWriter<>> Writer =
+              TJsonWriterFactory<>::Create(&JsonString);
+            FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
             UE_LOG(
               LogRedwood,
               Error,
               TEXT(
-                "schemaVersion not found in Redwood backend field for %s, did you add one to your struct? Not updating %s."
+                "schemaVersion not found in Redwood backend field for %s, did you add one to your struct? Not updating %s. %s"
               ),
               *VariableName,
-              *VariableName
+              *VariableName,
+              *JsonString
             );
           }
 
@@ -588,13 +633,39 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
         );
       }
     } else {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT("%s variable not found in %s"),
-        *VariableName,
-        *TargetObject->GetName()
-      );
+      bool bIsActor = TargetObject->IsA<AActor>();
+      bool bIsActorComponent = TargetObject->IsA<UActorComponent>();
+
+      if (bIsActor) {
+        AActor *Actor = Cast<AActor>(TargetObject);
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("%s variable not found in %s (Owner: %s)"),
+          *VariableName,
+          *TargetObject->GetName(),
+          Actor->GetOwner() ? *Actor->GetOwner()->GetName() : TEXT("")
+        );
+      } else if (bIsActorComponent) {
+        UActorComponent *ActorComponent = Cast<UActorComponent>(TargetObject);
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("%s variable not found in %s (Owner: %s)"),
+          *VariableName,
+          *TargetObject->GetName(),
+          ActorComponent->GetOwner() ? *ActorComponent->GetOwner()->GetName()
+                                     : TEXT("")
+        );
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("%s variable not found in %s"),
+          *VariableName,
+          *TargetObject->GetName()
+        );
+      }
     }
   }
 }
@@ -627,13 +698,39 @@ USIOJsonObject *URedwoodCommonGameSubsystem::SerializeBackendData(
       );
     }
   } else {
-    UE_LOG(
-      LogRedwood,
-      Error,
-      TEXT("%s variable not found in %s"),
-      *VariableName,
-      *TargetObject->GetName()
-    );
+    bool bIsActor = TargetObject->IsA<AActor>();
+    bool bIsActorComponent = TargetObject->IsA<UActorComponent>();
+
+    if (bIsActor) {
+      AActor *Actor = Cast<AActor>(TargetObject);
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable not found in %s (Owner: %s)"),
+        *VariableName,
+        *TargetObject->GetName(),
+        Actor->GetOwner() ? *Actor->GetOwner()->GetName() : TEXT("")
+      );
+    } else if (bIsActorComponent) {
+      UActorComponent *ActorComponent = Cast<UActorComponent>(TargetObject);
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable not found in %s (Owner: %s)"),
+        *VariableName,
+        *TargetObject->GetName(),
+        ActorComponent->GetOwner() ? *ActorComponent->GetOwner()->GetName()
+                                   : TEXT("")
+      );
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("%s variable not found in %s"),
+        *VariableName,
+        *TargetObject->GetName()
+      );
+    }
   }
 
   return nullptr;

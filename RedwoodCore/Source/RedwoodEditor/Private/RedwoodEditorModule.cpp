@@ -18,55 +18,6 @@ DEFINE_LOG_CATEGORY(LogRedwoodEditor);
 
 void FRedwoodEditorModule::StartupModule() {
   // This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-
-  // Make an analytics request to track Redwood users
-#if RW_SEND_ANALYTICS
-  FString SkipAnalytics =
-    FPlatformMisc::GetEnvironmentVariable(TEXT("RW_SKIP_ANALYTICS"));
-
-  if (SkipAnalytics != "true") {
-    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest =
-      FHttpModule::Get().CreateRequest();
-
-    // Download the installer for the suggested IDE
-    HttpRequest->SetVerb(TEXT("GET"));
-
-    FString URLBase = TEXT("https://license.redwoodmmo.com/engine?page=");
-    FString URLVersion = RW_MACRO_TO_STRING(RW_VERSION);
-    FString URL = URLBase + URLVersion;
-    HttpRequest->SetURL(URL);
-  #if PLATFORM_WINDOWS
-    HttpRequest->SetHeader(
-      TEXT("User-Agent"),
-      TEXT(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.3"
-      )
-    );
-  #elif PLATFORM_MAC
-    HttpRequest->SetHeader(
-      TEXT("User-Agent"),
-      TEXT(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.3"
-      )
-    );
-  #elif PLATFORM_LINUX
-    HttpRequest->SetHeader(
-      TEXT("User-Agent"),
-      TEXT(
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.3"
-      )
-    );
-  #else
-    HttpRequest->SetHeader(
-      TEXT("User-Agent"),
-      TEXT(
-        "Mozilla/5.0 (Unknown) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.3"
-      )
-    );
-  #endif
-    HttpRequest->ProcessRequest();
-  }
-#endif
 }
 
 void FRedwoodEditorModule::ShutdownModule() {

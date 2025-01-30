@@ -4,10 +4,10 @@
 
 #include "RedwoodTypesCommon.h"
 
-#include "RedwoodTypesPersistence.generated.h"
+#include "RedwoodTypesSync.generated.h"
 
 USTRUCT(BlueprintType)
-struct FRedwoodPersistentItem {
+struct FRedwoodSyncItemState {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -17,7 +17,29 @@ struct FRedwoodPersistentItem {
   FString TypeId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bDestroyed = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ZoneName;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodSyncItemMovement {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FTransform Transform;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodSyncItem {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FRedwoodSyncItemState State;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FRedwoodSyncItemMovement Movement;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;
@@ -31,5 +53,5 @@ struct FRedwoodZoneData {
   USIOJsonObject *Data = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  TArray<FRedwoodPersistentItem> PersistentItems;
+  TArray<FRedwoodSyncItem> Items;
 };
