@@ -19,10 +19,16 @@ for (const plugin of plugins) {
 }
 
 execSync("git add .", { cwd: baseDir, stdio: "inherit" });
-execSync(`git commit -m "Release ${version}"`, {
-  cwd: baseDir,
-  stdio: "inherit",
-});
+
+try {
+  execSync(`git commit -m "Release ${version}"`, {
+    cwd: baseDir,
+    stdio: "inherit",
+  });
+} catch (e) {
+  console.log("No changes to commit, already have the correct version");
+}
+
 execSync(`git tag ${version}`, { cwd: baseDir, stdio: "inherit" });
 
 const args = [
