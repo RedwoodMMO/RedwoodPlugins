@@ -199,7 +199,7 @@ void URedwoodClientInterface::InitiatePings() {
         }
       }
 
-      if (Minimum > 0) {
+      if (Minimum >= 0) {
         PingAverages.Add(Itr.Key, Minimum);
       }
     }
