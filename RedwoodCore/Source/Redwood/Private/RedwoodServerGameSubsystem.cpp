@@ -1499,9 +1499,10 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
       continue;
     }
 
-    bool bUpdateItem = SyncItemComponent->IsMovementDirty(true) ||
-      SyncItemComponent->IsDataDirty(true) ||
-      SyncItemComponent->ShouldDoInitialSave();
+    bool bUpdateItem = (SyncItemComponent->IsMovementDirty(true) ||
+                        SyncItemComponent->IsDataDirty(true) ||
+                        SyncItemComponent->ShouldDoInitialSave()) &&
+      SyncItemComponent->bPersistChanges;
 
     if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) || bUpdateItem) {
       // always add the data if we're not using the backend
