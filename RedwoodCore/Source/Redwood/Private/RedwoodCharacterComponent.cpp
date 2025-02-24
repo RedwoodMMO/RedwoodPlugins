@@ -71,48 +71,68 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     RedwoodCharacterId = RedwoodCharacterBackend.Id;
 
     if (bUseCharacterCreatorData) {
-      URedwoodCommonGameSubsystem::DeserializeBackendData(
+      bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.CharacterCreatorData,
         *CharacterCreatorDataVariableName,
         LatestMetadataSchemaVersion
       );
+
+      if (bDirty) {
+        MarkCharacterCreatorDataDirty();
+      }
     }
 
     if (bUseMetadata) {
-      URedwoodCommonGameSubsystem::DeserializeBackendData(
+      bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.Metadata,
         *MetadataVariableName,
         LatestMetadataSchemaVersion
       );
+
+      if (bDirty) {
+        MarkMetadataDirty();
+      }
     }
 
     if (bUseEquippedInventory) {
-      URedwoodCommonGameSubsystem::DeserializeBackendData(
+      bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.EquippedInventory,
         *EquippedInventoryVariableName,
         LatestEquippedInventorySchemaVersion
       );
+
+      if (bDirty) {
+        MarkEquippedInventoryDirty();
+      }
     }
 
     if (bUseNonequippedInventory) {
-      URedwoodCommonGameSubsystem::DeserializeBackendData(
+      bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.NonequippedInventory,
         *NonequippedInventoryVariableName,
         LatestNonequippedInventorySchemaVersion
       );
+
+      if (bDirty) {
+        MarkNonequippedInventoryDirty();
+      }
     }
 
     if (bUseData) {
-      URedwoodCommonGameSubsystem::DeserializeBackendData(
+      bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.Data,
         *DataVariableName,
         LatestDataSchemaVersion
       );
+
+      if (bDirty) {
+        MarkDataDirty();
+      }
     }
 
     OnRedwoodCharacterUpdated.Broadcast();

@@ -1294,13 +1294,17 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
     GameState->GetComponentByClass<URedwoodSyncComponent>();
 
   if (InitialLoad.Data && GameStateSync) {
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
+    bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
       GameStateSync->bStoreDataInActor ? (UObject *)GameState
                                        : (UObject *)GameStateSync,
       InitialLoad.Data,
       GameStateSync->DataVariableName,
       GameStateSync->LatestDataSchemaVersion
     );
+
+    if (bDirty) {
+      GameStateSync->MarkDataDirty();
+    }
   }
 
   for (FRedwoodSyncItem &Item : InitialLoad.Items) {
@@ -1428,13 +1432,17 @@ void URedwoodServerGameSubsystem::UpdateSyncItemData(
 ) {
   if (IsValid(SyncItemComponent) && IsValid(Data)) {
     AActor *Actor = SyncItemComponent->GetOwner();
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
+    bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
       SyncItemComponent->bStoreDataInActor ? (UObject *)Actor
                                            : (UObject *)SyncItemComponent,
       InData,
       SyncItemComponent->DataVariableName,
       SyncItemComponent->LatestDataSchemaVersion
     );
+
+    if (bDirty) {
+      SyncItemComponent->MarkDataDirty();
+    }
   }
 }
 

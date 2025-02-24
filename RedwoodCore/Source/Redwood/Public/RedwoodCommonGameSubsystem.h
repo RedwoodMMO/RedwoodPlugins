@@ -55,7 +55,7 @@ public:
     UObject *TargetObject, FString VariableName
   );
 
-  static void DeserializeBackendData(
+  static bool DeserializeBackendData(
     UObject *TargetObject,
     USIOJsonObject *SIOJsonObject,
     FString VariableName,
