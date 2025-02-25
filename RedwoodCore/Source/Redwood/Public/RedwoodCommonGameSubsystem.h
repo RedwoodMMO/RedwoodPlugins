@@ -65,5 +65,7 @@ public:
   UFUNCTION(BlueprintPure, Category = "Redwood")
   static bool ShouldUseBackend(UWorld *World);
 
+  static ERedwoodFriendListType ParseFriendListType(FString StringValue);
+
 private:
 };

@@ -74,6 +74,32 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CancelWaitingForAccountVerification();
 
+  void SearchForPlayers(
+    FString UsernameOrNickname,
+    bool bIncludePartialMatches,
+    FRedwoodListPlayersOutputDelegate OnOutput
+  );
+
+  void ListFriends(
+    ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+  );
+
+  void RequestFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RemoveFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RespondToFriendRequest(
+    FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void SetPlayerBlocked(
+    FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
   // This is a helper function for scenarios that only have a single realm

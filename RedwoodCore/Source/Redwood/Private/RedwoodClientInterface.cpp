@@ -429,6 +429,194 @@ void URedwoodClientInterface::CancelWaitingForAccountVerification() {
   }
 }
 
+void URedwoodClientInterface::SearchForPlayers(
+  FString UsernameOrNickname,
+  bool bIncludePartialMatches,
+  FRedwoodListPlayersOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListPlayersOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("searchText"), UsernameOrNickname);
+  Payload->SetBoolField(TEXT("includePartial"), bIncludePartialMatches);
+
+  Director->Emit(
+    TEXT("director:players:search"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListPlayersOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Players =
+        MessageObject->GetArrayField(TEXT("players"));
+
+      for (TSharedPtr<FJsonValue> InPlayer : Players) {
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::ListFriends(
+  ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListFriendsOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("filter"), RW_ENUM_TO_STRING(Filter));
+
+  Director->Emit(
+    TEXT("director:friends:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListFriendsOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Friends =
+        MessageObject->GetArrayField(TEXT("friends"));
+
+      for (TSharedPtr<FJsonValue> Friend : Friends) {
+        FRedwoodFriend OutFriend;
+        TSharedPtr<FJsonObject> FriendObj = Friend->AsObject();
+        OutFriend.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
+        OutFriend.Nickname = FriendObj->GetStringField(TEXT("nickname"));
+        OutFriend.State = URedwoodCommonGameSubsystem::ParseFriendListType(
+          FriendObj->GetStringField(TEXT("state"))
+        );
+
+        Output.Friends.Add(OutFriend);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::RequestFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+
+  Director->Emit(
+    TEXT("director:friends:add"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::RemoveFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+
+  Director->Emit(
+    TEXT("director:friends:remove"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::RespondToFriendRequest(
+  FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+  Payload->SetBoolField(TEXT("accept"), bAccept);
+
+  Director->Emit(
+    TEXT("director:friends:respond-request"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::SetPlayerBlocked(
+  FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+  Payload->SetBoolField(TEXT("block"), bBlocked);
+
+  Director->Emit(
+    TEXT("director:friends:block"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
 void URedwoodClientInterface::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {

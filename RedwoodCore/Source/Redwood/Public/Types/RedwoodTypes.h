@@ -9,6 +9,7 @@
 #include "RedwoodTypesAuth.h"
 #include "RedwoodTypesBlobs.h"
 #include "RedwoodTypesCharacters.h"
+#include "RedwoodTypesFriends.h"
 #include "RedwoodTypesRealms.h"
 #include "RedwoodTypesRegions.h"
 #include "RedwoodTypesServers.h"
@@ -44,3 +45,11 @@ typedef TDelegate<void()> FRedwoodDelegate;
 
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRedwoodDynamicDelegate);
+
+#define RW_ENUM_TO_STRING(EnumValue) \
+  UEnum::GetValueAsString(EnumValue).RightChop( \
+    UEnum::GetValueAsString(EnumValue).Find("::") + 2 \
+  )
+
+#define RW_STRING_TO_ENUM(EnumType, StringValue) \
+  (EnumType) UEnum::GetValueByString(#EnumType, StringValue)

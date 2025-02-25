@@ -792,3 +792,23 @@ bool URedwoodCommonGameSubsystem::ShouldUseBackend(UWorld *World) {
   return true;
 #endif
 }
+
+ERedwoodFriendListType URedwoodCommonGameSubsystem::ParseFriendListType(
+  FString StringValue
+) {
+  ERedwoodFriendListType EnumValue = ERedwoodFriendListType::Unknown;
+
+  if (StringValue == TEXT("active")) {
+    EnumValue = ERedwoodFriendListType::Active;
+  } else if (StringValue == TEXT("pending-all")) {
+    EnumValue = ERedwoodFriendListType::PendingAll;
+  } else if (StringValue == TEXT("pending-received")) {
+    EnumValue = ERedwoodFriendListType::PendingReceived;
+  } else if (StringValue == TEXT("pending-sent")) {
+    EnumValue = ERedwoodFriendListType::PendingSent;
+  } else if (StringValue == TEXT("blocked")) {
+    EnumValue = ERedwoodFriendListType::Blocked;
+  }
+
+  return EnumValue;
+}

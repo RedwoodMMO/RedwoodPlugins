@@ -76,6 +76,32 @@ public:
 
   void CancelWaitingForAccountVerification();
 
+  void SearchForPlayers(
+    FString UsernameOrNickname,
+    bool bIncludePartialMatches,
+    FRedwoodListPlayersOutputDelegate OnOutput
+  );
+
+  void ListFriends(
+    ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+  );
+
+  void RequestFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RemoveFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RespondToFriendRequest(
+    FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void SetPlayerBlocked(
+    FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
   void InitializeConnectionForFirstRealm(

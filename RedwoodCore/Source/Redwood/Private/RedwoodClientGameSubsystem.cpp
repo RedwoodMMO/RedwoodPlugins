@@ -144,6 +144,79 @@ void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
   }
 }
 
+void URedwoodClientGameSubsystem::SearchForPlayers(
+  FString UsernameOrNickname,
+  bool bIncludePartialMatches,
+  FRedwoodListPlayersOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForPlayers(
+      UsernameOrNickname, bIncludePartialMatches, OnOutput
+    );
+  } else {
+    FRedwoodListPlayersOutput Output;
+    Output.Error = TEXT("Cannot search for players without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::ListFriends(
+  ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListFriends(Filter, OnOutput);
+  } else {
+    FRedwoodListFriendsOutput Output;
+    Output.Error = TEXT("Cannot list friends without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::RequestFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RequestFriend(OtherPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot request friend without using a backend"
+    ));
+  }
+}
+
+void URedwoodClientGameSubsystem::RemoveFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RemoveFriend(OtherPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot remove friend without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::RespondToFriendRequest(
+  FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RespondToFriendRequest(OtherPlayerId, bAccept, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot respond to friend request without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::SetPlayerBlocked(
+  FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetPlayerBlocked(OtherPlayerId, bBlocked, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot block players without using a backend")
+    );
+  }
+}
+
 void URedwoodClientGameSubsystem::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {
