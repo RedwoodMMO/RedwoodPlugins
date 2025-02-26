@@ -432,10 +432,10 @@ void URedwoodClientInterface::CancelWaitingForAccountVerification() {
 void URedwoodClientInterface::SearchForPlayers(
   FString UsernameOrNickname,
   bool bIncludePartialMatches,
-  FRedwoodListPlayersOutputDelegate OnOutput
+  FRedwoodListFriendsOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
-    FRedwoodListPlayersOutput Output;
+    FRedwoodListFriendsOutput Output;
     Output.Error = TEXT("Not connected to Director.");
     OnOutput.ExecuteIfBound(Output);
     return;
@@ -452,7 +452,7 @@ void URedwoodClientInterface::SearchForPlayers(
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
 
-      FRedwoodListPlayersOutput Output;
+      FRedwoodListFriendsOutput Output;
 
       Output.Error = MessageObject->GetStringField(TEXT("error"));
 
@@ -460,6 +460,15 @@ void URedwoodClientInterface::SearchForPlayers(
         MessageObject->GetArrayField(TEXT("players"));
 
       for (TSharedPtr<FJsonValue> InPlayer : Players) {
+        FRedwoodFriend OutPlayer;
+        TSharedPtr<FJsonObject> FriendObj = InPlayer->AsObject();
+        OutPlayer.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
+        OutPlayer.Nickname = FriendObj->GetStringField(TEXT("nickname"));
+        OutPlayer.State = URedwoodCommonGameSubsystem::ParseFriendListType(
+          FriendObj->GetStringField(TEXT("state"))
+        );
+
+        Output.Players.Add(OutPlayer);
       }
 
       OnOutput.ExecuteIfBound(Output);
@@ -479,7 +488,13 @@ void URedwoodClientInterface::ListFriends(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
-  Payload->SetStringField(TEXT("filter"), RW_ENUM_TO_STRING(Filter));
+
+  if (Filter == ERedwoodFriendListType::All || Filter == ERedwoodFriendListType::Unknown) {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+    Payload->SetField(TEXT("filter"), NullValue);
+  } else {
+    Payload->SetStringField(TEXT("filter"), RW_ENUM_TO_STRING(Filter));
+  }
 
   Director->Emit(
     TEXT("director:friends:list"),
@@ -491,19 +506,19 @@ void URedwoodClientInterface::ListFriends(
 
       Output.Error = MessageObject->GetStringField(TEXT("error"));
 
-      const TArray<TSharedPtr<FJsonValue>> &Friends =
-        MessageObject->GetArrayField(TEXT("friends"));
+      const TArray<TSharedPtr<FJsonValue>> &Players =
+        MessageObject->GetArrayField(TEXT("players"));
 
-      for (TSharedPtr<FJsonValue> Friend : Friends) {
-        FRedwoodFriend OutFriend;
-        TSharedPtr<FJsonObject> FriendObj = Friend->AsObject();
-        OutFriend.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
-        OutFriend.Nickname = FriendObj->GetStringField(TEXT("nickname"));
-        OutFriend.State = URedwoodCommonGameSubsystem::ParseFriendListType(
+      for (TSharedPtr<FJsonValue> InPlayer : Players) {
+        FRedwoodFriend OutPlayer;
+        TSharedPtr<FJsonObject> FriendObj = InPlayer->AsObject();
+        OutPlayer.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
+        OutPlayer.Nickname = FriendObj->GetStringField(TEXT("nickname"));
+        OutPlayer.State = URedwoodCommonGameSubsystem::ParseFriendListType(
           FriendObj->GetStringField(TEXT("state"))
         );
 
-        Output.Friends.Add(OutFriend);
+        Output.Players.Add(OutPlayer);
       }
 
       OnOutput.ExecuteIfBound(Output);

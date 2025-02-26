@@ -8,11 +8,13 @@
 
 UENUM(BlueprintType)
 enum class ERedwoodFriendListType : uint8 {
+  All,
   Active,
   PendingAll,
   PendingReceived,
   PendingSent,
   Blocked,
+  Inactive,
   Unknown
 };
 
@@ -38,7 +40,7 @@ struct FRedwoodListFriendsOutput {
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  TArray<FRedwoodFriend> Friends;
+  TArray<FRedwoodFriend> Players;
 };
 
 typedef TDelegate<void(const FRedwoodListFriendsOutput &)>

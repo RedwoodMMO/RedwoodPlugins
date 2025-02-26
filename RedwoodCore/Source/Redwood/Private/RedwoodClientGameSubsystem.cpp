@@ -147,14 +147,14 @@ void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
 void URedwoodClientGameSubsystem::SearchForPlayers(
   FString UsernameOrNickname,
   bool bIncludePartialMatches,
-  FRedwoodListPlayersOutputDelegate OnOutput
+  FRedwoodListFriendsOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->SearchForPlayers(
       UsernameOrNickname, bIncludePartialMatches, OnOutput
     );
   } else {
-    FRedwoodListPlayersOutput Output;
+    FRedwoodListFriendsOutput Output;
     Output.Error = TEXT("Cannot search for players without using a backend");
     OnOutput.ExecuteIfBound(Output);
   }

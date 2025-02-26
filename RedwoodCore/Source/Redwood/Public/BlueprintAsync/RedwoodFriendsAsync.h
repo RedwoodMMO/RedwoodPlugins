@@ -20,7 +20,7 @@ public:
     Target->SearchForPlayers(
       UsernameOrNickname,
       bIncludePartialMatches,
-      FRedwoodListPlayersOutputDelegate::CreateLambda([this](auto Output) {
+      FRedwoodListFriendsOutputDelegate::CreateLambda([this](auto Output) {
         OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       })
@@ -50,7 +50,7 @@ public:
   };
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodListPlayersOutputDynamicDelegate OnOutput;
+  FRedwoodListFriendsOutputDynamicDelegate OnOutput;
 
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;

@@ -79,7 +79,7 @@ public:
   void SearchForPlayers(
     FString UsernameOrNickname,
     bool bIncludePartialMatches,
-    FRedwoodListPlayersOutputDelegate OnOutput
+    FRedwoodListFriendsOutputDelegate OnOutput
   );
 
   void ListFriends(
