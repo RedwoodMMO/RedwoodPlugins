@@ -76,6 +76,7 @@ void URedwoodClientInterface::InitializeDirectorConnection(
       );
     } else if (!bDirectorDisconnected) {
       bDirectorDisconnected = true;
+      bAuthenticated = false;
       UE_LOG(
         LogRedwood,
         Error,
@@ -88,28 +89,59 @@ void URedwoodClientInterface::InitializeDirectorConnection(
     }
   };
 
-  Director->OnConnectedCallback =
-    [Uri,
-     OnDirectorConnected,
-     this](const FString &InSocketId, const FString &InSessionId) {
-      bDirectorDisconnected = false;
+  Director->OnConnectedCallback = [Uri, OnDirectorConnected, this](
+                                    const FString &InSocketId,
+                                    const FString &InSessionId
+                                  ) {
+    bDirectorDisconnected = false;
 
-      if (!bSentDirectorConnected) {
-        bSentDirectorConnected = true;
-        FRedwoodSocketConnected Details;
-        Details.Error = TEXT("");
-        OnDirectorConnected.ExecuteIfBound(Details);
-        UE_LOG(LogRedwood, Log, TEXT("Connected to Director at %s"), *Uri);
-      } else {
-        UE_LOG(
-          LogRedwood,
-          Log,
-          TEXT("Reestablished connection to Director at %s"),
-          *Uri
-        );
-        OnDirectorConnectionReestablished.Broadcast();
-      }
-    };
+    if (!bSentDirectorConnected) {
+      bSentDirectorConnected = true;
+      FRedwoodSocketConnected Details;
+      Details.Error = TEXT("");
+      OnDirectorConnected.ExecuteIfBound(Details);
+      UE_LOG(LogRedwood, Log, TEXT("Connected to Director at %s"), *Uri);
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Log,
+        TEXT(
+          "Reestablished connection to Director at %s, attempting to reauthenticate."
+        ),
+        *Uri
+      );
+
+      Login(
+        PlayerId,
+        AuthToken,
+        "local",
+        true,
+        FRedwoodAuthUpdateDelegate::CreateLambda([this, OnDirectorConnected](
+                                                   const FRedwoodAuthUpdate
+                                                     &Update
+                                                 ) {
+          if (Update.Type == ERedwoodAuthUpdateType::Success) {
+            UE_LOG(
+              LogRedwood,
+              Log,
+              TEXT(
+                "Reauthenticated connection with Director, calling connection reestablished."
+              )
+            );
+            OnDirectorConnectionReestablished.Broadcast();
+          } else {
+            UE_LOG(
+              LogRedwood,
+              Error,
+              TEXT("Could not reauthenticate connection with Director: %s"),
+              *Update.Message
+            );
+          }
+        }),
+        true
+      );
+    }
+  };
 
   UE_LOG(LogRedwood, Log, TEXT("Connecting to Director at %s"), *Uri);
 
@@ -320,7 +352,7 @@ void URedwoodClientInterface::Logout() {
 }
 
 bool URedwoodClientInterface::IsLoggedIn() {
-  return !PlayerId.IsEmpty() && !AuthToken.IsEmpty();
+  return !PlayerId.IsEmpty() && !AuthToken.IsEmpty() && bAuthenticated;
 }
 
 FString URedwoodClientInterface::GetPlayerId() {
@@ -357,7 +389,8 @@ void URedwoodClientInterface::Login(
   const FString &PasswordOrToken,
   const FString &Provider,
   bool bRememberMe,
-  FRedwoodAuthUpdateDelegate OnUpdate
+  FRedwoodAuthUpdateDelegate OnUpdate,
+  bool bBypassProviderCheck
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FRedwoodAuthUpdate Update;
@@ -371,6 +404,10 @@ void URedwoodClientInterface::Login(
   Payload->SetStringField(TEXT("username"), Username);
   Payload->SetStringField(TEXT("secret"), PasswordOrToken);
   Payload->SetStringField(TEXT("provider"), Provider);
+
+  if (bBypassProviderCheck) {
+    Payload->SetBoolField(TEXT("bypassProviderCheck"), true);
+  }
 
   Director->Emit(
     TEXT("player:login:username"),
@@ -387,6 +424,8 @@ void URedwoodClientInterface::Login(
       if (Error.IsEmpty()) {
         Update.Type = ERedwoodAuthUpdateType::Success;
         Update.Message = TEXT("");
+
+        bAuthenticated = true;
 
         URedwoodSaveGame *SaveGame =
           Cast<URedwoodSaveGame>(UGameplayStatics::CreateSaveGameObject(
@@ -743,6 +782,7 @@ void URedwoodClientInterface::InitiateRealmHandshake(
         return;
       }
 
+      CurrentRealmId = InRealm.Id;
       Realm = ISocketIOClientModule::Get().NewValidNativePointer();
       bSentRealmConnected = false;
 
@@ -790,15 +830,79 @@ void URedwoodClientInterface::InitiateRealmHandshake(
           UE_LOG(
             LogRedwood,
             Log,
-            TEXT("Reestablished connection to Realm at %s"),
+            TEXT(
+              "Reestablished connection to Realm at %s, attempting to reauthenticate"
+            ),
             *InRealm.Uri
           );
-          OnRealmConnectionReestablished.Broadcast();
+          BeginRealmReauthentication();
         }
       };
 
       UE_LOG(LogRedwood, Log, TEXT("Connecting to Realm at %s"), *InRealm.Uri);
       Realm->Connect(*InRealm.Uri);
+    }
+  );
+}
+
+void URedwoodClientInterface::BeginRealmReauthentication() {
+  if (!Director.IsValid() || !Director->bIsConnected || !IsLoggedIn()) {
+    TimerManager.SetTimer(
+      ReauthenticationAttemptTimer,
+      this,
+      &URedwoodClientInterface::BeginRealmReauthentication,
+      0.5f,
+      false
+    );
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("realmId"), CurrentRealmId);
+
+  Director->Emit(
+    TEXT("realm:auth:player:connect:client-to-director"),
+    Payload,
+    [this](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      FString Token = MessageObject->GetStringField(TEXT("token"));
+
+      if (!Error.IsEmpty()) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Could not reauthenticate connection with Realm: %s"),
+          *Error
+        );
+        return;
+      }
+
+      FinalizeRealmHandshake(
+        Token,
+        FRedwoodSocketConnectedDelegate::CreateLambda(
+          [this](const FRedwoodSocketConnected &Output) {
+            if (Output.Error.IsEmpty()) {
+              UE_LOG(
+                LogRedwood,
+                Log,
+                TEXT(
+                  "Reauthenticated connection with Realm, calling connection reestablished."
+                )
+              );
+              OnRealmConnectionReestablished.Broadcast();
+            } else {
+              UE_LOG(
+                LogRedwood,
+                Error,
+                TEXT("Could not reauthenticate connection with Realm: %s"),
+                *Output.Error
+              );
+            }
+          }
+        )
+      );
     }
   );
 }

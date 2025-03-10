@@ -63,7 +63,8 @@ public:
     const FString &PasswordOrToken,
     const FString &Provider,
     bool bRememberMe,
-    FRedwoodAuthUpdateDelegate OnUpdate
+    FRedwoodAuthUpdateDelegate OnUpdate,
+    bool bBypassProviderCheck = false
   );
 
   FString GetNickname();
@@ -184,6 +185,10 @@ private:
     FString Token, FRedwoodSocketConnectedDelegate OnRealmConnected
   );
 
+  UFUNCTION()
+  void BeginRealmReauthentication();
+  FTimerHandle ReauthenticationAttemptTimer;
+
   void HandleRegionsChanged(
     const FString &Event, const TSharedPtr<FJsonValue> &Message
   );
@@ -206,10 +211,12 @@ private:
   FString ServerToken;
 
   FRedwoodAuthUpdateDelegate OnAccountVerified;
+  bool bAuthenticated = false;
   FString PlayerId;
   FString AuthToken;
   FString SelectedCharacterId;
   FString Nickname;
+  FString CurrentRealmId;
 
   FTimerManager TimerManager;
 };
