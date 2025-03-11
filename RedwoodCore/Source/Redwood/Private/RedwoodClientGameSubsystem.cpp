@@ -282,11 +282,30 @@ void URedwoodClientGameSubsystem::ListCharacters(
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->ListCharacters(OnOutput);
   } else {
-    TArray<FRedwoodCharacterBackend> Characters;
-
     FRedwoodListCharactersOutput Output;
     Output.Characters =
       URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::ListArchivedCharacters(
+  FRedwoodListCharactersOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListArchivedCharacters(OnOutput);
+  } else {
+    TArray<FRedwoodCharacterBackend> Characters =
+      URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
+
+    FRedwoodListCharactersOutput Output;
+
+    for (FRedwoodCharacterBackend Character : Characters) {
+      if (Character.bArchived) {
+        Output.Characters.Add(Character);
+      }
+    }
+
     OnOutput.ExecuteIfBound(Output);
   }
 }
@@ -319,6 +338,23 @@ void URedwoodClientGameSubsystem::CreateCharacter(
     URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
 
     OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SetCharacterArchived(
+  FString CharacterId, bool bArchived, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetCharacterArchived(CharacterId, bArchived, OnOutput);
+  } else {
+    FRedwoodCharacterBackend Character =
+      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+    Character.bArchived = bArchived;
+    Character.ArchivedAt = FDateTime::UtcNow();
+
+    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+
+    OnOutput.ExecuteIfBound(TEXT(""));
   }
 }
 

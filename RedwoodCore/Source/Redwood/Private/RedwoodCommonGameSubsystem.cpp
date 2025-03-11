@@ -27,6 +27,16 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
   JsonObject->SetStringField(TEXT("id"), Character.Id);
   JsonObject->SetStringField(TEXT("createdAt"), Character.CreatedAt.ToString());
   JsonObject->SetStringField(TEXT("updatedAt"), Character.UpdatedAt.ToString());
+
+  if (Character.bArchived) {
+    JsonObject->SetStringField(
+      TEXT("archivedAt"), Character.ArchivedAt.ToString()
+    );
+  } else {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull);
+    JsonObject->SetField(TEXT("archivedAt"), NullValue);
+  }
+
   JsonObject->SetStringField(TEXT("playerId"), Character.PlayerId);
   JsonObject->SetStringField(TEXT("name"), Character.Name);
   if (Character.CharacterCreatorData) {
@@ -113,6 +123,13 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
   FDateTime::Parse(
     JsonObject->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
   );
+
+  FString ArchivedAt;
+  if (JsonObject->TryGetStringField(TEXT("archivedAt"), ArchivedAt)) {
+    FDateTime::Parse(ArchivedAt, Character.ArchivedAt);
+    Character.bArchived = true;
+  }
+
   Character.PlayerId = JsonObject->GetStringField(TEXT("playerId"));
   Character.Name = JsonObject->GetStringField(TEXT("name"));
 
@@ -177,6 +194,12 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::ParseCharacter(
   FDateTime::ParseIso8601(
     *CharacterObj->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
   );
+
+  FString ArchivedAt;
+  if (CharacterObj->TryGetStringField(TEXT("archivedAt"), ArchivedAt)) {
+    FDateTime::ParseIso8601(*ArchivedAt, Character.ArchivedAt);
+    Character.bArchived = true;
+  }
 
   Character.PlayerId = CharacterObj->GetStringField(TEXT("playerId"));
 

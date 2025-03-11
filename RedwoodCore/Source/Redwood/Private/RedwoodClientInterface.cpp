@@ -1027,6 +1027,48 @@ void URedwoodClientInterface::ListCharacters(
   );
 }
 
+void URedwoodClientInterface::ListArchivedCharacters(
+  FRedwoodListCharactersOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodListCharactersOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetBoolField(TEXT("includeArchived"), true);
+
+  Realm->Emit(
+    TEXT("realm:characters:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      TArray<TSharedPtr<FJsonValue>> Characters =
+        MessageObject->GetArrayField(TEXT("characters"));
+
+      TArray<FRedwoodCharacterBackend> CharactersStruct;
+      for (TSharedPtr<FJsonValue> Character : Characters) {
+        TSharedPtr<FJsonObject> CharacterData = Character->AsObject();
+
+        FRedwoodCharacterBackend ParsedCharacter =
+          URedwoodCommonGameSubsystem::ParseCharacter(CharacterData);
+        if (ParsedCharacter.bArchived) {
+          CharactersStruct.Add(ParsedCharacter);
+        }
+      }
+
+      FRedwoodListCharactersOutput Output;
+      Output.Error = Error;
+      Output.Characters = CharactersStruct;
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
 void URedwoodClientInterface::CreateCharacter(
   FString Name,
   USIOJsonObject *CharacterCreatorData,
@@ -1072,6 +1114,32 @@ void URedwoodClientInterface::CreateCharacter(
       }
 
       OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::SetCharacterArchived(
+  FString CharacterId, bool bArchived, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FString Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("id"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  Payload->SetBoolField(TEXT("archived"), bArchived);
+
+  Realm->Emit(
+    TEXT("realm:characters:archive"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
     }
   );
 }

@@ -20,6 +20,12 @@ struct FRedwoodCharacterBackend {
   FDateTime UpdatedAt;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bArchived = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FDateTime ArchivedAt;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString PlayerId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")

@@ -119,11 +119,16 @@ public:
   TMap<FString, float> GetRegions();
 
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
+  void ListArchivedCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
   void CreateCharacter(
     FString Name,
     USIOJsonObject *CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate OnOutput
+  );
+
+  void SetCharacterArchived(
+    FString CharacterId, bool bArchived, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void GetCharacterData(
