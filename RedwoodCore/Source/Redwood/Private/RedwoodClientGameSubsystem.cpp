@@ -3,6 +3,7 @@
 #include "RedwoodClientGameSubsystem.h"
 #include "RedwoodClientInterface.h"
 #include "RedwoodCommonGameSubsystem.h"
+#include "RedwoodGameStateComponent.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodSettings.h"
 
@@ -10,6 +11,7 @@
   #include "RedwoodEditorSettings.h"
 #endif
 
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "Kismet/KismetStringLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -41,6 +43,10 @@ void URedwoodClientGameSubsystem::Initialize(
       this, &URedwoodClientGameSubsystem::HandleOnRealmConnectionLost
     );
   }
+
+  FWorldDelegates::OnPostWorldInitialization.AddUObject(
+    this, &URedwoodClientGameSubsystem::HandleOnWorldAdded
+  );
 }
 
 void URedwoodClientGameSubsystem::Deinitialize() {
@@ -48,6 +54,60 @@ void URedwoodClientGameSubsystem::Deinitialize() {
 
   if (ClientInterface) {
     ClientInterface->Deinitialize();
+  }
+}
+
+void URedwoodClientGameSubsystem::HandleOnWorldAdded(
+  UWorld *World, FWorldInitializationValues IVS
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) && IsDirectorConnected()) {
+    if (IsValid(World) && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE)) {
+      World->GetOnBeginPlayEvent().AddUObject(
+        this, &URedwoodClientGameSubsystem::HandleOnWorldBeginPlay
+      );
+    }
+  }
+}
+
+void URedwoodClientGameSubsystem::HandleOnWorldBeginPlay(bool bBegunPlay) {
+  UWorld *World = GetWorld();
+
+  if (IsValid(World) && bBegunPlay) {
+    ReportOnlineStatus();
+
+    AGameStateBase *GameState = World->GetGameState();
+    if (GameState) {
+      URedwoodGameStateComponent *GameStateComponent =
+        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
+          URedwoodGameStateComponent::StaticClass()
+        ));
+      if (GameStateComponent) {
+        GameStateComponent->OnServerDetailsChanged.AddDynamic(
+          this, &URedwoodClientGameSubsystem::ReportOnlineStatus
+        );
+      }
+    }
+  }
+}
+
+void URedwoodClientGameSubsystem::ReportOnlineStatus() {
+  UWorld *World = GetWorld();
+
+  if (IsValid(World)) {
+    AGameStateBase *GameState = World->GetGameState();
+    if (GameState) {
+      URedwoodGameStateComponent *GameStateComponent =
+        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
+          URedwoodGameStateComponent::StaticClass()
+        ));
+      if (GameStateComponent) {
+        ClientInterface->ReportOnlineStatus(
+          true, GameStateComponent->GetServerDetails()
+        );
+      } else {
+        ClientInterface->ReportOnlineStatus(false, FRedwoodServerDetails());
+      }
+    }
   }
 }
 

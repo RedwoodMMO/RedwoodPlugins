@@ -231,6 +231,8 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         UE_LOG(LogRedwood, Log, TEXT("LoadMap message is valid object"));
         TSharedPtr<FJsonObject> ActualObject = *Object;
         RequestId = ActualObject->GetStringField(TEXT("requestId"));
+        RealmName = ActualObject->GetStringField(TEXT("realmName"));
+        ProxyId = ActualObject->GetStringField(TEXT("proxyId"));
         InstanceId = ActualObject->GetStringField(TEXT("instanceId"));
         Name = ActualObject->GetStringField(TEXT("name"));
         MapId = ActualObject->GetStringField(TEXT("mapId"));

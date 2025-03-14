@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RedwoodTypesCommon.h"
+#include "RedwoodTypesServers.h"
 
 #include "RedwoodTypesFriends.generated.h"
 
@@ -19,6 +20,14 @@ enum class ERedwoodFriendListType : uint8 {
 };
 
 USTRUCT(BlueprintType)
+struct FRedwoodPlayerOnlineStateRealm : public FRedwoodServerDetails {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString CharacterId;
+};
+
+USTRUCT(BlueprintType)
 struct FRedwoodFriend {
   GENERATED_BODY()
 
@@ -30,6 +39,15 @@ struct FRedwoodFriend {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   ERedwoodFriendListType State;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bOnline = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bPlaying = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FRedwoodPlayerOnlineStateRealm OnlineStateRealm;
 };
 
 USTRUCT(BlueprintType)

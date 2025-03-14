@@ -507,6 +507,30 @@ void URedwoodClientInterface::SearchForPlayers(
           FriendObj->GetStringField(TEXT("state"))
         );
 
+        const TSharedPtr<FJsonObject> *OnlineStateObj;
+        OutPlayer.bOnline =
+          FriendObj->TryGetObjectField(TEXT("onlineState"), OnlineStateObj);
+        if (OutPlayer.bOnline) {
+
+          const TSharedPtr<FJsonObject> *OnlineStateRealmObj;
+          OutPlayer.bPlaying =
+            (*OnlineStateObj)
+              ->TryGetObjectField(TEXT("realm"), OnlineStateRealmObj);
+
+          if (OutPlayer.bPlaying) {
+            OutPlayer.OnlineStateRealm.RealmName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("realmName"));
+            OutPlayer.OnlineStateRealm.ProxyId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("proxyId"));
+            OutPlayer.OnlineStateRealm.ZoneName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("zoneName"));
+            OutPlayer.OnlineStateRealm.ShardName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("shardName"));
+            OutPlayer.OnlineStateRealm.CharacterId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("characterId"));
+          }
+        }
+
         Output.Players.Add(OutPlayer);
       }
 
@@ -556,6 +580,30 @@ void URedwoodClientInterface::ListFriends(
         OutPlayer.State = URedwoodCommonGameSubsystem::ParseFriendListType(
           FriendObj->GetStringField(TEXT("state"))
         );
+
+        const TSharedPtr<FJsonObject> *OnlineStateObj;
+        OutPlayer.bOnline =
+          FriendObj->TryGetObjectField(TEXT("onlineState"), OnlineStateObj);
+        if (OutPlayer.bOnline) {
+
+          const TSharedPtr<FJsonObject> *OnlineStateRealmObj;
+          OutPlayer.bPlaying =
+            (*OnlineStateObj)
+              ->TryGetObjectField(TEXT("realm"), OnlineStateRealmObj);
+
+          if (OutPlayer.bPlaying) {
+            OutPlayer.OnlineStateRealm.RealmName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("realmName"));
+            OutPlayer.OnlineStateRealm.ProxyId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("proxyId"));
+            OutPlayer.OnlineStateRealm.ZoneName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("zoneName"));
+            OutPlayer.OnlineStateRealm.ShardName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("shardName"));
+            OutPlayer.OnlineStateRealm.CharacterId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("characterId"));
+          }
+        }
 
         Output.Players.Add(OutPlayer);
       }
@@ -1642,4 +1690,30 @@ FString URedwoodClientInterface::GetConnectionConsoleCommand() {
     TEXT("open ") + ServerConnection + "?" + OptionsString;
 
   return ConnectionString;
+}
+
+void URedwoodClientInterface::ReportOnlineStatus(
+  bool bInServer, FRedwoodServerDetails ServerDetails
+) {
+  if (!Director.IsValid() || !Director->bIsConnected || SelectedCharacterId.IsEmpty()) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  if (bInServer) {
+    TSharedPtr<FJsonObject> RealmObject = MakeShareable(new FJsonObject);
+    RealmObject->SetStringField(TEXT("realmName"), ServerDetails.RealmName);
+    RealmObject->SetStringField(TEXT("proxyId"), ServerDetails.ProxyId);
+    RealmObject->SetStringField(TEXT("zoneName"), ServerDetails.ZoneName);
+    RealmObject->SetStringField(TEXT("shardName"), ServerDetails.ShardName);
+    RealmObject->SetStringField(TEXT("characterId"), SelectedCharacterId);
+    Payload->SetObjectField(TEXT("realm"), RealmObject);
+  } else {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+    Payload->SetField(TEXT("realm"), NullValue);
+  }
+
+  Director->Emit(TEXT("director:players:online-state"), Payload, nullptr);
 }

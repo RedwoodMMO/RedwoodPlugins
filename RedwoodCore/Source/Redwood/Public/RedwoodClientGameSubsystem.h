@@ -6,6 +6,7 @@
 #include "Types/RedwoodTypes.h"
 
 #include "CoreMinimal.h"
+#include "Engine/WorldInitializationValues.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "RedwoodClientGameSubsystem.generated.h"
@@ -198,4 +199,10 @@ private:
 
   UFUNCTION()
   void HandleRequestToJoinServer(FString ConsoleCommand);
+
+  void HandleOnWorldAdded(UWorld *World, FWorldInitializationValues IVS);
+  void HandleOnWorldBeginPlay(bool bBegunPlay);
+
+  UFUNCTION()
+  void ReportOnlineStatus();
 };
