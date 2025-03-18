@@ -63,7 +63,8 @@ public:
     const FString &PasswordOrToken,
     const FString &Provider,
     bool bRememberMe,
-    FRedwoodAuthUpdateDelegate OnUpdate
+    FRedwoodAuthUpdateDelegate OnUpdate,
+    bool bBypassProviderCheck = false
   );
 
   FString GetNickname();
@@ -75,6 +76,32 @@ public:
   FString GetPlayerId();
 
   void CancelWaitingForAccountVerification();
+
+  void SearchForPlayers(
+    FString UsernameOrNickname,
+    bool bIncludePartialMatches,
+    FRedwoodListFriendsOutputDelegate OnOutput
+  );
+
+  void ListFriends(
+    ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+  );
+
+  void RequestFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RemoveFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RespondToFriendRequest(
+    FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void SetPlayerBlocked(
+    FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+  );
 
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
@@ -91,10 +118,16 @@ public:
 
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
+  void ListArchivedCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
+
   void CreateCharacter(
     FString Name,
     USIOJsonObject *CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate OnOutput
+  );
+
+  void SetCharacterArchived(
+    FString CharacterId, bool bArchived, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void GetCharacterData(
@@ -140,6 +173,8 @@ public:
 
   FString GetConnectionConsoleCommand();
 
+  void ReportOnlineStatus(bool bInServer, FRedwoodServerDetails ServerDetails);
+
 private:
   bool bSentDirectorConnected;
   bool bDirectorDisconnected = true;
@@ -157,6 +192,10 @@ private:
   void FinalizeRealmHandshake(
     FString Token, FRedwoodSocketConnectedDelegate OnRealmConnected
   );
+
+  UFUNCTION()
+  void BeginRealmReauthentication();
+  FTimerHandle ReauthenticationAttemptTimer;
 
   void HandleRegionsChanged(
     const FString &Event, const TSharedPtr<FJsonValue> &Message
@@ -180,10 +219,12 @@ private:
   FString ServerToken;
 
   FRedwoodAuthUpdateDelegate OnAccountVerified;
+  bool bAuthenticated = false;
   FString PlayerId;
   FString AuthToken;
   FString SelectedCharacterId;
   FString Nickname;
+  FString CurrentRealmId;
 
   FTimerManager TimerManager;
 };

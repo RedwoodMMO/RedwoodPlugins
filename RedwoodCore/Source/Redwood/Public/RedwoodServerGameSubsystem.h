@@ -37,6 +37,12 @@ public:
   FString RequestId;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString RealmName;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  FString ProxyId;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString InstanceId;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")

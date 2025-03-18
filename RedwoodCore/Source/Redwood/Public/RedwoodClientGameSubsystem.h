@@ -6,6 +6,7 @@
 #include "Types/RedwoodTypes.h"
 
 #include "CoreMinimal.h"
+#include "Engine/WorldInitializationValues.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "RedwoodClientGameSubsystem.generated.h"
@@ -74,6 +75,32 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CancelWaitingForAccountVerification();
 
+  void SearchForPlayers(
+    FString UsernameOrNickname,
+    bool bIncludePartialMatches,
+    FRedwoodListFriendsOutputDelegate OnOutput
+  );
+
+  void ListFriends(
+    ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+  );
+
+  void RequestFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RemoveFriend(
+    FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RespondToFriendRequest(
+    FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void SetPlayerBlocked(
+    FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
   // This is a helper function for scenarios that only have a single realm
@@ -93,11 +120,16 @@ public:
   TMap<FString, float> GetRegions();
 
   void ListCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
+  void ListArchivedCharacters(FRedwoodListCharactersOutputDelegate OnOutput);
 
   void CreateCharacter(
     FString Name,
     USIOJsonObject *CharacterCreatorData,
     FRedwoodGetCharacterOutputDelegate OnOutput
+  );
+
+  void SetCharacterArchived(
+    FString CharacterId, bool bArchived, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void GetCharacterData(
@@ -167,4 +199,10 @@ private:
 
   UFUNCTION()
   void HandleRequestToJoinServer(FString ConsoleCommand);
+
+  void HandleOnWorldAdded(UWorld *World, FWorldInitializationValues IVS);
+  void HandleOnWorldBeginPlay(bool bBegunPlay);
+
+  UFUNCTION()
+  void ReportOnlineStatus();
 };

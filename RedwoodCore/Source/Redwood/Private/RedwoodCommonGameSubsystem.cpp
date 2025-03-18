@@ -27,6 +27,16 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
   JsonObject->SetStringField(TEXT("id"), Character.Id);
   JsonObject->SetStringField(TEXT("createdAt"), Character.CreatedAt.ToString());
   JsonObject->SetStringField(TEXT("updatedAt"), Character.UpdatedAt.ToString());
+
+  if (Character.bArchived) {
+    JsonObject->SetStringField(
+      TEXT("archivedAt"), Character.ArchivedAt.ToString()
+    );
+  } else {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull);
+    JsonObject->SetField(TEXT("archivedAt"), NullValue);
+  }
+
   JsonObject->SetStringField(TEXT("playerId"), Character.PlayerId);
   JsonObject->SetStringField(TEXT("name"), Character.Name);
   if (Character.CharacterCreatorData) {
@@ -113,6 +123,13 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
   FDateTime::Parse(
     JsonObject->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
   );
+
+  FString ArchivedAt;
+  if (JsonObject->TryGetStringField(TEXT("archivedAt"), ArchivedAt)) {
+    FDateTime::Parse(ArchivedAt, Character.ArchivedAt);
+    Character.bArchived = true;
+  }
+
   Character.PlayerId = JsonObject->GetStringField(TEXT("playerId"));
   Character.Name = JsonObject->GetStringField(TEXT("name"));
 
@@ -177,6 +194,12 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::ParseCharacter(
   FDateTime::ParseIso8601(
     *CharacterObj->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
   );
+
+  FString ArchivedAt;
+  if (CharacterObj->TryGetStringField(TEXT("archivedAt"), ArchivedAt)) {
+    FDateTime::ParseIso8601(*ArchivedAt, Character.ArchivedAt);
+    Character.bArchived = true;
+  }
 
   Character.PlayerId = CharacterObj->GetStringField(TEXT("playerId"));
 
@@ -480,12 +503,14 @@ USIOJsonObject *URedwoodCommonGameSubsystem::ParseSyncItemData(
   return Data;
 }
 
-void URedwoodCommonGameSubsystem::DeserializeBackendData(
+bool URedwoodCommonGameSubsystem::DeserializeBackendData(
   UObject *TargetObject,
   USIOJsonObject *SIOJsonObject,
   FString VariableName,
   int32 LatestSchemaVersion
 ) {
+  bool bDirty = false;
+
   if (SIOJsonObject) {
     FProperty *Prop =
       TargetObject->GetClass()->FindPropertyByName(*VariableName);
@@ -496,7 +521,7 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
 
         UStruct *StructDefinition = StructProp->Struct;
 
-        int32 SchemaVersion = 0;
+        int32 SchemaVersion = -1;
         if (!JsonObject->TryGetNumberField(
               TEXT("schemaVersion"), SchemaVersion
             )) {
@@ -520,108 +545,145 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
               *VariableName,
               *JsonString
             );
-          }
 
-          return;
+            return false;
+          }
         }
 
         void *StructPtr = FMemory::Malloc(StructDefinition->GetStructureSize());
-        FMemory::Memzero(StructPtr, StructDefinition->GetStructureSize());
+        StructDefinition->InitializeStruct(StructPtr);
 
-        bool bSuccess = StructDefinition == nullptr
-          ? false
-          : USIOJConvert::JsonObjectToUStruct(
-              JsonObject, StructDefinition, StructPtr, true
+        if (SchemaVersion == -1) {
+          bDirty = true;
+          SchemaVersion = LatestSchemaVersion;
+
+          FString MigrationFunctionName =
+            FString::Printf(TEXT("%s_Creation"), *VariableName);
+          UFunction *MigrationFunction =
+            TargetObject->GetClass()->FindFunctionByName(*MigrationFunctionName
             );
 
-        if (bSuccess) {
-          while (SchemaVersion < LatestSchemaVersion) {
-            // call a migration functions
-            FString MigrationFunctionName = FString::Printf(
-              TEXT("%s_Migrate_v%d"), *VariableName, SchemaVersion
-            );
-            UFunction *MigrationFunction =
-              TargetObject->GetClass()->FindFunctionByName(
-                *MigrationFunctionName
+          if (MigrationFunction) {
+            // Ensure the function is valid and has the correct signature
+            if (!MigrationFunction->IsValidLowLevel() || MigrationFunction->NumParms != 0) {
+              UE_LOG(
+                LogRedwood,
+                Error,
+                TEXT(
+                  "Migration function %s in %s has an invalid signature, not calling."
+                ),
+                *MigrationFunctionName,
+                *TargetObject->GetName()
+              );
+            } else {
+              // Allocate memory for the parameters
+              void *Params = FMemory::Malloc(MigrationFunction->ParmsSize);
+              FMemory::Memzero(Params, MigrationFunction->ParmsSize);
+
+              // Call the function
+              TargetObject->ProcessEvent(MigrationFunction, Params);
+
+              // Clean up
+              FMemory::Free(Params);
+            }
+          }
+        } else {
+          bool bSuccess = StructDefinition == nullptr
+            ? false
+            : USIOJConvert::JsonObjectToUStruct(
+                JsonObject, StructDefinition, StructPtr, true
               );
 
-            if (MigrationFunction) {
-              // Ensure the function is valid and has the correct signature
-              if (!MigrationFunction->IsValidLowLevel() || MigrationFunction->NumParms != 3 || !MigrationFunction->ReturnValueOffset)
+          if (bSuccess) {
+            while (SchemaVersion < LatestSchemaVersion) {
+              // call migration functions
+              FString MigrationFunctionName = FString::Printf(
+                TEXT("%s_Migrate_v%d"), *VariableName, SchemaVersion
+              );
+              UFunction *MigrationFunction =
+                TargetObject->GetClass()->FindFunctionByName(
+                  *MigrationFunctionName
+                );
+
+              if (MigrationFunction) {
+                // Ensure the function is valid and has the correct signature
+                if (!MigrationFunction->IsValidLowLevel() || MigrationFunction->NumParms != 3 || !MigrationFunction->ReturnValueOffset)
                   {
-                UE_LOG(
-                  LogRedwood,
-                  Error,
-                  TEXT(
-                    "Migration function %s in %s has an invalid signature, skipping update."
-                  ),
-                  *MigrationFunctionName,
-                  *TargetObject->GetName()
-                );
-
-                break;
-              } else {
-                // Allocate memory for the parameters
-                void *Params = FMemory::Malloc(MigrationFunction->ParmsSize);
-                FMemory::Memzero(Params, MigrationFunction->ParmsSize);
-
-                FProperty *FunctionStructProp = MigrationFunction->PropertyLink;
-                FProperty *FunctionObjectProp =
-                  FunctionStructProp->PropertyLinkNext;
-
-                // Set the input parameters
-                void *StructParam =
-                  FunctionStructProp->ContainerPtrToValuePtr<void *>(Params);
-                FMemory::Memcpy(
-                  StructParam, StructPtr, StructDefinition->GetStructureSize()
-                );
-
-                // ObjectParam is a pointer to a USIOJsonObject pointer
-                USIOJsonObject **ObjectParam =
-                  FunctionObjectProp->ContainerPtrToValuePtr<USIOJsonObject *>(
-                    Params
+                  UE_LOG(
+                    LogRedwood,
+                    Error,
+                    TEXT(
+                      "Migration function %s in %s has an invalid signature, skipping update."
+                    ),
+                    *MigrationFunctionName,
+                    *TargetObject->GetName()
                   );
-                *ObjectParam = SIOJsonObject;
 
-                // Call the function
-                TargetObject->ProcessEvent(MigrationFunction, Params);
+                  break;
+                } else {
+                  // Allocate memory for the parameters
+                  void *Params = FMemory::Malloc(MigrationFunction->ParmsSize);
+                  FMemory::Memzero(Params, MigrationFunction->ParmsSize);
 
-                // Retrieve the return value
-                void *ReturnValue =
-                  (void
-                     *)((SIZE_T)Params + MigrationFunction->ReturnValueOffset);
+                  FProperty *FunctionStructProp =
+                    MigrationFunction->PropertyLink;
+                  FProperty *FunctionObjectProp =
+                    FunctionStructProp->PropertyLinkNext;
 
-                // Copy the return value
-                FMemory::Free(StructPtr);
-                StructPtr =
-                  FMemory::Malloc(StructDefinition->GetStructureSize());
-                FMemory::Memcpy(
-                  StructPtr, ReturnValue, StructDefinition->GetStructureSize()
-                );
+                  // Set the input parameters
+                  void *StructParam =
+                    FunctionStructProp->ContainerPtrToValuePtr<void *>(Params);
+                  FMemory::Memcpy(
+                    StructParam, StructPtr, StructDefinition->GetStructureSize()
+                  );
 
-                // Clean up
-                FMemory::Free(Params);
+                  // ObjectParam is a pointer to a USIOJsonObject pointer
+                  USIOJsonObject **ObjectParam =
+                    FunctionObjectProp
+                      ->ContainerPtrToValuePtr<USIOJsonObject *>(Params);
+                  *ObjectParam = SIOJsonObject;
+
+                  // Call the function
+                  TargetObject->ProcessEvent(MigrationFunction, Params);
+
+                  // Retrieve the return value
+                  void *ReturnValue =
+                    (void
+                       *)((SIZE_T)Params + MigrationFunction->ReturnValueOffset);
+
+                  // Copy the return value
+                  FMemory::Free(StructPtr);
+                  StructPtr =
+                    FMemory::Malloc(StructDefinition->GetStructureSize());
+                  FMemory::Memcpy(
+                    StructPtr, ReturnValue, StructDefinition->GetStructureSize()
+                  );
+
+                  // Clean up
+                  FMemory::Free(Params);
+                }
               }
+
+              SchemaVersion++;
             }
 
-            SchemaVersion++;
-          }
+            if (SchemaVersion == LatestSchemaVersion) {
+              StructProp->CopySingleValue(
+                StructProp->ContainerPtrToValuePtr<void>(TargetObject),
+                StructPtr
+              );
+            }
 
-          if (SchemaVersion == LatestSchemaVersion) {
-            StructProp->CopySingleValue(
-              StructProp->ContainerPtrToValuePtr<void>(TargetObject), StructPtr
+            FMemory::Free(StructPtr);
+          } else {
+            UE_LOG(
+              LogRedwood,
+              Error,
+              TEXT("Failed to convert JSON object for %s, schemaVersion %d"),
+              *TargetObject->GetName(),
+              SchemaVersion
             );
           }
-
-          FMemory::Free(StructPtr);
-        } else {
-          UE_LOG(
-            LogRedwood,
-            Error,
-            TEXT("Failed to convert JSON object for %s, schemaVersion %d"),
-            *TargetObject->GetName(),
-            SchemaVersion
-          );
         }
       } else {
         UE_LOG(
@@ -668,6 +730,8 @@ void URedwoodCommonGameSubsystem::DeserializeBackendData(
       }
     }
   }
+
+  return bDirty;
 }
 
 USIOJsonObject *URedwoodCommonGameSubsystem::SerializeBackendData(
@@ -750,4 +814,24 @@ bool URedwoodCommonGameSubsystem::ShouldUseBackend(UWorld *World) {
 #else
   return true;
 #endif
+}
+
+ERedwoodFriendListType URedwoodCommonGameSubsystem::ParseFriendListType(
+  FString StringValue
+) {
+  ERedwoodFriendListType EnumValue = ERedwoodFriendListType::Unknown;
+
+  if (StringValue == TEXT("active")) {
+    EnumValue = ERedwoodFriendListType::Active;
+  } else if (StringValue == TEXT("pending-all")) {
+    EnumValue = ERedwoodFriendListType::PendingAll;
+  } else if (StringValue == TEXT("pending-received")) {
+    EnumValue = ERedwoodFriendListType::PendingReceived;
+  } else if (StringValue == TEXT("pending-sent")) {
+    EnumValue = ERedwoodFriendListType::PendingSent;
+  } else if (StringValue == TEXT("blocked")) {
+    EnumValue = ERedwoodFriendListType::Blocked;
+  }
+
+  return EnumValue;
 }

@@ -3,6 +3,7 @@
 #include "RedwoodClientGameSubsystem.h"
 #include "RedwoodClientInterface.h"
 #include "RedwoodCommonGameSubsystem.h"
+#include "RedwoodGameStateComponent.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodSettings.h"
 
@@ -10,6 +11,7 @@
   #include "RedwoodEditorSettings.h"
 #endif
 
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "Kismet/KismetStringLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -41,6 +43,10 @@ void URedwoodClientGameSubsystem::Initialize(
       this, &URedwoodClientGameSubsystem::HandleOnRealmConnectionLost
     );
   }
+
+  FWorldDelegates::OnPostWorldInitialization.AddUObject(
+    this, &URedwoodClientGameSubsystem::HandleOnWorldAdded
+  );
 }
 
 void URedwoodClientGameSubsystem::Deinitialize() {
@@ -48,6 +54,60 @@ void URedwoodClientGameSubsystem::Deinitialize() {
 
   if (ClientInterface) {
     ClientInterface->Deinitialize();
+  }
+}
+
+void URedwoodClientGameSubsystem::HandleOnWorldAdded(
+  UWorld *World, FWorldInitializationValues IVS
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) && IsDirectorConnected()) {
+    if (IsValid(World) && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE)) {
+      World->GetOnBeginPlayEvent().AddUObject(
+        this, &URedwoodClientGameSubsystem::HandleOnWorldBeginPlay
+      );
+    }
+  }
+}
+
+void URedwoodClientGameSubsystem::HandleOnWorldBeginPlay(bool bBegunPlay) {
+  UWorld *World = GetWorld();
+
+  if (IsValid(World) && bBegunPlay) {
+    ReportOnlineStatus();
+
+    AGameStateBase *GameState = World->GetGameState();
+    if (GameState) {
+      URedwoodGameStateComponent *GameStateComponent =
+        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
+          URedwoodGameStateComponent::StaticClass()
+        ));
+      if (GameStateComponent) {
+        GameStateComponent->OnServerDetailsChanged.AddDynamic(
+          this, &URedwoodClientGameSubsystem::ReportOnlineStatus
+        );
+      }
+    }
+  }
+}
+
+void URedwoodClientGameSubsystem::ReportOnlineStatus() {
+  UWorld *World = GetWorld();
+
+  if (IsValid(World)) {
+    AGameStateBase *GameState = World->GetGameState();
+    if (GameState) {
+      URedwoodGameStateComponent *GameStateComponent =
+        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
+          URedwoodGameStateComponent::StaticClass()
+        ));
+      if (GameStateComponent) {
+        ClientInterface->ReportOnlineStatus(
+          true, GameStateComponent->GetServerDetails()
+        );
+      } else {
+        ClientInterface->ReportOnlineStatus(false, FRedwoodServerDetails());
+      }
+    }
   }
 }
 
@@ -144,6 +204,79 @@ void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
   }
 }
 
+void URedwoodClientGameSubsystem::SearchForPlayers(
+  FString UsernameOrNickname,
+  bool bIncludePartialMatches,
+  FRedwoodListFriendsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForPlayers(
+      UsernameOrNickname, bIncludePartialMatches, OnOutput
+    );
+  } else {
+    FRedwoodListFriendsOutput Output;
+    Output.Error = TEXT("Cannot search for players without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::ListFriends(
+  ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListFriends(Filter, OnOutput);
+  } else {
+    FRedwoodListFriendsOutput Output;
+    Output.Error = TEXT("Cannot list friends without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::RequestFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RequestFriend(OtherPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot request friend without using a backend"
+    ));
+  }
+}
+
+void URedwoodClientGameSubsystem::RemoveFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RemoveFriend(OtherPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot remove friend without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::RespondToFriendRequest(
+  FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RespondToFriendRequest(OtherPlayerId, bAccept, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot respond to friend request without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::SetPlayerBlocked(
+  FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetPlayerBlocked(OtherPlayerId, bBlocked, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot block players without using a backend")
+    );
+  }
+}
+
 void URedwoodClientGameSubsystem::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {
@@ -209,11 +342,30 @@ void URedwoodClientGameSubsystem::ListCharacters(
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->ListCharacters(OnOutput);
   } else {
-    TArray<FRedwoodCharacterBackend> Characters;
-
     FRedwoodListCharactersOutput Output;
     Output.Characters =
       URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::ListArchivedCharacters(
+  FRedwoodListCharactersOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListArchivedCharacters(OnOutput);
+  } else {
+    TArray<FRedwoodCharacterBackend> Characters =
+      URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
+
+    FRedwoodListCharactersOutput Output;
+
+    for (FRedwoodCharacterBackend Character : Characters) {
+      if (Character.bArchived) {
+        Output.Characters.Add(Character);
+      }
+    }
+
     OnOutput.ExecuteIfBound(Output);
   }
 }
@@ -246,6 +398,23 @@ void URedwoodClientGameSubsystem::CreateCharacter(
     URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
 
     OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SetCharacterArchived(
+  FString CharacterId, bool bArchived, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetCharacterArchived(CharacterId, bArchived, OnOutput);
+  } else {
+    FRedwoodCharacterBackend Character =
+      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+    Character.bArchived = bArchived;
+    Character.ArchivedAt = FDateTime::UtcNow();
+
+    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+
+    OnOutput.ExecuteIfBound(TEXT(""));
   }
 }
 

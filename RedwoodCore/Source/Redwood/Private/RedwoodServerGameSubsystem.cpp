@@ -231,6 +231,8 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         UE_LOG(LogRedwood, Log, TEXT("LoadMap message is valid object"));
         TSharedPtr<FJsonObject> ActualObject = *Object;
         RequestId = ActualObject->GetStringField(TEXT("requestId"));
+        RealmName = ActualObject->GetStringField(TEXT("realmName"));
+        ProxyId = ActualObject->GetStringField(TEXT("proxyId"));
         InstanceId = ActualObject->GetStringField(TEXT("instanceId"));
         Name = ActualObject->GetStringField(TEXT("name"));
         MapId = ActualObject->GetStringField(TEXT("mapId"));
@@ -1294,13 +1296,17 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
     GameState->GetComponentByClass<URedwoodSyncComponent>();
 
   if (InitialLoad.Data && GameStateSync) {
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
+    bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
       GameStateSync->bStoreDataInActor ? (UObject *)GameState
                                        : (UObject *)GameStateSync,
       InitialLoad.Data,
       GameStateSync->DataVariableName,
       GameStateSync->LatestDataSchemaVersion
     );
+
+    if (bDirty) {
+      GameStateSync->MarkDataDirty();
+    }
   }
 
   for (FRedwoodSyncItem &Item : InitialLoad.Items) {
@@ -1428,13 +1434,17 @@ void URedwoodServerGameSubsystem::UpdateSyncItemData(
 ) {
   if (IsValid(SyncItemComponent) && IsValid(Data)) {
     AActor *Actor = SyncItemComponent->GetOwner();
-    URedwoodCommonGameSubsystem::DeserializeBackendData(
+    bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
       SyncItemComponent->bStoreDataInActor ? (UObject *)Actor
                                            : (UObject *)SyncItemComponent,
       InData,
       SyncItemComponent->DataVariableName,
       SyncItemComponent->LatestDataSchemaVersion
     );
+
+    if (bDirty) {
+      SyncItemComponent->MarkDataDirty();
+    }
   }
 }
 

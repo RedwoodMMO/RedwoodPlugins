@@ -237,3 +237,20 @@ UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodConnectToServerDynamicDelegate, FString, ConsoleCommand
 );
+
+USTRUCT(BlueprintType)
+struct FRedwoodServerDetails {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString RealmName;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ProxyId;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ZoneName;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString ShardName;
+};

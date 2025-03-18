@@ -55,7 +55,7 @@ public:
     UObject *TargetObject, FString VariableName
   );
 
-  static void DeserializeBackendData(
+  static bool DeserializeBackendData(
     UObject *TargetObject,
     USIOJsonObject *SIOJsonObject,
     FString VariableName,
@@ -64,6 +64,8 @@ public:
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
   static bool ShouldUseBackend(UWorld *World);
+
+  static ERedwoodFriendListType ParseFriendListType(FString StringValue);
 
 private:
 };

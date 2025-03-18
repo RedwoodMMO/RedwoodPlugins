@@ -76,6 +76,7 @@ void URedwoodClientInterface::InitializeDirectorConnection(
       );
     } else if (!bDirectorDisconnected) {
       bDirectorDisconnected = true;
+      bAuthenticated = false;
       UE_LOG(
         LogRedwood,
         Error,
@@ -88,28 +89,59 @@ void URedwoodClientInterface::InitializeDirectorConnection(
     }
   };
 
-  Director->OnConnectedCallback =
-    [Uri,
-     OnDirectorConnected,
-     this](const FString &InSocketId, const FString &InSessionId) {
-      bDirectorDisconnected = false;
+  Director->OnConnectedCallback = [Uri, OnDirectorConnected, this](
+                                    const FString &InSocketId,
+                                    const FString &InSessionId
+                                  ) {
+    bDirectorDisconnected = false;
 
-      if (!bSentDirectorConnected) {
-        bSentDirectorConnected = true;
-        FRedwoodSocketConnected Details;
-        Details.Error = TEXT("");
-        OnDirectorConnected.ExecuteIfBound(Details);
-        UE_LOG(LogRedwood, Log, TEXT("Connected to Director at %s"), *Uri);
-      } else {
-        UE_LOG(
-          LogRedwood,
-          Log,
-          TEXT("Reestablished connection to Director at %s"),
-          *Uri
-        );
-        OnDirectorConnectionReestablished.Broadcast();
-      }
-    };
+    if (!bSentDirectorConnected) {
+      bSentDirectorConnected = true;
+      FRedwoodSocketConnected Details;
+      Details.Error = TEXT("");
+      OnDirectorConnected.ExecuteIfBound(Details);
+      UE_LOG(LogRedwood, Log, TEXT("Connected to Director at %s"), *Uri);
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Log,
+        TEXT(
+          "Reestablished connection to Director at %s, attempting to reauthenticate."
+        ),
+        *Uri
+      );
+
+      Login(
+        PlayerId,
+        AuthToken,
+        "local",
+        true,
+        FRedwoodAuthUpdateDelegate::CreateLambda([this, OnDirectorConnected](
+                                                   const FRedwoodAuthUpdate
+                                                     &Update
+                                                 ) {
+          if (Update.Type == ERedwoodAuthUpdateType::Success) {
+            UE_LOG(
+              LogRedwood,
+              Log,
+              TEXT(
+                "Reauthenticated connection with Director, calling connection reestablished."
+              )
+            );
+            OnDirectorConnectionReestablished.Broadcast();
+          } else {
+            UE_LOG(
+              LogRedwood,
+              Error,
+              TEXT("Could not reauthenticate connection with Director: %s"),
+              *Update.Message
+            );
+          }
+        }),
+        true
+      );
+    }
+  };
 
   UE_LOG(LogRedwood, Log, TEXT("Connecting to Director at %s"), *Uri);
 
@@ -320,7 +352,7 @@ void URedwoodClientInterface::Logout() {
 }
 
 bool URedwoodClientInterface::IsLoggedIn() {
-  return !PlayerId.IsEmpty() && !AuthToken.IsEmpty();
+  return !PlayerId.IsEmpty() && !AuthToken.IsEmpty() && bAuthenticated;
 }
 
 FString URedwoodClientInterface::GetPlayerId() {
@@ -357,7 +389,8 @@ void URedwoodClientInterface::Login(
   const FString &PasswordOrToken,
   const FString &Provider,
   bool bRememberMe,
-  FRedwoodAuthUpdateDelegate OnUpdate
+  FRedwoodAuthUpdateDelegate OnUpdate,
+  bool bBypassProviderCheck
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FRedwoodAuthUpdate Update;
@@ -371,6 +404,10 @@ void URedwoodClientInterface::Login(
   Payload->SetStringField(TEXT("username"), Username);
   Payload->SetStringField(TEXT("secret"), PasswordOrToken);
   Payload->SetStringField(TEXT("provider"), Provider);
+
+  if (bBypassProviderCheck) {
+    Payload->SetBoolField(TEXT("bypassProviderCheck"), true);
+  }
 
   Director->Emit(
     TEXT("player:login:username"),
@@ -387,6 +424,8 @@ void URedwoodClientInterface::Login(
       if (Error.IsEmpty()) {
         Update.Type = ERedwoodAuthUpdateType::Success;
         Update.Message = TEXT("");
+
+        bAuthenticated = true;
 
         URedwoodSaveGame *SaveGame =
           Cast<URedwoodSaveGame>(UGameplayStatics::CreateSaveGameObject(
@@ -427,6 +466,257 @@ void URedwoodClientInterface::CancelWaitingForAccountVerification() {
   if (OnAccountVerified.IsBound()) {
     OnAccountVerified.Unbind();
   }
+}
+
+void URedwoodClientInterface::SearchForPlayers(
+  FString UsernameOrNickname,
+  bool bIncludePartialMatches,
+  FRedwoodListFriendsOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListFriendsOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("searchText"), UsernameOrNickname);
+  Payload->SetBoolField(TEXT("includePartial"), bIncludePartialMatches);
+
+  Director->Emit(
+    TEXT("director:players:search"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListFriendsOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Players =
+        MessageObject->GetArrayField(TEXT("players"));
+
+      for (TSharedPtr<FJsonValue> InPlayer : Players) {
+        FRedwoodFriend OutPlayer;
+        TSharedPtr<FJsonObject> FriendObj = InPlayer->AsObject();
+        OutPlayer.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
+        OutPlayer.Nickname = FriendObj->GetStringField(TEXT("nickname"));
+        OutPlayer.State = URedwoodCommonGameSubsystem::ParseFriendListType(
+          FriendObj->GetStringField(TEXT("state"))
+        );
+
+        const TSharedPtr<FJsonObject> *OnlineStateObj;
+        OutPlayer.bOnline =
+          FriendObj->TryGetObjectField(TEXT("onlineState"), OnlineStateObj);
+        if (OutPlayer.bOnline) {
+
+          const TSharedPtr<FJsonObject> *OnlineStateRealmObj;
+          OutPlayer.bPlaying =
+            (*OnlineStateObj)
+              ->TryGetObjectField(TEXT("realm"), OnlineStateRealmObj);
+
+          if (OutPlayer.bPlaying) {
+            OutPlayer.OnlineStateRealm.RealmName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("realmName"));
+            OutPlayer.OnlineStateRealm.ProxyId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("proxyId"));
+            OutPlayer.OnlineStateRealm.ZoneName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("zoneName"));
+            OutPlayer.OnlineStateRealm.ShardName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("shardName"));
+            OutPlayer.OnlineStateRealm.CharacterId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("characterId"));
+          }
+        }
+
+        Output.Players.Add(OutPlayer);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::ListFriends(
+  ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListFriendsOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  if (Filter == ERedwoodFriendListType::All || Filter == ERedwoodFriendListType::Unknown) {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+    Payload->SetField(TEXT("filter"), NullValue);
+  } else {
+    Payload->SetStringField(TEXT("filter"), RW_ENUM_TO_STRING(Filter));
+  }
+
+  Director->Emit(
+    TEXT("director:friends:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListFriendsOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Players =
+        MessageObject->GetArrayField(TEXT("players"));
+
+      for (TSharedPtr<FJsonValue> InPlayer : Players) {
+        FRedwoodFriend OutPlayer;
+        TSharedPtr<FJsonObject> FriendObj = InPlayer->AsObject();
+        OutPlayer.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
+        OutPlayer.Nickname = FriendObj->GetStringField(TEXT("nickname"));
+        OutPlayer.State = URedwoodCommonGameSubsystem::ParseFriendListType(
+          FriendObj->GetStringField(TEXT("state"))
+        );
+
+        const TSharedPtr<FJsonObject> *OnlineStateObj;
+        OutPlayer.bOnline =
+          FriendObj->TryGetObjectField(TEXT("onlineState"), OnlineStateObj);
+        if (OutPlayer.bOnline) {
+
+          const TSharedPtr<FJsonObject> *OnlineStateRealmObj;
+          OutPlayer.bPlaying =
+            (*OnlineStateObj)
+              ->TryGetObjectField(TEXT("realm"), OnlineStateRealmObj);
+
+          if (OutPlayer.bPlaying) {
+            OutPlayer.OnlineStateRealm.RealmName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("realmName"));
+            OutPlayer.OnlineStateRealm.ProxyId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("proxyId"));
+            OutPlayer.OnlineStateRealm.ZoneName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("zoneName"));
+            OutPlayer.OnlineStateRealm.ShardName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("shardName"));
+            OutPlayer.OnlineStateRealm.CharacterId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("characterId"));
+          }
+        }
+
+        Output.Players.Add(OutPlayer);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::RequestFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+
+  Director->Emit(
+    TEXT("director:friends:add"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::RemoveFriend(
+  FString OtherPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+
+  Director->Emit(
+    TEXT("director:friends:remove"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::RespondToFriendRequest(
+  FString OtherPlayerId, bool bAccept, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+  Payload->SetBoolField(TEXT("accept"), bAccept);
+
+  Director->Emit(
+    TEXT("director:friends:respond-request"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::SetPlayerBlocked(
+  FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("friendId"), OtherPlayerId);
+  Payload->SetBoolField(TEXT("block"), bBlocked);
+
+  Director->Emit(
+    TEXT("director:friends:block"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
 }
 
 void URedwoodClientInterface::ListRealms(
@@ -540,6 +830,7 @@ void URedwoodClientInterface::InitiateRealmHandshake(
         return;
       }
 
+      CurrentRealmId = InRealm.Id;
       Realm = ISocketIOClientModule::Get().NewValidNativePointer();
       bSentRealmConnected = false;
 
@@ -587,15 +878,79 @@ void URedwoodClientInterface::InitiateRealmHandshake(
           UE_LOG(
             LogRedwood,
             Log,
-            TEXT("Reestablished connection to Realm at %s"),
+            TEXT(
+              "Reestablished connection to Realm at %s, attempting to reauthenticate"
+            ),
             *InRealm.Uri
           );
-          OnRealmConnectionReestablished.Broadcast();
+          BeginRealmReauthentication();
         }
       };
 
       UE_LOG(LogRedwood, Log, TEXT("Connecting to Realm at %s"), *InRealm.Uri);
       Realm->Connect(*InRealm.Uri);
+    }
+  );
+}
+
+void URedwoodClientInterface::BeginRealmReauthentication() {
+  if (!Director.IsValid() || !Director->bIsConnected || !IsLoggedIn()) {
+    TimerManager.SetTimer(
+      ReauthenticationAttemptTimer,
+      this,
+      &URedwoodClientInterface::BeginRealmReauthentication,
+      0.5f,
+      false
+    );
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("realmId"), CurrentRealmId);
+
+  Director->Emit(
+    TEXT("realm:auth:player:connect:client-to-director"),
+    Payload,
+    [this](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      FString Token = MessageObject->GetStringField(TEXT("token"));
+
+      if (!Error.IsEmpty()) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Could not reauthenticate connection with Realm: %s"),
+          *Error
+        );
+        return;
+      }
+
+      FinalizeRealmHandshake(
+        Token,
+        FRedwoodSocketConnectedDelegate::CreateLambda(
+          [this](const FRedwoodSocketConnected &Output) {
+            if (Output.Error.IsEmpty()) {
+              UE_LOG(
+                LogRedwood,
+                Log,
+                TEXT(
+                  "Reauthenticated connection with Realm, calling connection reestablished."
+                )
+              );
+              OnRealmConnectionReestablished.Broadcast();
+            } else {
+              UE_LOG(
+                LogRedwood,
+                Error,
+                TEXT("Could not reauthenticate connection with Realm: %s"),
+                *Output.Error
+              );
+            }
+          }
+        )
+      );
     }
   );
 }
@@ -720,6 +1075,48 @@ void URedwoodClientInterface::ListCharacters(
   );
 }
 
+void URedwoodClientInterface::ListArchivedCharacters(
+  FRedwoodListCharactersOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodListCharactersOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetBoolField(TEXT("includeArchived"), true);
+
+  Realm->Emit(
+    TEXT("realm:characters:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+      TArray<TSharedPtr<FJsonValue>> Characters =
+        MessageObject->GetArrayField(TEXT("characters"));
+
+      TArray<FRedwoodCharacterBackend> CharactersStruct;
+      for (TSharedPtr<FJsonValue> Character : Characters) {
+        TSharedPtr<FJsonObject> CharacterData = Character->AsObject();
+
+        FRedwoodCharacterBackend ParsedCharacter =
+          URedwoodCommonGameSubsystem::ParseCharacter(CharacterData);
+        if (ParsedCharacter.bArchived) {
+          CharactersStruct.Add(ParsedCharacter);
+        }
+      }
+
+      FRedwoodListCharactersOutput Output;
+      Output.Error = Error;
+      Output.Characters = CharactersStruct;
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
 void URedwoodClientInterface::CreateCharacter(
   FString Name,
   USIOJsonObject *CharacterCreatorData,
@@ -765,6 +1162,32 @@ void URedwoodClientInterface::CreateCharacter(
       }
 
       OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::SetCharacterArchived(
+  FString CharacterId, bool bArchived, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FString Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("id"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  Payload->SetBoolField(TEXT("archived"), bArchived);
+
+  Realm->Emit(
+    TEXT("realm:characters:archive"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
     }
   );
 }
@@ -1267,4 +1690,30 @@ FString URedwoodClientInterface::GetConnectionConsoleCommand() {
     TEXT("open ") + ServerConnection + "?" + OptionsString;
 
   return ConnectionString;
+}
+
+void URedwoodClientInterface::ReportOnlineStatus(
+  bool bInServer, FRedwoodServerDetails ServerDetails
+) {
+  if (!Director.IsValid() || !Director->bIsConnected || SelectedCharacterId.IsEmpty()) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  if (bInServer) {
+    TSharedPtr<FJsonObject> RealmObject = MakeShareable(new FJsonObject);
+    RealmObject->SetStringField(TEXT("realmName"), ServerDetails.RealmName);
+    RealmObject->SetStringField(TEXT("proxyId"), ServerDetails.ProxyId);
+    RealmObject->SetStringField(TEXT("zoneName"), ServerDetails.ZoneName);
+    RealmObject->SetStringField(TEXT("shardName"), ServerDetails.ShardName);
+    RealmObject->SetStringField(TEXT("characterId"), SelectedCharacterId);
+    Payload->SetObjectField(TEXT("realm"), RealmObject);
+  } else {
+    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+    Payload->SetField(TEXT("realm"), NullValue);
+  }
+
+  Director->Emit(TEXT("director:players:online-state"), Payload, nullptr);
 }
