@@ -39,17 +39,5 @@ public class RedwoodEditor : ModuleRules {
       new string[] {
       }
     );
-
-    // get RW_VERSION environment variable
-    string? RW_VERSION = System.Environment.GetEnvironmentVariable("RW_VERSION");
-    if (RW_VERSION != null) {
-      PublicDefinitions.Add("RW_VERSION=" + RW_VERSION + "");
-    }
-
-    PublicDefinitions.AddRange(
-      new string[] {
-        "RW_SEND_ANALYTICS=1",
-      }
-    );
   }
 }
