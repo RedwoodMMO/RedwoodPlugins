@@ -1,6 +1,7 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodGameStateComponent.h"
+#include "RedwoodServerGameSubsystem.h"
 
 #include "Net/UnrealNetwork.h"
 

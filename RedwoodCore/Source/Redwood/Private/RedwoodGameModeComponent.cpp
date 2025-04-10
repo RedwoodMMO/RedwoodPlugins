@@ -338,24 +338,30 @@ void URedwoodGameModeComponent::FinishRestartPlayer(
 
     if (IsValid(RedwoodPlayerState)) {
       if (RedwoodPlayerState->RedwoodCharacter.RedwoodData) {
-        USIOJsonObject *LastTransform;
+        USIOJsonObject *LastLocation;
         if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
-              TEXT("lastTransform"), LastTransform
+              TEXT("lastLocation"), LastLocation
             )) {
-          USIOJsonObject *ControlRotation =
-            LastTransform->GetObjectField(TEXT("controlRotation"));
-          if (ControlRotation) {
-            float Roll = ControlRotation->GetNumberField(TEXT("x"));
-            float Pitch = ControlRotation->GetNumberField(TEXT("y"));
-            float Yaw = ControlRotation->GetNumberField(TEXT("z"));
+          USIOJsonObject *LastTransform;
 
-            NewControlRotation = FRotator(Pitch, Yaw, Roll);
-          } else {
-            UE_LOG(
-              LogRedwood,
-              Error,
-              TEXT("Invalid lastTransform (no controlRotation object field)")
-            );
+          if (LastLocation->TryGetObjectField(
+                TEXT("transform"), LastTransform
+              )) {
+            USIOJsonObject *ControlRotation =
+              LastTransform->GetObjectField(TEXT("controlRotation"));
+            if (ControlRotation) {
+              float Roll = ControlRotation->GetNumberField(TEXT("x"));
+              float Pitch = ControlRotation->GetNumberField(TEXT("y"));
+              float Yaw = ControlRotation->GetNumberField(TEXT("z"));
+
+              NewControlRotation = FRotator(Pitch, Yaw, Roll);
+            } else {
+              UE_LOG(
+                LogRedwood,
+                Error,
+                TEXT("Invalid lastTransform (no controlRotation object field)")
+              );
+            }
           }
         }
       }
@@ -399,52 +405,65 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
 
   if (IsValid(RedwoodPlayerState)) {
     if (IsValid(RedwoodPlayerState->RedwoodCharacter.RedwoodData)) {
-      FString LastSpawnName;
-      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetStringField(
-            TEXT("lastSpawnName"), LastSpawnName
-          )) {
-        for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
-          if (ZoneSpawn->SpawnName == LastSpawnName) {
-            return ZoneSpawn->GetSpawnTransform();
-          }
-        }
-      }
 
-      USIOJsonObject *LastTransform;
+      USIOJsonObject *LastLocation;
       if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
-            TEXT("lastTransform"), LastTransform
+            TEXT("lastLocation"), LastLocation
           )) {
-        USIOJsonObject *Location =
-          LastTransform->GetObjectField(TEXT("location"));
-        USIOJsonObject *Rotation =
-          LastTransform->GetObjectField(TEXT("rotation"));
-        if (IsValid(Location) && IsValid(Rotation)) {
-          float LocX = Location->GetNumberField(TEXT("x"));
-          float LocY = Location->GetNumberField(TEXT("y"));
-          float LocZ = Location->GetNumberField(TEXT("z"));
+        FString LastZoneName = LastLocation->GetStringField(TEXT("zoneName"));
 
-          float RotX = Rotation->GetNumberField(TEXT("x"));
-          float RotY = Rotation->GetNumberField(TEXT("y"));
-          float RotZ = Rotation->GetNumberField(TEXT("z"));
+        if (LastZoneName == RedwoodServerGameSubsystem->ZoneName) {
 
-          FTransform Transform =
-            FTransform(FRotator(RotY, RotZ, RotX), FVector(LocX, LocY, LocZ));
+          FString LastSpawnName;
+          USIOJsonObject *LastTransform;
 
-          return Transform;
-        } else {
-          UE_LOG(
-            LogRedwood,
-            Error,
-            TEXT(
-              "Invalid lastTransform (no location and/or rotation object fields)"
-            )
-          );
+          if (LastLocation->TryGetStringField(
+                TEXT("spawnName"), LastSpawnName
+              )) {
+            for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
+              if (ZoneSpawn->SpawnName == LastSpawnName) {
+                return ZoneSpawn->GetSpawnTransform();
+              }
+            }
+          } else if (LastLocation->TryGetObjectField(
+                       TEXT("transform"), LastTransform
+                     )) {
+            USIOJsonObject *Location =
+              LastTransform->GetObjectField(TEXT("location"));
+            USIOJsonObject *Rotation =
+              LastTransform->GetObjectField(TEXT("rotation"));
+            if (IsValid(Location) && IsValid(Rotation)) {
+              float LocX = Location->GetNumberField(TEXT("x"));
+              float LocY = Location->GetNumberField(TEXT("y"));
+              float LocZ = Location->GetNumberField(TEXT("z"));
+
+              float RotX = Rotation->GetNumberField(TEXT("x"));
+              float RotY = Rotation->GetNumberField(TEXT("y"));
+              float RotZ = Rotation->GetNumberField(TEXT("z"));
+
+              FTransform Transform = FTransform(
+                FRotator(RotY, RotZ, RotX), FVector(LocX, LocY, LocZ)
+              );
+
+              return Transform;
+            } else {
+              UE_LOG(
+                LogRedwood,
+                Error,
+                TEXT(
+                  "Invalid lastTransform (no location and/or rotation object fields)"
+                )
+              );
+            }
+          }
         }
       }
     }
 
     UE_LOG(
-      LogRedwood, Log, TEXT("No valid last transform found, using zone spawn")
+      LogRedwood,
+      Log,
+      TEXT("No valid last transform found, using default zone spawn")
     );
 
     for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
@@ -462,7 +481,7 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
     LogRedwood,
     Error,
     TEXT(
-      "Could not find a lastTransform for the character and there's no valid ARedwoodZoneSpawn found for this zone (%s). Using default transform."
+      "Could not find a lastLocation for the character and there's no valid ARedwoodZoneSpawn found for this zone (%s). Using default transform."
     ),
     *RedwoodServerGameSubsystem->ZoneName
   );
