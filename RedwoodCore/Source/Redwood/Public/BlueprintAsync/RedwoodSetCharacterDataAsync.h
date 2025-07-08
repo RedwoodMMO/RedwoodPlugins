@@ -38,6 +38,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodGetCharacterOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   FString CharacterId;

@@ -34,5 +34,6 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodListCharactersOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 };

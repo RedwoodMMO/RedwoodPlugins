@@ -36,6 +36,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodCreateServerOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   bool bJoinSession;

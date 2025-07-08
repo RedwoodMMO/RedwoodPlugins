@@ -36,6 +36,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodErrorOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodServerGameSubsystem *Target;
 
   FString Key;

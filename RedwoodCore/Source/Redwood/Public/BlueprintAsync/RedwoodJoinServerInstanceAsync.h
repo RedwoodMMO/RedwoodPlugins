@@ -37,6 +37,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodJoinServerOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   FString ServerReference;

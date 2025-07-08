@@ -35,6 +35,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodGetSaveGameOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodServerGameSubsystem *Target;
 
   FString Key;
