@@ -10,6 +10,7 @@
 #include "RedwoodTypesBlobs.h"
 #include "RedwoodTypesCharacters.h"
 #include "RedwoodTypesFriends.h"
+#include "RedwoodTypesGuilds.h"
 #include "RedwoodTypesRealms.h"
 #include "RedwoodTypesRegions.h"
 #include "RedwoodTypesServers.h"

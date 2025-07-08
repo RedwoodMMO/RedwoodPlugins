@@ -101,6 +101,121 @@ public:
     FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
   );
 
+  void ListGuilds(
+    bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
+  );
+
+  void GetGuild(FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput);
+
+  void JoinGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
+
+  void InviteToGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void LeaveGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
+
+  void ListGuildMembers(
+    FString GuildId,
+    ERedwoodGuildAndAllianceMemberState State,
+    FRedwoodListGuildMembersOutputDelegate OnOutput
+  );
+
+  void CreateGuild(
+    FString GuildName,
+    ERedwoodGuildInviteType InviteType,
+    bool bListed,
+    bool bMembershipPublic,
+    FRedwoodCreateGuildOutputDelegate OnOutput
+  );
+
+  void UpdateGuild(
+    FString GuildId,
+    FString GuildName,
+    ERedwoodGuildInviteType InviteType,
+    bool bListed,
+    bool bMembershipPublic,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void KickPlayerFromGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void BanPlayerFromGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void UnbanPlayerFromGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void PromotePlayerToGuildAdmin(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void DemotePlayerFromGuildAdmin(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void ListAlliances(FRedwoodListAlliancesOutputDelegate OnOutput);
+
+  void CreateAlliance(
+    FString AllianceName,
+    FString GuildId,
+    bool bInviteOnly,
+    FRedwoodCreateAllianceOutputDelegate OnOutput
+  );
+
+  void UpdateAlliance(
+    FString AllianceId,
+    FString AllianceName,
+    bool bInviteOnly,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void KickGuildFromAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void BanGuildFromAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void UnbanGuildFromAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void ListAllianceGuilds(
+    FString AllianceId,
+    ERedwoodGuildAndAllianceMemberState State,
+    FRedwoodListAllianceGuildsOutputDelegate OnOutput
+  );
+
+  void JoinAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void LeaveAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void InviteGuildToAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
 
   // This is a helper function for scenarios that only have a single realm

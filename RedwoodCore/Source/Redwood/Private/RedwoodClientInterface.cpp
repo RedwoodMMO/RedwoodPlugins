@@ -719,6 +719,788 @@ void URedwoodClientInterface::SetPlayerBlocked(
   );
 }
 
+void URedwoodClientInterface::ListGuilds(
+  bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListGuildsOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetBoolField(TEXT("onlyPlayersGuilds"), bOnlyPlayersGuilds);
+
+  Director
+    ->Emit(TEXT("realm:guilds:list"), Payload, [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListGuildsOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      if (Output.Error.IsEmpty()) {
+        const TArray<TSharedPtr<FJsonValue>> *GuildsArray;
+        if (MessageObject->TryGetArrayField(TEXT("guilds"), GuildsArray)) {
+          for (const TSharedPtr<FJsonValue> &GuildValue : *GuildsArray) {
+            TSharedPtr<FJsonObject> GuildInfoObject = GuildValue->AsObject();
+            FRedwoodGuildInfo GuildInfo;
+
+            TSharedPtr<FJsonObject> GuildObject =
+              GuildInfoObject->GetObjectField(TEXT("guild"));
+
+            GuildInfo.Guild.Id = GuildObject->GetStringField(TEXT("id"));
+            FDateTime::ParseIso8601(
+              *GuildObject->GetStringField(TEXT("createdAt")),
+              GuildInfo.Guild.CreatedAt
+            );
+            FDateTime::ParseIso8601(
+              *GuildObject->GetStringField(TEXT("updatedAt")),
+              GuildInfo.Guild.UpdatedAt
+            );
+            GuildInfo.Guild.Name = GuildObject->GetStringField(TEXT("name"));
+            GuildInfo.Guild.InviteType =
+              URedwoodCommonGameSubsystem::ParseGuildInviteType(
+                GuildObject->GetStringField(TEXT("inviteType"))
+              );
+            GuildInfo.Guild.bListed = GuildObject->GetBoolField(TEXT("listed"));
+            GuildInfo.Guild.bMembershipPublic =
+              GuildObject->GetBoolField(TEXT("membershipPublic"));
+
+            GuildInfo.PlayerState =
+              URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+                GuildInfoObject->GetStringField(TEXT("playerState"))
+              );
+
+            const TArray<TSharedPtr<FJsonValue>> *AlliancesArray;
+            if (GuildInfoObject->TryGetArrayField(
+                  TEXT("alliances"), AlliancesArray
+                )) {
+              for (const TSharedPtr<FJsonValue> &AllianceValue :
+                   *AlliancesArray) {
+                TSharedPtr<FJsonObject> AllianceObject =
+                  AllianceValue->AsObject();
+                FRedwoodGuildAllianceMembership AllianceMembership;
+
+                AllianceMembership.AllianceId =
+                  AllianceObject->GetStringField(TEXT("allianceId"));
+                AllianceMembership.AllianceName =
+                  AllianceObject->GetStringField(TEXT("allianceName"));
+                AllianceMembership.GuildState =
+                  URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+                    AllianceObject->GetStringField(TEXT("guildState"))
+                  );
+
+                GuildInfo.Alliances.Add(AllianceMembership);
+              }
+            }
+
+            Output.Guilds.Add(GuildInfo);
+          }
+        }
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    });
+}
+
+void URedwoodClientInterface::GetGuild(
+  FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodGetGuildOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+
+  Director
+    ->Emit(TEXT("realm:guilds:get"), Payload, [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodGetGuildOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      if (Output.Error.IsEmpty()) {
+        TSharedPtr<FJsonObject> GuildObject =
+          MessageObject->GetObjectField(TEXT("guild"));
+        if (GuildObject) {
+          Output.Guild.Guild.Id = GuildObject->GetStringField(TEXT("id"));
+          Output.Guild.Guild.Name = GuildObject->GetStringField(TEXT("name"));
+        }
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    });
+}
+
+void URedwoodClientInterface::JoinGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+
+  Director->Emit(
+    TEXT("realm:guilds:membership:join"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::InviteToGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+
+  Director->Emit(
+    TEXT("realm:guilds:membership:invite"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::LeaveGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+
+  Director->Emit(
+    TEXT("realm:guilds:membership:leave"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::ListGuildMembers(
+  FString GuildId,
+  ERedwoodGuildAndAllianceMemberState State,
+  FRedwoodListGuildMembersOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListGuildMembersOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(
+    TEXT("state"),
+    URedwoodCommonGameSubsystem::SerializeGuildAndAllianceMemberState(State)
+  );
+
+  Director->Emit(
+    TEXT("realm:guilds:members:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListGuildMembersOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Members =
+        MessageObject->GetArrayField(TEXT("members"));
+
+      for (TSharedPtr<FJsonValue> InMember : Members) {
+        FRedwoodGuildPlayerMembership OutMember;
+        TSharedPtr<FJsonObject> MemberObj = InMember->AsObject();
+        if (!MemberObj.IsValid()) {
+          continue; // skip invalid members
+        }
+        TSharedPtr<FJsonObject> PlayerObj =
+          MemberObj->GetObjectField(TEXT("player"));
+        if (!PlayerObj.IsValid()) {
+          continue; // skip members without player info
+        }
+        OutMember.Player.Id = PlayerObj->GetStringField(TEXT("id"));
+        OutMember.Player.Nickname = PlayerObj->GetStringField(TEXT("nickname"));
+        OutMember.PlayerState =
+          URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+            MemberObj->GetStringField(TEXT("playerState"))
+          );
+
+        Output.Members.Add(OutMember);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::CreateGuild(
+  FString GuildName,
+  ERedwoodGuildInviteType InviteType,
+  bool bListed,
+  bool bMembershipPublic,
+  FRedwoodCreateGuildOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodCreateGuildOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("name"), GuildName);
+  Payload->SetStringField(
+    TEXT("inviteType"),
+    URedwoodCommonGameSubsystem::SerializeGuildInviteType(InviteType)
+  );
+  Payload->SetBoolField(TEXT("listed"), bListed);
+  Payload->SetBoolField(TEXT("membershipPublic"), bMembershipPublic);
+
+  Director->Emit(
+    TEXT("realm:guilds:admin:create"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodCreateGuildOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+      MessageObject->TryGetStringField(TEXT("guildId"), Output.GuildId);
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::UpdateGuild(
+  FString GuildId,
+  FString GuildName,
+  ERedwoodGuildInviteType InviteType,
+  bool bListed,
+  bool bMembershipPublic,
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("name"), GuildName);
+  Payload->SetStringField(
+    TEXT("inviteType"),
+    URedwoodCommonGameSubsystem::SerializeGuildInviteType(InviteType)
+  );
+  Payload->SetBoolField(TEXT("listed"), bListed);
+  Payload->SetBoolField(TEXT("membershipPublic"), bMembershipPublic);
+
+  Director->Emit(
+    TEXT("realm:guilds:admin:update"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::KickPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+  Payload->SetBoolField(TEXT("ban"), false);
+
+  Director->Emit(
+    TEXT("realm:guilds:admin:kick"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::BanPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+  Payload->SetBoolField(TEXT("ban"), true);
+
+  Director->Emit(
+    TEXT("realm:guilds:admin:kick"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::UnbanPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  KickPlayerFromGuild(GuildId, TargetPlayerId, OnOutput);
+}
+
+void URedwoodClientInterface::PromotePlayerToGuildAdmin(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+
+  Director->Emit(
+    TEXT("realm:guilds:admin:promote"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::DemotePlayerFromGuildAdmin(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+
+  Director->Emit(
+    TEXT("realm:guilds:admin:demote"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::ListAlliances(
+  FRedwoodListAlliancesOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListAlliancesOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListAlliancesOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Alliances =
+        MessageObject->GetArrayField(TEXT("alliances"));
+
+      for (TSharedPtr<FJsonValue> InAlliance : Alliances) {
+        FRedwoodAlliance OutAlliance;
+        TSharedPtr<FJsonObject> AllianceObj = InAlliance->AsObject();
+        OutAlliance.Id = AllianceObj->GetStringField(TEXT("id"));
+        FDateTime::ParseIso8601(
+          *AllianceObj->GetStringField(TEXT("createdAt")), OutAlliance.CreatedAt
+        );
+        FDateTime::ParseIso8601(
+          *AllianceObj->GetStringField(TEXT("updatedAt")), OutAlliance.UpdatedAt
+        );
+        OutAlliance.Name = AllianceObj->GetStringField(TEXT("name"));
+        OutAlliance.bInviteOnly = AllianceObj->GetBoolField(TEXT("inviteOnly"));
+
+        Output.Alliances.Add(OutAlliance);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::CreateAlliance(
+  FString AllianceName,
+  FString GuildId,
+  bool bInviteOnly,
+  FRedwoodCreateAllianceOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodCreateAllianceOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("name"), AllianceName);
+  Payload->SetBoolField(TEXT("inviteOnly"), bInviteOnly);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:admin:create"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodCreateAllianceOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+      MessageObject->TryGetStringField(TEXT("allianceId"), Output.AllianceId);
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::UpdateAlliance(
+  FString AllianceId,
+  FString AllianceName,
+  bool bInviteOnly,
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+  Payload->SetStringField(TEXT("name"), AllianceName);
+  Payload->SetBoolField(TEXT("inviteOnly"), bInviteOnly);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:admin:update"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::KickGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetBoolField(TEXT("ban"), false);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:admin:kick"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::BanGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetBoolField(TEXT("ban"), true);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:admin:kick"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::UnbanGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  KickGuildFromAlliance(AllianceId, GuildId, OnOutput);
+}
+
+void URedwoodClientInterface::ListAllianceGuilds(
+  FString AllianceId,
+  ERedwoodGuildAndAllianceMemberState State,
+  FRedwoodListAllianceGuildsOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListAllianceGuildsOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+  Payload->SetStringField(
+    TEXT("state"),
+    URedwoodCommonGameSubsystem::SerializeGuildAndAllianceMemberState(State)
+  );
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:membership:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListAllianceGuildsOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Guilds =
+        MessageObject->GetArrayField(TEXT("guilds"));
+
+      for (TSharedPtr<FJsonValue> InGuild : Guilds) {
+        FRedwoodAllianceGuildMembership OutGuild;
+        TSharedPtr<FJsonObject> GuildMembershipObj = InGuild->AsObject();
+        if (!GuildMembershipObj.IsValid()) {
+          continue; // skip invalid guilds
+        }
+        TSharedPtr<FJsonObject> GuildObj =
+          GuildMembershipObj->GetObjectField(TEXT("guild"));
+        if (!GuildObj.IsValid()) {
+          continue; // skip guilds without player info
+        }
+        OutGuild.Guild.Id = GuildObj->GetStringField(TEXT("id"));
+        FDateTime::ParseIso8601(
+          *GuildObj->GetStringField(TEXT("createdAt")), OutGuild.Guild.CreatedAt
+        );
+        FDateTime::ParseIso8601(
+          *GuildObj->GetStringField(TEXT("updatedAt")), OutGuild.Guild.UpdatedAt
+        );
+        OutGuild.Guild.Name = GuildObj->GetStringField(TEXT("name"));
+        OutGuild.Guild.InviteType =
+          URedwoodCommonGameSubsystem::ParseGuildInviteType(
+            GuildObj->GetStringField(TEXT("inviteType"))
+          );
+        OutGuild.Guild.bListed = GuildObj->GetBoolField(TEXT("listed"));
+        OutGuild.Guild.bMembershipPublic =
+          GuildObj->GetBoolField(TEXT("membershipPublic"));
+        OutGuild.GuildState =
+          URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+            GuildMembershipObj->GetStringField(TEXT("guildState"))
+          );
+
+        Output.Guilds.Add(OutGuild);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::JoinAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:membership:join"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::LeaveAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:membership:leave"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::InviteGuildToAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FString Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+  Payload->SetStringField(TEXT("guildId"), GuildId);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:membership:invite"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
 void URedwoodClientInterface::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {

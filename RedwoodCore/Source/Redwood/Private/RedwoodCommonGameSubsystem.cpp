@@ -835,3 +835,70 @@ ERedwoodFriendListType URedwoodCommonGameSubsystem::ParseFriendListType(
 
   return EnumValue;
 }
+
+ERedwoodGuildInviteType URedwoodCommonGameSubsystem::ParseGuildInviteType(
+  FString StringValue
+) {
+  if (StringValue == TEXT("public")) {
+    return ERedwoodGuildInviteType::Public;
+  } else if (StringValue == TEXT("admin")) {
+    return ERedwoodGuildInviteType::Admin;
+  } else if (StringValue == TEXT("member")) {
+    return ERedwoodGuildInviteType::Member;
+  }
+
+  return ERedwoodGuildInviteType::Unknown;
+}
+
+FString URedwoodCommonGameSubsystem::SerializeGuildInviteType(
+  ERedwoodGuildInviteType InviteType
+) {
+  switch (InviteType) {
+    case ERedwoodGuildInviteType::Public:
+      return TEXT("public");
+    case ERedwoodGuildInviteType::Admin:
+      return TEXT("admin");
+    case ERedwoodGuildInviteType::Member:
+      return TEXT("member");
+    default:
+      return TEXT("unknown");
+  }
+}
+
+ERedwoodGuildAndAllianceMemberState
+URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+  FString StringValue
+) {
+  if (StringValue == TEXT("none")) {
+    return ERedwoodGuildAndAllianceMemberState::None;
+  } else if (StringValue == TEXT("invited")) {
+    return ERedwoodGuildAndAllianceMemberState::Invited;
+  } else if (StringValue == TEXT("member")) {
+    return ERedwoodGuildAndAllianceMemberState::Member;
+  } else if (StringValue == TEXT("banned")) {
+    return ERedwoodGuildAndAllianceMemberState::Banned;
+  } else if (StringValue == TEXT("admin")) {
+    return ERedwoodGuildAndAllianceMemberState::Admin;
+  }
+
+  return ERedwoodGuildAndAllianceMemberState::Unknown;
+}
+
+FString URedwoodCommonGameSubsystem::SerializeGuildAndAllianceMemberState(
+  ERedwoodGuildAndAllianceMemberState State
+) {
+  switch (State) {
+    case ERedwoodGuildAndAllianceMemberState::None:
+      return TEXT("none");
+    case ERedwoodGuildAndAllianceMemberState::Invited:
+      return TEXT("invited");
+    case ERedwoodGuildAndAllianceMemberState::Member:
+      return TEXT("member");
+    case ERedwoodGuildAndAllianceMemberState::Banned:
+      return TEXT("banned");
+    case ERedwoodGuildAndAllianceMemberState::Admin:
+      return TEXT("admin");
+    default:
+      return TEXT("unknown");
+  }
+}

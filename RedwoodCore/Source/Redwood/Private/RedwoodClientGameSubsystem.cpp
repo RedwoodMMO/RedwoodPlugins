@@ -277,6 +277,306 @@ void URedwoodClientGameSubsystem::SetPlayerBlocked(
   }
 }
 
+void URedwoodClientGameSubsystem::ListGuilds(
+  bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListGuilds(bOnlyPlayersGuilds, OnOutput);
+  } else {
+    FRedwoodListGuildsOutput Output;
+    Output.Error = TEXT("Cannot list guilds without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::GetGuild(
+  FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetGuild(GuildId, OnOutput);
+  } else {
+    FRedwoodGetGuildOutput Output;
+    Output.Error = TEXT("Cannot get guild without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::JoinGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->JoinGuild(GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot join guild without using a backend"));
+  }
+}
+
+void URedwoodClientGameSubsystem::InviteToGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->InviteToGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot invite to guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::LeaveGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LeaveGuild(GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot leave guild without using a backend"));
+  }
+}
+
+void URedwoodClientGameSubsystem::ListGuildMembers(
+  FString GuildId,
+  ERedwoodGuildAndAllianceMemberState State,
+  FRedwoodListGuildMembersOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListGuildMembers(GuildId, State, OnOutput);
+  } else {
+    FRedwoodListGuildMembersOutput Output;
+    Output.Error = TEXT("Cannot list guild members without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::CreateGuild(
+  FString GuildName,
+  ERedwoodGuildInviteType InviteType,
+  bool bListed,
+  bool bMembershipPublic,
+  FRedwoodCreateGuildOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->CreateGuild(
+      GuildName, InviteType, bListed, bMembershipPublic, OnOutput
+    );
+  } else {
+    FRedwoodCreateGuildOutput Output;
+    Output.Error = TEXT("Cannot create guild without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::UpdateGuild(
+  FString GuildId,
+  FString GuildName,
+  ERedwoodGuildInviteType InviteType,
+  bool bListed,
+  bool bMembershipPublic,
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UpdateGuild(
+      GuildId, GuildName, InviteType, bListed, bMembershipPublic, OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot update guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::KickPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->KickPlayerFromGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot kick player from guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::BanPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->BanPlayerFromGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot ban player from guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::UnbanPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UnbanPlayerFromGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot unban player from guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::PromotePlayerToGuildAdmin(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->PromotePlayerToGuildAdmin(
+      GuildId, TargetPlayerId, OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot promote player to guild admin without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::DemotePlayerFromGuildAdmin(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->DemotePlayerFromGuildAdmin(
+      GuildId, TargetPlayerId, OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot demote player from guild admin without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::ListAlliances(
+  FRedwoodListAlliancesOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListAlliances(OnOutput);
+  } else {
+    FRedwoodListAlliancesOutput Output;
+    Output.Error = TEXT("Cannot list alliances without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::CreateAlliance(
+  FString AllianceName,
+  FString GuildId,
+  bool bInviteOnly,
+  FRedwoodCreateAllianceOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->CreateAlliance(
+      AllianceName, GuildId, bInviteOnly, OnOutput
+    );
+  } else {
+    FRedwoodCreateAllianceOutput Output;
+    Output.Error = TEXT("Cannot create alliance without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::UpdateAlliance(
+  FString AllianceId,
+  FString AllianceName,
+  bool bInviteOnly,
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UpdateAlliance(
+      AllianceId, AllianceName, bInviteOnly, OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot update alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::KickGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->KickGuildFromAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot kick guild from alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::BanGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->BanGuildFromAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot ban guild from alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::UnbanGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UnbanGuildFromAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot unban guild from alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::ListAllianceGuilds(
+  FString AllianceId,
+  ERedwoodGuildAndAllianceMemberState State,
+  FRedwoodListAllianceGuildsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListAllianceGuilds(AllianceId, State, OnOutput);
+  } else {
+    FRedwoodListAllianceGuildsOutput Output;
+    Output.Error = TEXT("Cannot list alliance guilds without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::JoinAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->JoinAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot join alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::LeaveAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LeaveAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot leave alliance without using a backend"
+    ));
+  }
+}
+
+void URedwoodClientGameSubsystem::InviteGuildToAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->InviteGuildToAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot invite guild to alliance without using a backend")
+    );
+  }
+}
+
 void URedwoodClientGameSubsystem::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {

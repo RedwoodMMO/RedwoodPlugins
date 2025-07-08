@@ -67,5 +67,15 @@ public:
 
   static ERedwoodFriendListType ParseFriendListType(FString StringValue);
 
+  static ERedwoodGuildInviteType ParseGuildInviteType(FString StringValue);
+  static FString SerializeGuildInviteType(ERedwoodGuildInviteType InviteType);
+
+  static ERedwoodGuildAndAllianceMemberState ParseGuildAndAllianceMemberState(
+    FString StringValue
+  );
+  static FString SerializeGuildAndAllianceMemberState(
+    ERedwoodGuildAndAllianceMemberState State
+  );
+
 private:
 };
