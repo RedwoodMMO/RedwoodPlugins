@@ -35,6 +35,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodListServersOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   TArray<FString> PrivateServerReferences;

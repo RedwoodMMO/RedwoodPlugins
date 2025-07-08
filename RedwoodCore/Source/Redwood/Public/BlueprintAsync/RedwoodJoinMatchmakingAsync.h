@@ -34,6 +34,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodTicketingUpdateDynamicDelegate OnUpdate;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   FString ProfileId;

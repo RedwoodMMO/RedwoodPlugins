@@ -35,6 +35,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodAuthUpdateDynamicDelegate OnUpdate;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   FString Username;
