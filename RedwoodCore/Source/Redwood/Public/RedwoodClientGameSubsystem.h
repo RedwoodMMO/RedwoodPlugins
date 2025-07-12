@@ -75,6 +75,9 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CancelWaitingForAccountVerification();
 
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  FString GetPlayerId();
+
   void SearchForPlayers(
     FString UsernameOrNickname,
     bool bIncludePartialMatches,
@@ -103,6 +106,12 @@ public:
 
   void ListGuilds(
     bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
+  );
+
+  void SearchForGuilds(
+    FString SearchText,
+    bool bIncludePartialMatches,
+    FRedwoodListGuildsOutputDelegate OnOutput
   );
 
   void GetGuild(FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput);
@@ -170,7 +179,15 @@ public:
     FRedwoodErrorOutputDelegate OnOutput
   );
 
-  void ListAlliances(FRedwoodListAlliancesOutputDelegate OnOutput);
+  void ListAlliances(
+    FString GuildIdFilter, FRedwoodListAlliancesOutputDelegate OnOutput
+  );
+
+  void SearchForAlliances(
+    FString SearchText,
+    bool bIncludePartialMatches,
+    FRedwoodListAlliancesOutputDelegate OnOutput
+  );
 
   void CreateAlliance(
     FString AllianceName,

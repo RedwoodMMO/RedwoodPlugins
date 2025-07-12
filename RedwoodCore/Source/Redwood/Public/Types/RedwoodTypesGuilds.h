@@ -206,6 +206,10 @@ struct FRedwoodListAlliancesOutput {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<FRedwoodAlliance> Alliances;
+
+  // This is only filled if the request was made with a guild ID filter.
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  TArray<ERedwoodGuildAndAllianceMemberState> GuildStates;
 };
 
 typedef TDelegate<void(const FRedwoodListAlliancesOutput &)>

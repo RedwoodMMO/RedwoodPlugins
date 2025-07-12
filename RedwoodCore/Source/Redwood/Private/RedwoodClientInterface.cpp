@@ -746,64 +746,61 @@ void URedwoodClientInterface::ListGuilds(
         if (MessageObject->TryGetArrayField(TEXT("guilds"), GuildsArray)) {
           for (const TSharedPtr<FJsonValue> &GuildValue : *GuildsArray) {
             TSharedPtr<FJsonObject> GuildInfoObject = GuildValue->AsObject();
-            FRedwoodGuildInfo GuildInfo;
 
-            TSharedPtr<FJsonObject> GuildObject =
-              GuildInfoObject->GetObjectField(TEXT("guild"));
-
-            GuildInfo.Guild.Id = GuildObject->GetStringField(TEXT("id"));
-            FDateTime::ParseIso8601(
-              *GuildObject->GetStringField(TEXT("createdAt")),
-              GuildInfo.Guild.CreatedAt
+            Output.Guilds.Add(
+              URedwoodCommonGameSubsystem::ParseGuildInfo(GuildInfoObject)
             );
-            FDateTime::ParseIso8601(
-              *GuildObject->GetStringField(TEXT("updatedAt")),
-              GuildInfo.Guild.UpdatedAt
-            );
-            GuildInfo.Guild.Name = GuildObject->GetStringField(TEXT("name"));
-            GuildInfo.Guild.InviteType =
-              URedwoodCommonGameSubsystem::ParseGuildInviteType(
-                GuildObject->GetStringField(TEXT("inviteType"))
-              );
-            GuildInfo.Guild.bListed = GuildObject->GetBoolField(TEXT("listed"));
-            GuildInfo.Guild.bMembershipPublic =
-              GuildObject->GetBoolField(TEXT("membershipPublic"));
-
-            GuildInfo.PlayerState =
-              URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
-                GuildInfoObject->GetStringField(TEXT("playerState"))
-              );
-
-            const TArray<TSharedPtr<FJsonValue>> *AlliancesArray;
-            if (GuildInfoObject->TryGetArrayField(
-                  TEXT("alliances"), AlliancesArray
-                )) {
-              for (const TSharedPtr<FJsonValue> &AllianceValue :
-                   *AlliancesArray) {
-                TSharedPtr<FJsonObject> AllianceObject =
-                  AllianceValue->AsObject();
-                FRedwoodGuildAllianceMembership AllianceMembership;
-
-                AllianceMembership.AllianceId =
-                  AllianceObject->GetStringField(TEXT("allianceId"));
-                AllianceMembership.AllianceName =
-                  AllianceObject->GetStringField(TEXT("allianceName"));
-                AllianceMembership.GuildState =
-                  URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
-                    AllianceObject->GetStringField(TEXT("guildState"))
-                  );
-
-                GuildInfo.Alliances.Add(AllianceMembership);
-              }
-            }
-
-            Output.Guilds.Add(GuildInfo);
           }
         }
       }
 
       OnOutput.ExecuteIfBound(Output);
     });
+}
+
+void URedwoodClientInterface::SearchForGuilds(
+  FString SearchText,
+  bool bIncludePartialMatches,
+  FRedwoodListGuildsOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListGuildsOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("searchText"), SearchText);
+  Payload->SetBoolField(TEXT("includePartial"), bIncludePartialMatches);
+
+  Director->Emit(
+    TEXT("realm:guilds:search"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListGuildsOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      if (Output.Error.IsEmpty()) {
+        const TArray<TSharedPtr<FJsonValue>> *GuildsArray;
+        if (MessageObject->TryGetArrayField(TEXT("guilds"), GuildsArray)) {
+          for (const TSharedPtr<FJsonValue> &GuildValue : *GuildsArray) {
+            TSharedPtr<FJsonObject> GuildInfoObject = GuildValue->AsObject();
+
+            Output.Guilds.Add(
+              URedwoodCommonGameSubsystem::ParseGuildInfo(GuildInfoObject)
+            );
+          }
+        }
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
 }
 
 void URedwoodClientInterface::GetGuild(
@@ -1174,7 +1171,7 @@ void URedwoodClientInterface::DemotePlayerFromGuildAdmin(
 }
 
 void URedwoodClientInterface::ListAlliances(
-  FRedwoodListAlliancesOutputDelegate OnOutput
+  FString GuildIdFilter, FRedwoodListAlliancesOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FRedwoodListAlliancesOutput Output;
@@ -1185,6 +1182,7 @@ void URedwoodClientInterface::ListAlliances(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("guildIdFilter"), GuildIdFilter);
 
   Director->Emit(
     TEXT("realm:guilds:alliances:list"),
@@ -1200,19 +1198,66 @@ void URedwoodClientInterface::ListAlliances(
         MessageObject->GetArrayField(TEXT("alliances"));
 
       for (TSharedPtr<FJsonValue> InAlliance : Alliances) {
-        FRedwoodAlliance OutAlliance;
         TSharedPtr<FJsonObject> AllianceObj = InAlliance->AsObject();
-        OutAlliance.Id = AllianceObj->GetStringField(TEXT("id"));
-        FDateTime::ParseIso8601(
-          *AllianceObj->GetStringField(TEXT("createdAt")), OutAlliance.CreatedAt
-        );
-        FDateTime::ParseIso8601(
-          *AllianceObj->GetStringField(TEXT("updatedAt")), OutAlliance.UpdatedAt
-        );
-        OutAlliance.Name = AllianceObj->GetStringField(TEXT("name"));
-        OutAlliance.bInviteOnly = AllianceObj->GetBoolField(TEXT("inviteOnly"));
 
-        Output.Alliances.Add(OutAlliance);
+        Output.Alliances.Add(
+          URedwoodCommonGameSubsystem::ParseAlliance(AllianceObj)
+        );
+      }
+
+      // check if guildStates is not null
+      const TArray<TSharedPtr<FJsonValue>> *GuildStates;
+      if (MessageObject->TryGetArrayField(TEXT("guildStates"), GuildStates)) {
+        for (const TSharedPtr<FJsonValue> &InState : *GuildStates) {
+          Output.GuildStates.Add(
+            URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+              InState->AsString()
+            )
+          );
+        }
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::SearchForAlliances(
+  FString SearchText,
+  bool bIncludePartialMatches,
+  FRedwoodListAlliancesOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListAlliancesOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("searchText"), SearchText);
+  Payload->SetBoolField(TEXT("includePartial"), bIncludePartialMatches);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:search"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListAlliancesOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TArray<TSharedPtr<FJsonValue>> &Alliances =
+        MessageObject->GetArrayField(TEXT("alliances"));
+
+      for (TSharedPtr<FJsonValue> InAlliance : Alliances) {
+        TSharedPtr<FJsonObject> AllianceObj = InAlliance->AsObject();
+
+        Output.Alliances.Add(
+          URedwoodCommonGameSubsystem::ParseAlliance(AllianceObj)
+        );
       }
 
       OnOutput.ExecuteIfBound(Output);

@@ -107,6 +107,12 @@ public:
     bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
   );
 
+  void SearchForGuilds(
+    FString SearchText,
+    bool bIncludePartialMatches,
+    FRedwoodListGuildsOutputDelegate OnOutput
+  );
+
   void GetGuild(FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput);
 
   void JoinGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
@@ -172,7 +178,15 @@ public:
     FRedwoodErrorOutputDelegate OnOutput
   );
 
-  void ListAlliances(FRedwoodListAlliancesOutputDelegate OnOutput);
+  void ListAlliances(
+    FString GuildIdFilter, FRedwoodListAlliancesOutputDelegate OnOutput
+  );
+
+  void SearchForAlliances(
+    FString SearchText,
+    bool bIncludePartialMatches,
+    FRedwoodListAlliancesOutputDelegate OnOutput
+  );
 
   void CreateAlliance(
     FString AllianceName,

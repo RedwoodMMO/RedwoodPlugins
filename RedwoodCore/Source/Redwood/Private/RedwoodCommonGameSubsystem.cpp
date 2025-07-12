@@ -902,3 +902,72 @@ FString URedwoodCommonGameSubsystem::SerializeGuildAndAllianceMemberState(
       return TEXT("unknown");
   }
 }
+
+FRedwoodGuildInfo URedwoodCommonGameSubsystem::ParseGuildInfo(
+  TSharedPtr<FJsonObject> GuildInfoObject
+) {
+  FRedwoodGuildInfo GuildInfo;
+
+  TSharedPtr<FJsonObject> GuildObject =
+    GuildInfoObject->GetObjectField(TEXT("guild"));
+
+  GuildInfo.Guild.Id = GuildObject->GetStringField(TEXT("id"));
+  FDateTime::ParseIso8601(
+    *GuildObject->GetStringField(TEXT("createdAt")), GuildInfo.Guild.CreatedAt
+  );
+  FDateTime::ParseIso8601(
+    *GuildObject->GetStringField(TEXT("updatedAt")), GuildInfo.Guild.UpdatedAt
+  );
+  GuildInfo.Guild.Name = GuildObject->GetStringField(TEXT("name"));
+  GuildInfo.Guild.InviteType =
+    URedwoodCommonGameSubsystem::ParseGuildInviteType(
+      GuildObject->GetStringField(TEXT("inviteType"))
+    );
+  GuildInfo.Guild.bListed = GuildObject->GetBoolField(TEXT("listed"));
+  GuildInfo.Guild.bMembershipPublic =
+    GuildObject->GetBoolField(TEXT("membershipPublic"));
+
+  GuildInfo.PlayerState =
+    URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+      GuildInfoObject->GetStringField(TEXT("playerState"))
+    );
+
+  const TArray<TSharedPtr<FJsonValue>> *AlliancesArray;
+  if (GuildInfoObject->TryGetArrayField(TEXT("alliances"), AlliancesArray)) {
+    for (const TSharedPtr<FJsonValue> &AllianceValue : *AlliancesArray) {
+      TSharedPtr<FJsonObject> AllianceObject = AllianceValue->AsObject();
+      FRedwoodGuildAllianceMembership AllianceMembership;
+
+      AllianceMembership.AllianceId =
+        AllianceObject->GetStringField(TEXT("allianceId"));
+      AllianceMembership.AllianceName =
+        AllianceObject->GetStringField(TEXT("allianceName"));
+      AllianceMembership.GuildState =
+        URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+          AllianceObject->GetStringField(TEXT("guildState"))
+        );
+
+      GuildInfo.Alliances.Add(AllianceMembership);
+    }
+  }
+
+  return GuildInfo;
+}
+
+FRedwoodAlliance URedwoodCommonGameSubsystem::ParseAlliance(
+  TSharedPtr<FJsonObject> AllianceObj
+) {
+  FRedwoodAlliance OutAlliance;
+
+  OutAlliance.Id = AllianceObj->GetStringField(TEXT("id"));
+  FDateTime::ParseIso8601(
+    *AllianceObj->GetStringField(TEXT("createdAt")), OutAlliance.CreatedAt
+  );
+  FDateTime::ParseIso8601(
+    *AllianceObj->GetStringField(TEXT("updatedAt")), OutAlliance.UpdatedAt
+  );
+  OutAlliance.Name = AllianceObj->GetStringField(TEXT("name"));
+  OutAlliance.bInviteOnly = AllianceObj->GetBoolField(TEXT("inviteOnly"));
+
+  return OutAlliance;
+}

@@ -9,29 +9,29 @@
 #include "RedwoodAsyncCommon.h"
 #include "RedwoodClientGameSubsystem.h"
 
-#include "RedwoodListAlliancesAsync.generated.h"
+#include "RedwoodSearchForAlliancesAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodListAlliancesAsync
+class REDWOOD_API URedwoodSearchForAlliancesAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
   virtual void Activate() override;
 
-  // @param GuildIdFilter If empty, all alliances will be listed.
   UFUNCTION(
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "List Alliances",
+       DisplayName = "Search for Alliances",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodListAlliancesAsync *ListAlliances(
+  static URedwoodSearchForAlliancesAsync *SearchForAlliances(
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
-    FString GuildIdFilter
+    FString SearchText,
+    bool bIncludePartialMatches
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -40,5 +40,6 @@ public:
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
-  FString GuildIdFilter;
+  FString SearchText;
+  bool bIncludePartialMatches;
 };

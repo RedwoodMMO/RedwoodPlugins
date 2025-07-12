@@ -204,6 +204,13 @@ void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
   }
 }
 
+FString URedwoodClientGameSubsystem::GetPlayerId() {
+  if (ClientInterface) {
+    return ClientInterface->GetPlayerId();
+  }
+  return FString();
+}
+
 void URedwoodClientGameSubsystem::SearchForPlayers(
   FString UsernameOrNickname,
   bool bIncludePartialMatches,
@@ -285,6 +292,22 @@ void URedwoodClientGameSubsystem::ListGuilds(
   } else {
     FRedwoodListGuildsOutput Output;
     Output.Error = TEXT("Cannot list guilds without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SearchForGuilds(
+  FString SearchText,
+  bool bIncludePartialMatches,
+  FRedwoodListGuildsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForGuilds(
+      SearchText, bIncludePartialMatches, OnOutput
+    );
+  } else {
+    FRedwoodListGuildsOutput Output;
+    Output.Error = TEXT("Cannot search for guilds without using a backend");
     OnOutput.ExecuteIfBound(Output);
   }
 }
@@ -448,13 +471,29 @@ void URedwoodClientGameSubsystem::DemotePlayerFromGuildAdmin(
 }
 
 void URedwoodClientGameSubsystem::ListAlliances(
-  FRedwoodListAlliancesOutputDelegate OnOutput
+  FString GuildIdFilter, FRedwoodListAlliancesOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->ListAlliances(OnOutput);
+    ClientInterface->ListAlliances(GuildIdFilter, OnOutput);
   } else {
     FRedwoodListAlliancesOutput Output;
     Output.Error = TEXT("Cannot list alliances without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SearchForAlliances(
+  FString SearchText,
+  bool bIncludePartialMatches,
+  FRedwoodListAlliancesOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForAlliances(
+      SearchText, bIncludePartialMatches, OnOutput
+    );
+  } else {
+    FRedwoodListAlliancesOutput Output;
+    Output.Error = TEXT("Cannot search for alliances without using a backend");
     OnOutput.ExecuteIfBound(Output);
   }
 }
