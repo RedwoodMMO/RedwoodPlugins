@@ -938,7 +938,7 @@ void URedwoodClientInterface::ListGuildMembers(
   );
 
   Director->Emit(
-    TEXT("realm:guilds:members:list"),
+    TEXT("realm:guilds:membership:list"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1265,6 +1265,31 @@ void URedwoodClientInterface::SearchForAlliances(
   );
 }
 
+void URedwoodClientInterface::CanAdminAlliance(
+  FString AllianceId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    OnOutput.ExecuteIfBound(TEXT("Not connected to Director."));
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("allianceId"), AllianceId);
+
+  Director->Emit(
+    TEXT("realm:guilds:alliances:admin:has-admin-privileges"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
 void URedwoodClientInterface::CreateAlliance(
   FString AllianceName,
   FString GuildId,
@@ -1343,7 +1368,7 @@ void URedwoodClientInterface::KickGuildFromAlliance(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("allianceId"), AllianceId);
-  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("targetGuildId"), GuildId);
   Payload->SetBoolField(TEXT("ban"), false);
 
   Director->Emit(
@@ -1531,7 +1556,7 @@ void URedwoodClientInterface::InviteGuildToAlliance(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("allianceId"), AllianceId);
-  Payload->SetStringField(TEXT("guildId"), GuildId);
+  Payload->SetStringField(TEXT("targetGuildId"), GuildId);
 
   Director->Emit(
     TEXT("realm:guilds:alliances:membership:invite"),

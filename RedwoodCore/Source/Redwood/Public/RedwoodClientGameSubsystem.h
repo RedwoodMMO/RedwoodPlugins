@@ -189,6 +189,10 @@ public:
     FRedwoodListAlliancesOutputDelegate OnOutput
   );
 
+  void CanAdminAlliance(
+    FString AllianceId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   void CreateAlliance(
     FString AllianceName,
     FString GuildId,

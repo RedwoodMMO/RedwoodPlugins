@@ -498,6 +498,18 @@ void URedwoodClientGameSubsystem::SearchForAlliances(
   }
 }
 
+void URedwoodClientGameSubsystem::CanAdminAlliance(
+  FString AllianceId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->CanAdminAlliance(AllianceId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot check alliance admin privileges without using a backend")
+    );
+  }
+}
+
 void URedwoodClientGameSubsystem::CreateAlliance(
   FString AllianceName,
   FString GuildId,
