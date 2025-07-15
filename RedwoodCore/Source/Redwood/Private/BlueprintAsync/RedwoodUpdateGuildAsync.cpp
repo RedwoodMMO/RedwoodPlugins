@@ -7,6 +7,7 @@ URedwoodUpdateGuildAsync *URedwoodUpdateGuildAsync::UpdateGuild(
   UObject *WorldContextObject,
   FString GuildId,
   FString GuildName,
+  FString GuildTag,
   ERedwoodGuildInviteType InviteType,
   bool bListed,
   bool bMembershipPublic
@@ -16,6 +17,7 @@ URedwoodUpdateGuildAsync *URedwoodUpdateGuildAsync::UpdateGuild(
   Action->RegisterWithGameInstance(WorldContextObject);
   Action->GuildId = GuildId;
   Action->GuildName = GuildName;
+  Action->GuildTag = GuildTag;
   Action->InviteType = InviteType;
   Action->bListed = bListed;
   Action->bMembershipPublic = bMembershipPublic;
@@ -27,6 +29,7 @@ void URedwoodUpdateGuildAsync::Activate() {
   Target->UpdateGuild(
     GuildId,
     GuildName,
+    GuildTag,
     InviteType,
     bListed,
     bMembershipPublic,

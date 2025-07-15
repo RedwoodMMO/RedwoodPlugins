@@ -829,8 +829,8 @@ void URedwoodClientInterface::GetGuild(
         TSharedPtr<FJsonObject> GuildObject =
           MessageObject->GetObjectField(TEXT("guild"));
         if (GuildObject) {
-          Output.Guild.Guild.Id = GuildObject->GetStringField(TEXT("id"));
-          Output.Guild.Guild.Name = GuildObject->GetStringField(TEXT("name"));
+          Output.Guild =
+            URedwoodCommonGameSubsystem::ParseGuildInfo(GuildObject);
         }
       }
 
@@ -978,6 +978,7 @@ void URedwoodClientInterface::ListGuildMembers(
 
 void URedwoodClientInterface::CreateGuild(
   FString GuildName,
+  FString GuildTag,
   ERedwoodGuildInviteType InviteType,
   bool bListed,
   bool bMembershipPublic,
@@ -993,6 +994,7 @@ void URedwoodClientInterface::CreateGuild(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("name"), GuildName);
+  Payload->SetStringField(TEXT("tag"), GuildTag);
   Payload->SetStringField(
     TEXT("inviteType"),
     URedwoodCommonGameSubsystem::SerializeGuildInviteType(InviteType)
@@ -1019,6 +1021,7 @@ void URedwoodClientInterface::CreateGuild(
 void URedwoodClientInterface::UpdateGuild(
   FString GuildId,
   FString GuildName,
+  FString GuildTag,
   ERedwoodGuildInviteType InviteType,
   bool bListed,
   bool bMembershipPublic,
@@ -1034,6 +1037,7 @@ void URedwoodClientInterface::UpdateGuild(
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("guildId"), GuildId);
   Payload->SetStringField(TEXT("name"), GuildName);
+  Payload->SetStringField(TEXT("tag"), GuildTag);
   Payload->SetStringField(
     TEXT("inviteType"),
     URedwoodCommonGameSubsystem::SerializeGuildInviteType(InviteType)
@@ -1462,21 +1466,8 @@ void URedwoodClientInterface::ListAllianceGuilds(
         if (!GuildObj.IsValid()) {
           continue; // skip guilds without player info
         }
-        OutGuild.Guild.Id = GuildObj->GetStringField(TEXT("id"));
-        FDateTime::ParseIso8601(
-          *GuildObj->GetStringField(TEXT("createdAt")), OutGuild.Guild.CreatedAt
-        );
-        FDateTime::ParseIso8601(
-          *GuildObj->GetStringField(TEXT("updatedAt")), OutGuild.Guild.UpdatedAt
-        );
-        OutGuild.Guild.Name = GuildObj->GetStringField(TEXT("name"));
-        OutGuild.Guild.InviteType =
-          URedwoodCommonGameSubsystem::ParseGuildInviteType(
-            GuildObj->GetStringField(TEXT("inviteType"))
-          );
-        OutGuild.Guild.bListed = GuildObj->GetBoolField(TEXT("listed"));
-        OutGuild.Guild.bMembershipPublic =
-          GuildObj->GetBoolField(TEXT("membershipPublic"));
+        OutGuild.Guild = URedwoodCommonGameSubsystem::ParseGuild(GuildObj);
+
         OutGuild.GuildState =
           URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
             GuildMembershipObj->GetStringField(TEXT("guildState"))

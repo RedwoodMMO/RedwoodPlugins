@@ -31,6 +31,7 @@ public:
     UObject *WorldContextObject,
     FString GuildId,
     FString GuildName,
+    FString GuildTag,
     ERedwoodGuildInviteType InviteType,
     bool bListed,
     bool bMembershipPublic
@@ -44,6 +45,7 @@ public:
 
   FString GuildId;
   FString GuildName;
+  FString GuildTag;
   ERedwoodGuildInviteType InviteType;
   bool bListed;
   bool bMembershipPublic;

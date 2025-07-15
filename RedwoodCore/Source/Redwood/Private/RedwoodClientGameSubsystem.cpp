@@ -372,6 +372,7 @@ void URedwoodClientGameSubsystem::ListGuildMembers(
 
 void URedwoodClientGameSubsystem::CreateGuild(
   FString GuildName,
+  FString GuildTag,
   ERedwoodGuildInviteType InviteType,
   bool bListed,
   bool bMembershipPublic,
@@ -379,7 +380,7 @@ void URedwoodClientGameSubsystem::CreateGuild(
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->CreateGuild(
-      GuildName, InviteType, bListed, bMembershipPublic, OnOutput
+      GuildName, GuildTag, InviteType, bListed, bMembershipPublic, OnOutput
     );
   } else {
     FRedwoodCreateGuildOutput Output;
@@ -391,6 +392,7 @@ void URedwoodClientGameSubsystem::CreateGuild(
 void URedwoodClientGameSubsystem::UpdateGuild(
   FString GuildId,
   FString GuildName,
+  FString GuildTag,
   ERedwoodGuildInviteType InviteType,
   bool bListed,
   bool bMembershipPublic,
@@ -398,7 +400,13 @@ void URedwoodClientGameSubsystem::UpdateGuild(
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->UpdateGuild(
-      GuildId, GuildName, InviteType, bListed, bMembershipPublic, OnOutput
+      GuildId,
+      GuildName,
+      GuildTag,
+      InviteType,
+      bListed,
+      bMembershipPublic,
+      OnOutput
     );
   } else {
     OnOutput.ExecuteIfBound(TEXT("Cannot update guild without using a backend")

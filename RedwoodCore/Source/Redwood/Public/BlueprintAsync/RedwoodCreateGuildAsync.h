@@ -30,6 +30,7 @@ public:
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     FString GuildName,
+    FString GuildTag,
     ERedwoodGuildInviteType InviteType,
     bool bListed,
     bool bMembershipPublic
@@ -42,6 +43,7 @@ public:
   URedwoodClientGameSubsystem *Target;
 
   FString GuildName;
+  FString GuildTag;
   ERedwoodGuildInviteType InviteType;
   bool bListed = false;
   bool bMembershipPublic = false;

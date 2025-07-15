@@ -77,7 +77,10 @@ public:
     ERedwoodGuildAndAllianceMemberState State
   );
 
-  static FRedwoodGuildInfo ParseGuildInfo(TSharedPtr<FJsonObject> GuildObj);
+  static FRedwoodGuild ParseGuild(TSharedPtr<FJsonObject> GuildObject);
+  static FRedwoodGuildInfo ParseGuildInfo(
+    TSharedPtr<FJsonObject> GuildInfoObject
+  );
 
   static FRedwoodAlliance ParseAlliance(TSharedPtr<FJsonObject> AllianceObj);
 

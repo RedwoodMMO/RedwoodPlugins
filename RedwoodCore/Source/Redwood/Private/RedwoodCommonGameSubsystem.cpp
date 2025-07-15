@@ -903,6 +903,29 @@ FString URedwoodCommonGameSubsystem::SerializeGuildAndAllianceMemberState(
   }
 }
 
+FRedwoodGuild URedwoodCommonGameSubsystem::ParseGuild(
+  TSharedPtr<FJsonObject> GuildObject
+) {
+  FRedwoodGuild Guild;
+
+  Guild.Id = GuildObject->GetStringField(TEXT("id"));
+  FDateTime::ParseIso8601(
+    *GuildObject->GetStringField(TEXT("createdAt")), Guild.CreatedAt
+  );
+  FDateTime::ParseIso8601(
+    *GuildObject->GetStringField(TEXT("updatedAt")), Guild.UpdatedAt
+  );
+  Guild.Name = GuildObject->GetStringField(TEXT("name"));
+  Guild.Tag = GuildObject->GetStringField(TEXT("tag"));
+  Guild.InviteType = URedwoodCommonGameSubsystem::ParseGuildInviteType(
+    GuildObject->GetStringField(TEXT("inviteType"))
+  );
+  Guild.bListed = GuildObject->GetBoolField(TEXT("listed"));
+  Guild.bMembershipPublic = GuildObject->GetBoolField(TEXT("membershipPublic"));
+
+  return Guild;
+}
+
 FRedwoodGuildInfo URedwoodCommonGameSubsystem::ParseGuildInfo(
   TSharedPtr<FJsonObject> GuildInfoObject
 ) {
@@ -910,22 +933,7 @@ FRedwoodGuildInfo URedwoodCommonGameSubsystem::ParseGuildInfo(
 
   TSharedPtr<FJsonObject> GuildObject =
     GuildInfoObject->GetObjectField(TEXT("guild"));
-
-  GuildInfo.Guild.Id = GuildObject->GetStringField(TEXT("id"));
-  FDateTime::ParseIso8601(
-    *GuildObject->GetStringField(TEXT("createdAt")), GuildInfo.Guild.CreatedAt
-  );
-  FDateTime::ParseIso8601(
-    *GuildObject->GetStringField(TEXT("updatedAt")), GuildInfo.Guild.UpdatedAt
-  );
-  GuildInfo.Guild.Name = GuildObject->GetStringField(TEXT("name"));
-  GuildInfo.Guild.InviteType =
-    URedwoodCommonGameSubsystem::ParseGuildInviteType(
-      GuildObject->GetStringField(TEXT("inviteType"))
-    );
-  GuildInfo.Guild.bListed = GuildObject->GetBoolField(TEXT("listed"));
-  GuildInfo.Guild.bMembershipPublic =
-    GuildObject->GetBoolField(TEXT("membershipPublic"));
+  GuildInfo.Guild = URedwoodCommonGameSubsystem::ParseGuild(GuildObject);
 
   GuildInfo.PlayerState =
     URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(

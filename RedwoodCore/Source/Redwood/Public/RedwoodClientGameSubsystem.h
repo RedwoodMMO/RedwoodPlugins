@@ -134,6 +134,7 @@ public:
 
   void CreateGuild(
     FString GuildName,
+    FString GuildTag,
     ERedwoodGuildInviteType InviteType,
     bool bListed,
     bool bMembershipPublic,
@@ -143,6 +144,7 @@ public:
   void UpdateGuild(
     FString GuildId,
     FString GuildName,
+    FString GuildTag,
     ERedwoodGuildInviteType InviteType,
     bool bListed,
     bool bMembershipPublic,

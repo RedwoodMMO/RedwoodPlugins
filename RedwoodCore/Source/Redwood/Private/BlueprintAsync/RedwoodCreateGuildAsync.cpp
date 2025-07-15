@@ -6,6 +6,7 @@ URedwoodCreateGuildAsync *URedwoodCreateGuildAsync::CreateGuild(
   URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString GuildName,
+  FString GuildTag,
   ERedwoodGuildInviteType InviteType,
   bool bListed,
   bool bMembershipPublic
@@ -14,6 +15,7 @@ URedwoodCreateGuildAsync *URedwoodCreateGuildAsync::CreateGuild(
   Action->Target = Target;
   Action->RegisterWithGameInstance(WorldContextObject);
   Action->GuildName = GuildName;
+  Action->GuildTag = GuildTag;
   Action->InviteType = InviteType;
   Action->bListed = bListed;
   Action->bMembershipPublic = bMembershipPublic;
@@ -24,6 +26,7 @@ URedwoodCreateGuildAsync *URedwoodCreateGuildAsync::CreateGuild(
 void URedwoodCreateGuildAsync::Activate() {
   Target->CreateGuild(
     GuildName,
+    GuildTag,
     InviteType,
     bListed,
     bMembershipPublic,

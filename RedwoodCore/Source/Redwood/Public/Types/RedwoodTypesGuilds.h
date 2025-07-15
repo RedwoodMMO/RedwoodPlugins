@@ -52,6 +52,9 @@ struct FRedwoodGuild {
   FString Name;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Tag;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   ERedwoodGuildInviteType InviteType = ERedwoodGuildInviteType::Unknown;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
