@@ -344,7 +344,4 @@ private:
 
   void HandleOnWorldAdded(UWorld *World, FWorldInitializationValues IVS);
   void HandleOnWorldBeginPlay(bool bBegunPlay);
-
-  UFUNCTION()
-  void ReportOnlineStatus();
 };

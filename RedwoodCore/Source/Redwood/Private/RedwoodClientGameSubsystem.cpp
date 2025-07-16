@@ -73,41 +73,9 @@ void URedwoodClientGameSubsystem::HandleOnWorldBeginPlay(bool bBegunPlay) {
   UWorld *World = GetWorld();
 
   if (IsValid(World) && bBegunPlay) {
-    ReportOnlineStatus();
-
-    AGameStateBase *GameState = World->GetGameState();
-    if (GameState) {
-      URedwoodGameStateComponent *GameStateComponent =
-        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
-          URedwoodGameStateComponent::StaticClass()
-        ));
-      if (GameStateComponent) {
-        GameStateComponent->OnServerDetailsChanged.AddDynamic(
-          this, &URedwoodClientGameSubsystem::ReportOnlineStatus
-        );
-      }
-    }
-  }
-}
-
-void URedwoodClientGameSubsystem::ReportOnlineStatus() {
-  UWorld *World = GetWorld();
-
-  if (IsValid(World)) {
-    AGameStateBase *GameState = World->GetGameState();
-    if (GameState) {
-      URedwoodGameStateComponent *GameStateComponent =
-        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
-          URedwoodGameStateComponent::StaticClass()
-        ));
-      if (GameStateComponent) {
-        ClientInterface->ReportOnlineStatus(
-          true, GameStateComponent->GetServerDetails()
-        );
-      } else {
-        ClientInterface->ReportOnlineStatus(false, FRedwoodServerDetails());
-      }
-    }
+    // This function was using for an older method to report online status
+    // but this is now reported by the server instead of the client. We're
+    // leaving this function here just in case we need it in the future.
   }
 }
 

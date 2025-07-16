@@ -312,8 +312,6 @@ public:
 
   FString GetConnectionConsoleCommand();
 
-  void ReportOnlineStatus(bool bInServer, FRedwoodServerDetails ServerDetails);
-
 private:
   bool bSentDirectorConnected;
   bool bDirectorDisconnected = true;

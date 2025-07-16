@@ -2597,29 +2597,3 @@ FString URedwoodClientInterface::GetConnectionConsoleCommand() {
 
   return ConnectionString;
 }
-
-void URedwoodClientInterface::ReportOnlineStatus(
-  bool bInServer, FRedwoodServerDetails ServerDetails
-) {
-  if (!Director.IsValid() || !Director->bIsConnected || SelectedCharacterId.IsEmpty()) {
-    return;
-  }
-
-  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-  Payload->SetStringField(TEXT("playerId"), PlayerId);
-
-  if (bInServer) {
-    TSharedPtr<FJsonObject> RealmObject = MakeShareable(new FJsonObject);
-    RealmObject->SetStringField(TEXT("realmName"), ServerDetails.RealmName);
-    RealmObject->SetStringField(TEXT("proxyId"), ServerDetails.ProxyId);
-    RealmObject->SetStringField(TEXT("zoneName"), ServerDetails.ZoneName);
-    RealmObject->SetStringField(TEXT("shardName"), ServerDetails.ShardName);
-    RealmObject->SetStringField(TEXT("characterId"), SelectedCharacterId);
-    Payload->SetObjectField(TEXT("realm"), RealmObject);
-  } else {
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-    Payload->SetField(TEXT("realm"), NullValue);
-  }
-
-  Director->Emit(TEXT("director:players:online-state"), Payload, nullptr);
-}

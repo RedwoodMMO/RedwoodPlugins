@@ -118,14 +118,33 @@ void URedwoodGameModeComponent::OnGameModeLogout(
     return;
   }
 
-  if (UGameplayMessageSubsystem::HasInstance(this)) {
-    // When we stop PIE, it's possible for the subsystem to be destroyed
-    // before we get this event, so we need to check if it's valid
-    UGameplayMessageSubsystem &MessageSubsystem =
-      UGameplayMessageSubsystem::Get(this);
-    MessageSubsystem.BroadcastMessage(
-      TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
-    );
+  ARedwoodPlayerState *RedwoodPlayerState =
+    Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
+  if (IsValid(RedwoodPlayerState)) {
+    if (URedwoodCommonGameSubsystem::ShouldUseBackend(GameMode->GetWorld())) {
+      if (Sidecar.IsValid() && Sidecar->bIsConnected) {
+        TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+        JsonObject->SetStringField(
+          TEXT("playerId"), RedwoodPlayerState->RedwoodCharacter.PlayerId
+        );
+        JsonObject->SetStringField(
+          TEXT("characterId"), RedwoodPlayerState->RedwoodCharacter.Id
+        );
+        Sidecar->Emit(
+          TEXT("realm:servers:player-left:game-server-to-sidecar"), JsonObject
+        );
+      }
+    }
+
+    if (UGameplayMessageSubsystem::HasInstance(this)) {
+      // When we stop PIE, it's possible for the subsystem to be destroyed
+      // before we get this event, so we need to check if it's valid
+      UGameplayMessageSubsystem &MessageSubsystem =
+        UGameplayMessageSubsystem::Get(this);
+      MessageSubsystem.BroadcastMessage(
+        TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
+      );
+    }
   }
 }
 
@@ -184,6 +203,11 @@ APlayerController *URedwoodGameModeComponent::Login(
       JsonObject->SetStringField(TEXT("characterId"), CharacterId);
       JsonObject->SetStringField(TEXT("token"), Token);
 
+      if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+        ErrorMessage = TEXT("Sidecar is not connected");
+        return PlayerController;
+      }
+
       Sidecar->Emit(
         TEXT("realm:servers:player-auth:game-server-to-sidecar"),
         JsonObject,
@@ -207,6 +231,23 @@ APlayerController *URedwoodGameModeComponent::Login(
                 *CharacterId
               );
 
+              TSharedPtr<FJsonObject> Player =
+                MessageStruct->GetObjectField(TEXT("player"));
+
+              RedwoodPlayerState->RedwoodPlayerNickname =
+                Player->GetStringField(TEXT("nickname"));
+
+              const TSharedPtr<FJsonObject> *GuildObject;
+
+              if (MessageStruct->TryGetObjectField(
+                    TEXT("guild"), GuildObject
+                  )) {
+                RedwoodPlayerState->bRedwoodHasSelectedGuild = true;
+                RedwoodPlayerState->RedwoodSelectedGuild =
+                  URedwoodCommonGameSubsystem::ParseGuild(*GuildObject);
+              }
+
+              // This notifies subscribers to the OnRedwoodCharacterUpdated delegate (e.g. URedwoodCharacterComponent)
               RedwoodPlayerState->SetRedwoodCharacter(
                 URedwoodCommonGameSubsystem::ParseCharacter(Character)
               );
