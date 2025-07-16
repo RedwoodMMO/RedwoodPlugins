@@ -324,6 +324,30 @@ void URedwoodClientGameSubsystem::GetGuild(
   }
 }
 
+void URedwoodClientGameSubsystem::GetSelectedGuild(
+  FRedwoodGetGuildOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetSelectedGuild(OnOutput);
+  } else {
+    FRedwoodGetGuildOutput Output;
+    Output.Error = TEXT("Cannot get selected guild without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SetSelectedGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetSelectedGuild(GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot set selected guild without using a backend")
+    );
+  }
+}
+
 void URedwoodClientGameSubsystem::JoinGuild(
   FString GuildId, FRedwoodErrorOutputDelegate OnOutput
 ) {

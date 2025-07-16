@@ -115,6 +115,10 @@ public:
 
   void GetGuild(FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput);
 
+  void SetSelectedGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
+
+  void GetSelectedGuild(FRedwoodGetGuildOutputDelegate OnOutput);
+
   void JoinGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
 
   void InviteToGuild(
