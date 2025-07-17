@@ -221,6 +221,10 @@ APlayerController *URedwoodGameModeComponent::Login(
             FString CharacterId = Character->GetStringField(TEXT("id"));
             FString CharacterName = Character->GetStringField(TEXT("name"));
 
+            TSharedPtr<FJsonObject> Player =
+              MessageStruct->GetObjectField(TEXT("player"));
+            FString TempPlayerId = Player->GetStringField(TEXT("id"));
+
             ARedwoodPlayerState *RedwoodPlayerState =
               Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
             if (IsValid(RedwoodPlayerState)) {
@@ -231,21 +235,10 @@ APlayerController *URedwoodGameModeComponent::Login(
                 *CharacterId
               );
 
-              TSharedPtr<FJsonObject> Player =
-                MessageStruct->GetObjectField(TEXT("player"));
-
-              RedwoodPlayerState->RedwoodPlayerNickname =
-                Player->GetStringField(TEXT("nickname"));
-
-              const TSharedPtr<FJsonObject> *GuildObject;
-
-              if (MessageStruct->TryGetObjectField(
-                    TEXT("guild"), GuildObject
-                  )) {
-                RedwoodPlayerState->bRedwoodHasSelectedGuild = true;
-                RedwoodPlayerState->RedwoodSelectedGuild =
-                  URedwoodCommonGameSubsystem::ParseGuild(*GuildObject);
-              }
+              // This notifies subscribers to the OnRedwoodPlayerUpdated delegate (e.g. URedwoodCharacterComponent)
+              RedwoodPlayerState->SetRedwoodPlayer(
+                URedwoodCommonGameSubsystem::ParsePlayerData(Player)
+              );
 
               // This notifies subscribers to the OnRedwoodCharacterUpdated delegate (e.g. URedwoodCharacterComponent)
               RedwoodPlayerState->SetRedwoodCharacter(
@@ -260,9 +253,10 @@ APlayerController *URedwoodGameModeComponent::Login(
                 LogRedwood,
                 Log,
                 TEXT(
-                  "Player joined as character %s, but we're not using RedwoodPlayerState"
+                  "Player joined as character %s (player %s), but we're not using RedwoodPlayerState"
                 ),
-                *CharacterId
+                *CharacterId,
+                *TempPlayerId
               );
             }
           } else {

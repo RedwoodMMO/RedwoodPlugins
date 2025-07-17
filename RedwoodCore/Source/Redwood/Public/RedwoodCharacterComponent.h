@@ -30,6 +30,9 @@ public:
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodDynamicDelegate OnRedwoodCharacterUpdated;
 
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnRedwoodPlayerUpdated;
+
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   bool bStoreDataInActor = true;
 
@@ -37,11 +40,34 @@ public:
   FString RedwoodPlayerId;
 
   UPROPERTY(Replicated, BlueprintReadOnly, Category = "Redwood")
+  FString RedwoodPlayerNickname;
+
+  UPROPERTY(Replicated, BlueprintReadOnly, Category = "Redwood")
+  FString RedwoodNameTag;
+
+  UPROPERTY(Replicated, BlueprintReadOnly, Category = "Redwood")
+  bool bSelectedGuildValid = false;
+
+  UPROPERTY(Replicated, BlueprintReadOnly, Category = "Redwood")
+  FRedwoodGuildInfo SelectedGuild;
+
+  UPROPERTY(Replicated, BlueprintReadOnly, Category = "Redwood")
   FString RedwoodCharacterId;
 
-  // Also available with PlayerState.GetPlayerName()
   UPROPERTY(Replicated, BlueprintReadOnly, Category = "Redwood")
   FString RedwoodCharacterName;
+
+  // PlayerData is not the same as the other character data in
+  // below variables. This PlayerData is associated with the
+  // PlayerIdentity, not the PlayerCharacter. This means that
+  // it is the same for all characters of a player across all
+  // realms. It's disabled by default as most developers likely
+  // won't use it.
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUsePlayerData = false;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  FString PlayerDataVariableName = TEXT("PlayerData");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   bool bUseCharacterCreatorData = true;
@@ -89,6 +115,13 @@ public:
   int32 LatestDataSchemaVersion = 0;
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
+  void MarkPlayerDataDirty() {
+    if (bUsePlayerData) {
+      bPlayerDataDirty = true;
+    }
+  }
+
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkCharacterCreatorDataDirty() {
     if (bUseCharacterCreatorData) {
       bCharacterCreatorDataDirty = true;
@@ -123,6 +156,11 @@ public:
     }
   }
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  bool IsPlayerDataDirty() const {
+    return bPlayerDataDirty;
+  }
+
   UFUNCTION(BlueprintPure, Category = "Redwood")
   bool IsCharacterCreatorDataDirty() const {
     return bCharacterCreatorDataDirty;
@@ -149,6 +187,7 @@ public:
   }
 
   void ClearDirtyFlags() {
+    bPlayerDataDirty = false;
     bCharacterCreatorDataDirty = false;
     bMetadataDirty = false;
     bEquippedInventoryDirty = false;
@@ -162,9 +201,19 @@ private:
     APawn *Pawn, AController *OldController, AController *NewController
   );
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  UFUNCTION()
+  void RedwoodPlayerStatePlayerUpdated();
+
+  UFUNCTION(NetMulticast, Reliable)
+  void MC_RedwoodPlayerUpdated();
+
+  UFUNCTION()
   void RedwoodPlayerStateCharacterUpdated();
 
+  UFUNCTION(NetMulticast, Reliable)
+  void MC_RedwoodCharacterUpdated();
+
+  bool bPlayerDataDirty = false;
   bool bCharacterCreatorDataDirty = false;
   bool bMetadataDirty = false;
   bool bEquippedInventoryDirty = false;

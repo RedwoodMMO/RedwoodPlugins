@@ -3,7 +3,7 @@
 #pragma once
 
 #include "RedwoodTypesCommon.h"
-#include "RedwoodTypesFriends.h"
+#include "RedwoodTypesPlayers.h"
 
 #include "RedwoodTypesGuilds.generated.h"
 

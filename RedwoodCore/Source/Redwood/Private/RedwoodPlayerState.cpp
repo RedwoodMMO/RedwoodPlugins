@@ -20,6 +20,12 @@ void ARedwoodPlayerState::SetServerReady() {
   }
 }
 
+void ARedwoodPlayerState::SetRedwoodPlayer(FRedwoodPlayerData InRedwoodPlayer) {
+  RedwoodPlayer = InRedwoodPlayer;
+
+  OnRedwoodPlayerUpdated.Broadcast();
+}
+
 void ARedwoodPlayerState::SetRedwoodCharacter(
   FRedwoodCharacterBackend InRedwoodCharacter
 ) {
@@ -33,8 +39,5 @@ void ARedwoodPlayerState::SetRedwoodCharacter(
   FUniqueNetIdRepl NetUniqueId(UniqueNetIdWrapper.GetUniqueNetId());
 
   SetUniqueId(NetUniqueId);
-
-  SetPlayerName(RedwoodCharacter.Name);
-
   OnRedwoodCharacterUpdated.Broadcast();
 }

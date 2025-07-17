@@ -979,3 +979,29 @@ FRedwoodAlliance URedwoodCommonGameSubsystem::ParseAlliance(
 
   return OutAlliance;
 }
+
+FRedwoodPlayerData URedwoodCommonGameSubsystem::ParsePlayerData(
+  TSharedPtr<FJsonObject> PlayerDataObj
+) {
+  FRedwoodPlayerData PlayerData;
+
+  PlayerData.Id = PlayerDataObj->GetStringField(TEXT("id"));
+  PlayerData.Nickname = PlayerDataObj->GetStringField(TEXT("nickname"));
+
+  const TSharedPtr<FJsonObject> *SelectedGuildObj;
+  PlayerData.bSelectedGuildValid =
+    PlayerDataObj->TryGetObjectField(TEXT("selectedGuild"), SelectedGuildObj);
+
+  if (PlayerData.bSelectedGuildValid) {
+    PlayerData.SelectedGuild =
+      URedwoodCommonGameSubsystem::ParseGuildInfo(*SelectedGuildObj);
+  }
+
+  TSharedPtr<FJsonObject> DataObj = PlayerDataObj->GetObjectField(TEXT("data"));
+  if (DataObj.IsValid()) {
+    PlayerData.Data = NewObject<USIOJsonObject>();
+    PlayerData.Data->SetRootObject(DataObj);
+  }
+
+  return PlayerData;
+}

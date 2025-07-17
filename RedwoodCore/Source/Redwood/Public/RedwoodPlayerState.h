@@ -11,14 +11,16 @@
 
 class USIOJsonObject;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodCharacterUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodPlayerStateUpdated);
 
 UCLASS(BlueprintType, Blueprintable)
 class REDWOOD_API ARedwoodPlayerState : public APlayerState {
   GENERATED_BODY()
 
 public:
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood|PlayerState")
+  // NOT AVAILABLE ON CLIENTS
+  FRedwoodPlayerData RedwoodPlayer;
+  // NOT AVAILABLE ON CLIENTS
   FRedwoodCharacterBackend RedwoodCharacter;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
@@ -40,8 +42,14 @@ public:
   void SetServerReady();
 
   UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
+  void SetRedwoodPlayer(FRedwoodPlayerData InRedwoodPlayer);
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
   void SetRedwoodCharacter(FRedwoodCharacterBackend InRedwoodCharacter);
 
   UPROPERTY(BlueprintAssignable, Category = "Events")
-  FOnRedwoodCharacterUpdated OnRedwoodCharacterUpdated;
+  FOnRedwoodPlayerStateUpdated OnRedwoodCharacterUpdated;
+
+  UPROPERTY(BlueprintAssignable, Category = "Events")
+  FOnRedwoodPlayerStateUpdated OnRedwoodPlayerUpdated;
 };

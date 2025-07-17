@@ -5,7 +5,15 @@
 #include "RedwoodTypesCommon.h"
 #include "RedwoodTypesServers.h"
 
-#include "RedwoodTypesFriends.generated.h"
+#include "RedwoodTypesPlayers.generated.h"
+
+USTRUCT(BlueprintType)
+struct FRedwoodPlayerOnlineStateRealm : public FRedwoodServerDetails {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString CharacterId;
+};
 
 UENUM(BlueprintType)
 enum class ERedwoodFriendListType : uint8 {
@@ -17,14 +25,6 @@ enum class ERedwoodFriendListType : uint8 {
   Blocked,
   Inactive,
   Unknown
-};
-
-USTRUCT(BlueprintType)
-struct FRedwoodPlayerOnlineStateRealm : public FRedwoodServerDetails {
-  GENERATED_BODY()
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString CharacterId;
 };
 
 USTRUCT(BlueprintType)

@@ -84,5 +84,9 @@ public:
 
   static FRedwoodAlliance ParseAlliance(TSharedPtr<FJsonObject> AllianceObj);
 
+  static FRedwoodPlayerData ParsePlayerData(
+    TSharedPtr<FJsonObject> PlayerDataObj
+  );
+
 private:
 };

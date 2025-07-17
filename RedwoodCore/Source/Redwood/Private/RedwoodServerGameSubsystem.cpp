@@ -420,6 +420,40 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
     }
   );
 
+  Sidecar->OnEvent(
+    TEXT("realm:players:data-changed"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (Message->TryGetObject(Object) && Object) {
+        TSharedPtr<FJsonObject> ActualObject = *Object;
+        FString PlayerId = ActualObject->GetStringField(TEXT("playerId"));
+
+        // find the player state with this PlayerId
+        UWorld *World = GetWorld();
+        if (IsValid(World)) {
+          for (APlayerState *PlayerState : World->GetGameState()->PlayerArray) {
+            ARedwoodPlayerState *RedwoodPlayerState =
+              Cast<ARedwoodPlayerState>(PlayerState);
+            if (!IsValid(RedwoodPlayerState)) {
+              continue;
+            }
+
+            if (RedwoodPlayerState->RedwoodPlayer.Id == PlayerId) {
+              // Found the player state
+              TSharedPtr<FJsonObject> PlayerData =
+                ActualObject->GetObjectField(TEXT("data"));
+              RedwoodPlayerState->SetRedwoodPlayer(
+                URedwoodCommonGameSubsystem::ParsePlayerData(PlayerData)
+              );
+              break;
+            }
+          }
+        }
+      }
+    }
+  );
+
   Sidecar->OnConnectedCallback =
     [this](const FString &InSocketId, const FString &InSessionId) {
       if (Sidecar.IsValid()) {
