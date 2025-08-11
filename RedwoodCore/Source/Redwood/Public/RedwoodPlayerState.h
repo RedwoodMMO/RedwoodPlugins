@@ -18,15 +18,26 @@ class REDWOOD_API ARedwoodPlayerState : public APlayerState {
   GENERATED_BODY()
 
 public:
+  ARedwoodPlayerState(
+    const FObjectInitializer &ObjectInitializer = FObjectInitializer::Get()
+  );
+
   // NOT AVAILABLE ON CLIENTS
   FRedwoodPlayerData RedwoodPlayer;
   // NOT AVAILABLE ON CLIENTS
   FRedwoodCharacterBackend RedwoodCharacter;
 
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
+  //~ Begin AActor interface
+  virtual void Tick(float DeltaSeconds) override;
+  //~ End AActor interface
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
+  bool bFollowPawn = false;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   bool bClientReady = false;
 
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood|PlayerState")
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   bool bServerReady = false;
 
   UFUNCTION(
@@ -38,13 +49,13 @@ public:
   )
   void SetClientReady();
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetServerReady();
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetRedwoodPlayer(FRedwoodPlayerData InRedwoodPlayer);
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood|PlayerState")
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetRedwoodCharacter(FRedwoodCharacterBackend InRedwoodCharacter);
 
   UPROPERTY(BlueprintAssignable, Category = "Events")
