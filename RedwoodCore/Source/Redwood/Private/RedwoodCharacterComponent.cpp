@@ -39,6 +39,24 @@ void URedwoodCharacterComponent::BeginPlay() {
     if (IsValid(Controller)) {
       OnControllerChanged(Pawn, nullptr, Controller);
     }
+  } else {
+    ARedwoodPlayerState *RedwoodPlayerState =
+      Cast<ARedwoodPlayerState>(GetOwner());
+
+    if (IsValid(RedwoodPlayerState)) {
+      RedwoodPlayerState->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+        this, &URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated
+      );
+      RedwoodPlayerStateCharacterUpdated();
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "URedwoodCharacterComponent must be used with APawn or ARedwoodPlayerState"
+        )
+      );
+    }
   }
 }
 
@@ -62,7 +80,7 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
   AController *Controller = IsValid(Pawn) ? Pawn->GetController() : nullptr;
   ARedwoodPlayerState *RedwoodPlayerState = IsValid(Controller)
     ? Cast<ARedwoodPlayerState>(Controller->PlayerState)
-    : nullptr;
+    : Cast<ARedwoodPlayerState>(GetOwner());
   if (IsValid(RedwoodPlayerState)) {
     FRedwoodCharacterBackend RedwoodCharacterBackend =
       RedwoodPlayerState->RedwoodCharacter;
@@ -136,5 +154,10 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     }
 
     OnRedwoodCharacterUpdated.Broadcast();
+    MC_RedwoodCharacterUpdated();
   }
+}
+
+void URedwoodCharacterComponent::MC_RedwoodCharacterUpdated_Implementation() {
+  OnRedwoodCharacterUpdated.Broadcast();
 }

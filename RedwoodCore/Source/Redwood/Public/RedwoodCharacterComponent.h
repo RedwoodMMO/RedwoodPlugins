@@ -165,6 +165,9 @@ private:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void RedwoodPlayerStateCharacterUpdated();
 
+  UFUNCTION(NetMulticast, Reliable)
+  void MC_RedwoodCharacterUpdated();
+
   bool bCharacterCreatorDataDirty = false;
   bool bMetadataDirty = false;
   bool bEquippedInventoryDirty = false;
