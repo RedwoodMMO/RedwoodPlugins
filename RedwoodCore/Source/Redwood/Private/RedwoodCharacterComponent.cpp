@@ -37,38 +37,48 @@ void URedwoodCharacterComponent::GetLifetimeReplicatedProps(
 void URedwoodCharacterComponent::BeginPlay() {
   Super::BeginPlay();
 
-  APawn *Pawn = Cast<APawn>(GetOwner());
+  UWorld *World = GetWorld();
 
-  if (Pawn) {
-    Pawn->ReceiveControllerChangedDelegate.AddUniqueDynamic(
-      this, &URedwoodCharacterComponent::OnControllerChanged
-    );
-    AController *Controller = Pawn->GetController();
-    if (IsValid(Controller)) {
-      OnControllerChanged(Pawn, nullptr, Controller);
-    }
-  } else {
-    ARedwoodPlayerState *RedwoodPlayerState =
-      Cast<ARedwoodPlayerState>(GetOwner());
+  if (
+    IsValid(World) &&
+    (
+      World->GetNetMode() == ENetMode::NM_DedicatedServer ||
+      World->GetNetMode() == ENetMode::NM_ListenServer
+    )
+  ) {
+    APawn *Pawn = Cast<APawn>(GetOwner());
 
-    if (IsValid(RedwoodPlayerState)) {
-      RedwoodPlayerState->OnRedwoodPlayerUpdated.AddUniqueDynamic(
-        this, &URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated
+    if (Pawn) {
+      Pawn->ReceiveControllerChangedDelegate.AddUniqueDynamic(
+        this, &URedwoodCharacterComponent::OnControllerChanged
       );
-      RedwoodPlayerStatePlayerUpdated();
-
-      RedwoodPlayerState->OnRedwoodCharacterUpdated.AddUniqueDynamic(
-        this, &URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated
-      );
-      RedwoodPlayerStateCharacterUpdated();
+      AController *Controller = Pawn->GetController();
+      if (IsValid(Controller)) {
+        OnControllerChanged(Pawn, nullptr, Controller);
+      }
     } else {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT(
-          "URedwoodCharacterComponent must be used with APawn or ARedwoodPlayerState"
-        )
-      );
+      ARedwoodPlayerState *RedwoodPlayerState =
+        Cast<ARedwoodPlayerState>(GetOwner());
+
+      if (IsValid(RedwoodPlayerState)) {
+        RedwoodPlayerState->OnRedwoodPlayerUpdated.AddUniqueDynamic(
+          this, &URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated
+        );
+        RedwoodPlayerStatePlayerUpdated();
+
+        RedwoodPlayerState->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+          this, &URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated
+        );
+        RedwoodPlayerStateCharacterUpdated();
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT(
+            "URedwoodCharacterComponent must be used with APawn or ARedwoodPlayerState"
+          )
+        );
+      }
     }
   }
 }
@@ -260,6 +270,19 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
 
       if (bDirty) {
         MarkDataDirty();
+      }
+    }
+
+    if (bUseAbilitySystem) {
+      bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
+        bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
+        RedwoodCharacterBackend.AbilitySystem,
+        *AbilitySystemVariableName,
+        LatestAbilitySystemSchemaVersion
+      );
+
+      if (bDirty) {
+        MarkAbilitySystemDirty();
       }
     }
 

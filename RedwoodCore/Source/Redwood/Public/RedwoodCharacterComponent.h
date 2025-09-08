@@ -114,6 +114,18 @@ public:
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   int32 LatestDataSchemaVersion = 0;
 
+  // Only enable this if you're using a custom Ability System;
+  // if you're using GAS, keep this false and use the URedwoodGASComponent
+  // instead.
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUseAbilitySystem = false;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  FString AbilitySystemVariableName = TEXT("AbilitySystem");
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  int32 LatestAbilitySystemSchemaVersion = 0;
+
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkPlayerDataDirty() {
     if (bUsePlayerData) {
@@ -156,6 +168,13 @@ public:
     }
   }
 
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
+  void MarkAbilitySystemDirty() {
+    if (bUseAbilitySystem) {
+      bAbilitySystemDirty = true;
+    }
+  }
+
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   bool IsPlayerDataDirty() const {
     return bPlayerDataDirty;
@@ -186,6 +205,11 @@ public:
     return bDataDirty;
   }
 
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsAbilitySystemDirty() const {
+    return bAbilitySystemDirty;
+  }
+
   void ClearDirtyFlags() {
     bPlayerDataDirty = false;
     bCharacterCreatorDataDirty = false;
@@ -193,6 +217,7 @@ public:
     bEquippedInventoryDirty = false;
     bNonequippedInventoryDirty = false;
     bDataDirty = false;
+    bAbilitySystemDirty = false;
   }
 
 private:
@@ -219,4 +244,5 @@ private:
   bool bEquippedInventoryDirty = false;
   bool bNonequippedInventoryDirty = false;
   bool bDataDirty = false;
+  bool bAbilitySystemDirty = false;
 };

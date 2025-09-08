@@ -64,6 +64,11 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
   if (Character.Data) {
     JsonObject->SetObjectField(TEXT("data"), Character.Data->GetRootObject());
   }
+  if (Character.AbilitySystem) {
+    JsonObject->SetObjectField(
+      TEXT("abilitySystem"), Character.AbilitySystem->GetRootObject()
+    );
+  }
 
   FString OutputString;
   TSharedRef<TJsonWriter<TCHAR>> JsonWriter =
@@ -167,6 +172,13 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
     Character.Data->SetRootObject(DataObj);
   }
 
+  TSharedPtr<FJsonObject> AbilitySystemObj =
+    JsonObject->GetObjectField(TEXT("abilitySystem"));
+  if (AbilitySystemObj.IsValid()) {
+    Character.AbilitySystem = NewObject<USIOJsonObject>();
+    Character.AbilitySystem->SetRootObject(AbilitySystemObj);
+  }
+
   return Character;
 }
 
@@ -240,6 +252,12 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::ParseCharacter(
   if (CharacterObj->TryGetObjectField(TEXT("data"), CharacterData)) {
     Character.Data = NewObject<USIOJsonObject>();
     Character.Data->SetRootObject(*CharacterData);
+  }
+
+  const TSharedPtr<FJsonObject> *AbilitySystem = nullptr;
+  if (CharacterObj->TryGetObjectField(TEXT("abilitySystem"), AbilitySystem)) {
+    Character.AbilitySystem = NewObject<USIOJsonObject>();
+    Character.AbilitySystem->SetRootObject(*AbilitySystem);
   }
 
   const TSharedPtr<FJsonObject> *RedwoodData = nullptr;

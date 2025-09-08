@@ -996,7 +996,8 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             !CharacterComponent->IsMetadataDirty() &&
             !CharacterComponent->IsEquippedInventoryDirty() &&
             !CharacterComponent->IsNonequippedInventoryDirty() &&
-            !CharacterComponent->IsDataDirty()) {
+            !CharacterComponent->IsDataDirty() &&
+            !CharacterComponent->IsAbilitySystemDirty()) {
           continue;
         }
 
@@ -1104,6 +1105,23 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             RedwoodPlayerState->RedwoodCharacter.Data = CharData;
             CharacterObject->SetObjectField(
               TEXT("data"), CharData->GetRootObject()
+            );
+          }
+        }
+
+        if (bUseBackend ? CharacterComponent->IsAbilitySystemDirty()
+                        : CharacterComponent->bUseAbilitySystem) {
+          USIOJsonObject *AbilitySystem =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->AbilitySystemVariableName
+            );
+          if (AbilitySystem) {
+            RedwoodPlayerState->RedwoodCharacter.AbilitySystem = AbilitySystem;
+            CharacterObject->SetObjectField(
+              TEXT("abilitySystem"), AbilitySystem->GetRootObject()
             );
           }
         }

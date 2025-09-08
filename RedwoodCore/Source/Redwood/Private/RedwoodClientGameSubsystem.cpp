@@ -742,6 +742,7 @@ void URedwoodClientGameSubsystem::CreateCharacter(
     Character.EquippedInventory = NewObject<USIOJsonObject>();
     Character.NonequippedInventory = NewObject<USIOJsonObject>();
     Character.Data = NewObject<USIOJsonObject>();
+    Character.AbilitySystem = NewObject<USIOJsonObject>();
 
     FRedwoodGetCharacterOutput Output;
     Output.Character = Character;

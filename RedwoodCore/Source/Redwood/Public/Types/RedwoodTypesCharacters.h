@@ -47,6 +47,9 @@ struct FRedwoodCharacterBackend {
   USIOJsonObject *Data = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *AbilitySystem = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *RedwoodData = nullptr;
 };
 
