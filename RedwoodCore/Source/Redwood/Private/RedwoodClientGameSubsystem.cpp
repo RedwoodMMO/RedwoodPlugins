@@ -291,7 +291,10 @@ void URedwoodClientGameSubsystem::ListRealms(
     FakeRealm.Uri = "ws://localhost";
     FakeRealm.bListed = true;
 
+    Realms.Add(FakeRealm);
+
     FRedwoodListRealmsOutput Output;
+    Output.Realms = Realms;
     OnOutput.ExecuteIfBound(Output);
   }
 }
