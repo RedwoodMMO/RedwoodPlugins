@@ -238,6 +238,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodConnectToServerDynamicDelegate, FString, ConsoleCommand
 );
 
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodStitchToServerDynamicDelegate, FURL, URL
+);
+
 USTRUCT(BlueprintType)
 struct FRedwoodServerDetails {
   GENERATED_BODY()

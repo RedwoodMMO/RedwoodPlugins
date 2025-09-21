@@ -90,8 +90,7 @@ void URedwoodServerGameSubsystem::Initialize(
         Cast<URedwoodGameModeAsset>(Object);
       if (ensure(RedwoodGameMode)) {
         if (!RedwoodGameMode->RedwoodId.IsEmpty()) {
-          if (RedwoodGameMode->GameModeType ==
-              ERedwoodGameModeType::GameModeBase) {
+          if (RedwoodGameMode->GameModeType == ERedwoodGameModeType::GameModeBase) {
             GameModeClasses.Add(
               RedwoodGameMode->RedwoodId, RedwoodGameMode->GameModeBaseClass
             );
@@ -591,7 +590,8 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   APlayerController *PlayerController,
   const FString &InZoneName,
   const FTransform &InTransform,
-  const FString &OptionalProxyId
+  const FString &OptionalProxyId,
+  bool bShouldStitch
 ) {
   FString UniqueId = PlayerController->PlayerState->GetUniqueId().ToString();
 
@@ -643,6 +643,8 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   } else {
     Payload->SetField(TEXT("proxyId"), NullValue);
   }
+
+  Payload->SetBoolField(TEXT("shouldStitch"), bShouldStitch);
 
   Payload->SetField(TEXT("spawnName"), NullValue);
 
@@ -827,14 +829,12 @@ void URedwoodServerGameSubsystem::FlushSync() {
   for (auto &Pair : SyncItemComponentsById) {
     URedwoodSyncComponent *SyncItemComponent = Pair.Value;
 
-    if (SyncItemComponent->ZoneName != ZoneName &&
-        SyncItemComponent->RedwoodId != TEXT("proxy")) {
+    if (SyncItemComponent->ZoneName != ZoneName && SyncItemComponent->RedwoodId != TEXT("proxy")) {
       // don't flush items that this server isn't responsible for controlling at all
       continue;
     }
 
-    if (!IsValid(SyncItemComponent) ||
-        !IsValid(SyncItemComponent->GetOwner())) {
+    if (!IsValid(SyncItemComponent) || !IsValid(SyncItemComponent->GetOwner())) {
       // item was destroyed
       TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject);
       ItemObject->SetStringField(TEXT("id"), SyncItemComponent->RedwoodId);
@@ -849,8 +849,7 @@ void URedwoodServerGameSubsystem::FlushSync() {
     bool bSyncMovement = false;
     bool bSyncData = SyncItemComponent->IsDataDirty(false);
 
-    if (SyncItemComponent->IsMovementDirty(false) ||
-        SyncItemComponent->MovementSyncIntervalSeconds == 0) {
+    if (SyncItemComponent->IsMovementDirty(false) || SyncItemComponent->MovementSyncIntervalSeconds == 0) {
       bSyncMovement = true;
     } else {
       if (SyncItemComponent->MovementSyncIntervalSeconds > 0) {
@@ -984,8 +983,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
       APawn *Pawn = PlayerState->GetPawn();
       if (Pawn) {
         TArray<URedwoodCharacterComponent *> PawnCharacterComponents;
-        Pawn->GetComponents<URedwoodCharacterComponent>(
-          PawnCharacterComponents
+        Pawn->GetComponents<URedwoodCharacterComponent>(PawnCharacterComponents
         );
         CharacterComponents.Append(PawnCharacterComponents);
       }
@@ -1092,8 +1090,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
           }
         }
 
-        if (bUseBackend ? CharacterComponent->IsDataDirty()
-                        : CharacterComponent->bUseData) {
+        if (bUseBackend ? CharacterComponent->IsDataDirty() : CharacterComponent->bUseData) {
           USIOJsonObject *CharData =
             URedwoodCommonGameSubsystem::SerializeBackendData(
               CharacterComponent->bStoreDataInActor
@@ -1476,8 +1473,7 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
                         SyncItemComponent->ShouldDoInitialSave()) &&
       SyncItemComponent->bPersistChanges;
 
-    if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
-        bUpdateItem) {
+    if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) || bUpdateItem) {
       // always add the data if we're not using the backend
 
       if (bUpdateItem) {
@@ -1749,8 +1745,8 @@ void URedwoodServerGameSubsystem::GetBlob(
   Payload->SetStringField(TEXT("id"), "game-server");
   Payload->SetStringField(TEXT("key"), Key);
 
-  Sidecar->Emit(
-    TEXT("realm:blobs:get"), Payload, [this, OnComplete](auto Response) {
+  Sidecar
+    ->Emit(TEXT("realm:blobs:get"), Payload, [this, OnComplete](auto Response) {
       TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
       FString Error = MessageStruct->GetStringField(TEXT("error"));
 
@@ -1771,8 +1767,7 @@ void URedwoodServerGameSubsystem::GetBlob(
       }
 
       OnComplete.ExecuteIfBound(Output);
-    }
-  );
+    });
 }
 
 void URedwoodServerGameSubsystem::PutSaveGame(
@@ -1780,8 +1775,7 @@ void URedwoodServerGameSubsystem::PutSaveGame(
 ) {
   TSharedRef<TArray<uint8>> ObjectBytes(new TArray<uint8>());
 
-  if (UGameplayStatics::SaveGameToMemory(Value, *ObjectBytes) &&
-      (ObjectBytes->Num() > 0)) {
+  if (UGameplayStatics::SaveGameToMemory(Value, *ObjectBytes) && (ObjectBytes->Num() > 0)) {
     PutBlob(Key, *ObjectBytes, OnComplete);
   } else {
     OnComplete.ExecuteIfBound(TEXT("Failed to serialize SaveGame"));

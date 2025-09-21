@@ -88,12 +88,18 @@ public:
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString SidecarUri;
 
+  /**
+   * Travel the specified player to a new zone transform.
+   * @param bShouldStitch This is a WIP feature that you likely
+   * don't have access to; leave it set to false.
+   */
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void TravelPlayerToZoneTransform(
     APlayerController *PlayerController,
     const FString &InZoneName,
     const FTransform &InTransform,
-    const FString &OptionalProxyId = TEXT("")
+    const FString &OptionalProxyId = TEXT(""),
+    bool bShouldStitch = false
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")

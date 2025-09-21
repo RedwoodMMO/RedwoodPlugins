@@ -1923,11 +1923,17 @@ void URedwoodClientInterface::BindRealmEvents() {
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
 
+      bool bShouldStitch = MessageObject->GetBoolField(TEXT("shouldStitch"));
       ServerConnection = MessageObject->GetStringField(TEXT("connection"));
       ServerToken = MessageObject->GetStringField(TEXT("token"));
 
-      FString ConsoleCommand = GetConnectionConsoleCommand();
-      OnRequestToJoinServer.Broadcast(ConsoleCommand);
+      if (bShouldStitch) {
+        FURL URL = GetConnectionURL();
+        OnRequestToStitchServer.Broadcast(URL);
+      } else {
+        FString ConsoleCommand = GetConnectionConsoleCommand();
+        OnRequestToJoinServer.Broadcast(ConsoleCommand);
+      }
     },
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
@@ -2596,4 +2602,38 @@ FString URedwoodClientInterface::GetConnectionConsoleCommand() {
     TEXT("open ") + ServerConnection + "?" + OptionsString;
 
   return ConnectionString;
+}
+
+FURL URedwoodClientInterface::GetConnectionURL() {
+  FURL URL;
+  URL.Valid = 0;
+  if (ServerConnection.IsEmpty() || ServerToken.IsEmpty()) {
+    UE_LOG(LogRedwood, Error, TEXT("Server connection or token is empty."));
+    return URL;
+  }
+
+  if (SelectedCharacterId.IsEmpty()) {
+    UE_LOG(LogRedwood, Error, TEXT("Selected character ID is empty."));
+    return URL;
+  }
+
+  FString Host;
+  FString Port;
+  ServerConnection.Split(":", &Host, &Port);
+
+  URL.Protocol = TEXT("unreal");
+  URL.Host = Host;
+  URL.Port = FCString::Atoi(*Port);
+  URL.Valid = 1;
+
+  TMap<FString, FString> Options;
+  Options.Add("RedwoodAuth", "1");
+  Options.Add("CharacterId", SelectedCharacterId);
+  Options.Add("PlayerId", PlayerId);
+  Options.Add("Token", ServerToken);
+  for (const TPair<FString, FString> &Option : Options) {
+    URL.AddOption(*(Option.Key + "=" + Option.Value));
+  }
+
+  return URL;
 }

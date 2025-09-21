@@ -44,6 +44,7 @@ public:
   FRedwoodDynamicDelegate OnPingsReceived;
 
   FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;
+  FRedwoodStitchToServerDynamicDelegate OnRequestToStitchServer;
 
   FRedwoodDynamicDelegate OnDirectorConnectionLost;
   FRedwoodDynamicDelegate OnDirectorConnectionReestablished;
@@ -311,6 +312,7 @@ public:
   void StopServer(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
 
   FString GetConnectionConsoleCommand();
+  FURL GetConnectionURL();
 
 private:
   bool bSentDirectorConnected;
