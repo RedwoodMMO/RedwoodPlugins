@@ -25,7 +25,11 @@ public:
   //~End of UActorComponent interface
 
   void SetServerDetails(
-    FString RealmName, FString ProxyId, FString ZoneName, FString ShardName
+    FString RealmName,
+    FString ProxyId,
+    FString InstanceId,
+    FString ZoneName,
+    FString ShardName
   );
 
   UFUNCTION(BlueprintPure, Category = "Redwood")

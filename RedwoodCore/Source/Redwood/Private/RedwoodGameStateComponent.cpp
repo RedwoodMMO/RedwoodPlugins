@@ -36,6 +36,7 @@ void URedwoodGameStateComponent::BeginPlay() {
       SetServerDetails(
         RedwoodServerGameSubsystem->RealmName,
         RedwoodServerGameSubsystem->ProxyId,
+        RedwoodServerGameSubsystem->InstanceId,
         RedwoodServerGameSubsystem->ZoneName,
         RedwoodServerGameSubsystem->ShardName
       );
@@ -43,17 +44,22 @@ void URedwoodGameStateComponent::BeginPlay() {
       UE_LOG(
         LogRedwood, Warning, TEXT("RedwoodServerGameSubsystem is invalid.")
       );
-      SetServerDetails(TEXT(""), TEXT(""), TEXT(""), TEXT(""));
+      SetServerDetails(TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""));
     }
   }
 }
 
 void URedwoodGameStateComponent::SetServerDetails(
-  FString RealmName, FString ProxyId, FString ZoneName, FString ShardName
+  FString RealmName,
+  FString ProxyId,
+  FString InstanceId,
+  FString ZoneName,
+  FString ShardName
 ) {
   FRedwoodServerDetails Details;
   Details.RealmName = RealmName;
   Details.ProxyId = ProxyId;
+  Details.InstanceId = InstanceId;
   Details.ZoneName = ZoneName;
   Details.ShardName = ShardName;
   ServerDetails = Details;

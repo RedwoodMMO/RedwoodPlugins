@@ -254,6 +254,9 @@ struct FRedwoodServerDetails {
   FString ProxyId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString InstanceId;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString ZoneName;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
