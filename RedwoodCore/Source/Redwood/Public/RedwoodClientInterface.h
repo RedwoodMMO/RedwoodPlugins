@@ -41,6 +41,10 @@ public:
 
   bool IsDirectorConnected();
 
+  TSharedPtr<FSocketIONative> GetDirectorConnection() const {
+    return Director;
+  }
+
   FRedwoodDynamicDelegate OnPingsReceived;
 
   FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;

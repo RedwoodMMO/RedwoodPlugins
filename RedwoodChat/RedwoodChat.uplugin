@@ -1,0 +1,29 @@
+{
+  "FileVersion": 3,
+  "Version": 0,
+  "VersionName": "3.1.1",
+  "FriendlyName": "Redwood Multiplayer Backend - Chat Support",
+  "Description": "Text chat support for Redwood",
+  "Category": "Code Plugins",
+  "CreatedBy": "Incanta Games",
+  "CreatedByURL": "https://redwoodmmo.com",
+  "DocsURL": "https://docs.redwoodmmo.com",
+  "SupportURL": "https://forums.redwoodmmo.com",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "RedwoodChat",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "RedwoodCore",
+      "Enabled": true
+    }
+  ]
+}
