@@ -146,7 +146,7 @@ void URedwoodChatClientSubsystem::HandleJoinPrivateRoom(
   if (bSuccess) {
     FString RoomTypeString;
     FString RoomIdString;
-    RoomId.Split(TEXT(":"), &RoomTypeString, &RoomIdString);
+    RoomId.Split(TEXT("|"), &RoomTypeString, &RoomIdString);
 
     FRedwoodChatRoomIdentity RoomIdentity;
     RoomIdentity.CompleteRoomId = RoomId;
@@ -198,7 +198,7 @@ void URedwoodChatClientSubsystem::JoinRoom(
   }
 
   FString RoomTypeString = URedwoodChatClientSubsystem::SerializeRoomType(Type);
-  FString RoomId = FString::Printf(TEXT("%s:%s"), *RoomTypeString, *Id);
+  FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
   XmppConnection->MultiUserChat()->JoinPrivateRoom(RoomId, Nickname, FString());
 }
 
@@ -211,7 +211,7 @@ void URedwoodChatClientSubsystem::SendMessageToRoom(
   }
 
   FString RoomTypeString = URedwoodChatClientSubsystem::SerializeRoomType(Type);
-  FString RoomId = FString::Printf(TEXT("%s:%s"), *RoomTypeString, *Id);
+  FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
   XmppConnection->MultiUserChat()->SendChat(RoomId, Message, FString());
 }
 
