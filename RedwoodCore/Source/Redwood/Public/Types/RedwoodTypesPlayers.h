@@ -38,7 +38,7 @@ struct FRedwoodFriend {
   FString Nickname;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  ERedwoodFriendListType State;
+  ERedwoodFriendListType State = ERedwoodFriendListType::Unknown;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bOnline = false;
