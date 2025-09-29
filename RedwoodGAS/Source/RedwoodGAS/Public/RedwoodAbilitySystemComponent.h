@@ -8,6 +8,9 @@
 
 #include "RedwoodAbilitySystemComponent.generated.h"
 
+UENUM(BlueprintType)
+enum class ERedwoodASCInclusionMode : uint8 { Blacklist, Whitelist };
+
 UCLASS(
   Blueprintable,
   BlueprintType,
@@ -24,6 +27,24 @@ public:
   //~ Begin UActorComponent Interface
   virtual void BeginPlay() override;
   //~ End UActorComponent Interface
+
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  ERedwoodASCInclusionMode AbilityInclusionMode =
+    ERedwoodASCInclusionMode::Blacklist;
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  TArray<TSubclassOf<UGameplayAbility>> AbilityInclusionArray;
+
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  ERedwoodASCInclusionMode EffectInclusionMode =
+    ERedwoodASCInclusionMode::Blacklist;
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  TArray<TSubclassOf<UGameplayEffect>> EffectInclusionArray;
+
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  ERedwoodASCInclusionMode AttributeInclusionMode =
+    ERedwoodASCInclusionMode::Blacklist;
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  TArray<FGameplayAttribute> AttributeInclusionArray;
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkDirty() {

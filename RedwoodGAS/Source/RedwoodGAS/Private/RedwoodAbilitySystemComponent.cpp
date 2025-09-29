@@ -3,7 +3,9 @@
 #include "RedwoodAbilitySystemComponent.h"
 #include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGASModule.h"
+#include "RedwoodKeepRemainingTimeGameplayEffectComponent.h"
 #include "RedwoodPlayerState.h"
+#include "RedwoodSkipOfflinePeriodsGameplayEffectComponent.h"
 
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
@@ -186,6 +188,17 @@ TSharedPtr<FJsonObject> URedwoodAbilitySystemComponent::SerializeASC() {
     FTopLevelAssetPath EffectClassName =
       ActiveEffect->Spec.Def->GetClass()->GetClassPathName();
 
+    bool bFoundClass = false;
+    for (TSubclassOf<UGameplayEffect> Subclass : EffectInclusionArray) {
+      if (Subclass != nullptr && EffectClassName == Subclass->GetClassPathName()) {
+        bFoundClass = true;
+      }
+    }
+
+    if ((EffectInclusionMode == ERedwoodASCInclusionMode::Blacklist && bFoundClass) || (EffectInclusionMode == ERedwoodASCInclusionMode::Whitelist && !bFoundClass)) {
+      continue;
+    }
+
     float Level = ActiveEffect->Spec.GetLevel();
     float TimeLeft = ActiveEffect->GetTimeRemaining(WorldTimeSeconds);
 
@@ -215,6 +228,17 @@ TSharedPtr<FJsonObject> URedwoodAbilitySystemComponent::SerializeASC() {
       int32 Level = AbilitySpec->Level;
       int32 InputID = AbilitySpec->InputID;
 
+      bool bFoundClass = false;
+      for (TSubclassOf<UGameplayAbility> Subclass : AbilityInclusionArray) {
+        if (Subclass != nullptr && AbilityClassName == Subclass->GetClassPathName()) {
+          bFoundClass = true;
+        }
+      }
+
+      if ((AbilityInclusionMode == ERedwoodASCInclusionMode::Blacklist && bFoundClass) || (AbilityInclusionMode == ERedwoodASCInclusionMode::Whitelist && !bFoundClass)) {
+        continue;
+      }
+
       TSharedPtr<FJsonObject> AbilityObject = MakeShareable(new FJsonObject);
       AbilityObject->SetStringField(TEXT("class"), AbilityClassName.ToString());
       AbilityObject->SetNumberField(TEXT("level"), Level);
@@ -237,8 +261,22 @@ TSharedPtr<FJsonObject> URedwoodAbilitySystemComponent::SerializeASC() {
     TArray<FGameplayAttribute> OutAttributes;
     UAttributeSet::GetAttributesFromSetClass(Set->GetClass(), OutAttributes);
 
+    TSet<uint32> AttributeInclusionHashes;
+    for (FGameplayAttribute Attribute : AttributeInclusionArray) {
+      if (Attribute.IsValid()) {
+        AttributeInclusionHashes.Add(GetTypeHash(Attribute));
+      }
+    }
+
     TArray<TSharedPtr<FJsonValue>> AttributesObject;
     for (const FGameplayAttribute &Attribute : OutAttributes) {
+      bool bInclusionArrayContainsAttribute =
+        AttributeInclusionHashes.Contains(GetTypeHash(Attribute));
+
+      if ((AttributeInclusionMode == ERedwoodASCInclusionMode::Blacklist && bInclusionArrayContainsAttribute) || (AttributeInclusionMode == ERedwoodASCInclusionMode::Whitelist && !bInclusionArrayContainsAttribute)) {
+        continue;
+      }
+
       const FGameplayAttributeData *AttributeData =
         Attribute.GetGameplayAttributeData(Set);
 
@@ -264,17 +302,21 @@ TSharedPtr<FJsonObject> URedwoodAbilitySystemComponent::SerializeASC() {
       AttributesObject.Add(MakeShareable(new FJsonValueObject(AttributeObject))
       );
     }
-    FTopLevelAssetPath AttributeSetName = Set->GetClass()->GetClassPathName();
 
-    TSharedPtr<FJsonObject> AttributeSetObject = MakeShareable(new FJsonObject);
-    AttributeSetObject->SetStringField(
-      TEXT("name"), AttributeSetName.ToString()
-    );
-    AttributeSetObject->SetArrayField(TEXT("attributes"), AttributesObject);
+    if (AttributesObject.Num() > 0) {
+      FTopLevelAssetPath AttributeSetName = Set->GetClass()->GetClassPathName();
 
-    AttributeSetsObject.Add(
-      MakeShareable(new FJsonValueObject(AttributeSetObject))
-    );
+      TSharedPtr<FJsonObject> AttributeSetObject =
+        MakeShareable(new FJsonObject);
+      AttributeSetObject->SetStringField(
+        TEXT("name"), AttributeSetName.ToString()
+      );
+      AttributeSetObject->SetArrayField(TEXT("attributes"), AttributesObject);
+
+      AttributeSetsObject.Add(
+        MakeShareable(new FJsonValueObject(AttributeSetObject))
+      );
+    }
   }
   JsonObject->SetArrayField(TEXT("attributeSets"), AttributeSetsObject);
 
@@ -311,6 +353,16 @@ void URedwoodAbilitySystemComponent::DeserializeASC(TSharedPtr<FJsonObject> Data
       UGameplayEffect *Effect =
         EffectClass->GetDefaultObject<UGameplayEffect>();
 
+      bool bShouldPreserveTimeLeft =
+        Effect->FindComponent(
+          URedwoodKeepRemainingTimeGameplayEffectComponent::StaticClass()
+        ) != nullptr;
+
+      bool bShouldSkipOfflinePeriods = bShouldPreserveTimeLeft ||
+        Effect->FindComponent(
+          URedwoodSkipOfflinePeriodsGameplayEffectComponent::StaticClass()
+        ) != nullptr;
+
       Effect->bExecutePeriodicEffectOnApplication = false;
 
       FGameplayEffectContext *EffectContext = new FGameplayEffectContext();
@@ -346,8 +398,9 @@ void URedwoodAbilitySystemComponent::DeserializeASC(TSharedPtr<FJsonObject> Data
       );
 
       if (EffectSpec.GetDuration() > 0) {
-        double AdjustedTimeLeft =
-          TimeLeft > TimeSinceSaveSec ? TimeLeft - TimeSinceSaveSec : 0;
+        double AdjustedTimeLeft = bShouldPreserveTimeLeft ? TimeLeft
+          : TimeLeft > TimeSinceSaveSec ? TimeLeft - TimeSinceSaveSec
+                                        : 0;
         float StartTime = TimeLeft < 0 ? World->GetTimeSeconds()
                                        : World->GetTimeSeconds() +
             AdjustedTimeLeft - EffectSpec.GetDuration();
@@ -381,7 +434,7 @@ void URedwoodAbilitySystemComponent::DeserializeASC(TSharedPtr<FJsonObject> Data
         }
       }
 
-      if (EffectSpec.GetPeriod() > 0) {
+      if (!bShouldSkipOfflinePeriods && EffectSpec.GetPeriod() > 0) {
         float ActiveTimeSinceSave =
           TimeLeft > TimeSinceSaveSec ? TimeSinceSaveSec : TimeLeft;
 
