@@ -168,41 +168,6 @@ TSharedPtr<FJsonObject> URedwoodAbilitySystemComponent::SerializeASC() {
 
   TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 
-  // --------
-  // --TAGS--
-  // --------
-  const FGameplayTagContainer &OutOwnedGameplayTagsContainer =
-    GetOwnedGameplayTags();
-  const TArray<FGameplayTag> &OutOwnedGameplayTags =
-    OutOwnedGameplayTagsContainer.GetGameplayTagArray();
-  TArray<TSharedPtr<FJsonValue>> OutOwnedGameplayTagsJson;
-  for (const FGameplayTag &Tag : OutOwnedGameplayTags) {
-    OutOwnedGameplayTagsJson.Add(
-      MakeShareable(new FJsonValueString(Tag.ToString()))
-    );
-  }
-
-  // const FGameplayTagContainer &OutBlockedAbilityTagsContainer =
-  //   GetBlockedAbilityTags();
-  // const TArray<FGameplayTag> &OutBlockedAbilityTags =
-  //   OutBlockedAbilityTagsContainer.GetGameplayTagArray();
-  // TArray<TSharedPtr<FJsonValue>> OutBlockedAbilityTagsJson;
-  // for (const FGameplayTag &Tag : OutBlockedAbilityTags) {
-  //   OutBlockedAbilityTagsJson.Add(
-  //     MakeShareable(new FJsonValueString(Tag.ToString()))
-  //   );
-  // }
-
-  TSharedPtr<FJsonObject> TagsObject = MakeShareable(new FJsonObject);
-  TagsObject->SetField(
-    TEXT("owned"), MakeShareable(new FJsonValueArray(OutOwnedGameplayTagsJson))
-  );
-  // TagsObject->SetField(
-  //   TEXT("blockedAbility"),
-  //   MakeShareable(new FJsonValueArray(OutBlockedAbilityTagsJson))
-  // );
-  JsonObject->SetObjectField(TEXT("tags"), TagsObject);
-
   // -----------
   // --EFFECTS--
   // -----------
@@ -329,19 +294,6 @@ void URedwoodAbilitySystemComponent::DeserializeASC(TSharedPtr<FJsonObject> Data
   }
 
   double TimeSinceSaveSec = Data->GetNumberField(TEXT("timeSinceSaveSec"));
-
-  const TSharedPtr<FJsonObject> &TagsObject =
-    Data->GetObjectField(TEXT("tags"));
-
-  TArray<FString> OwnedTags;
-  TagsObject->TryGetStringArrayField(TEXT("owned"), OwnedTags);
-  for (const FString Tag : OwnedTags) {
-    FGameplayTag GameplayTag = FGameplayTag::RequestGameplayTag(FName(*Tag));
-    UpdateTagMap(GameplayTag, 1);
-  }
-
-  // TArray<FString> BlockedAbilityTags;
-  // TagsObject.TryGetStringArrayField(TEXT("blockedAbility"), OwnedTags);
 
   TMap<FActiveGameplayEffectHandle, int32> EffectsToExecutePeriods;
   const TArray<TSharedPtr<FJsonValue>> &EffectsArray =
