@@ -18,6 +18,11 @@
       "Name": "RedwoodChat",
       "Type": "Runtime",
       "LoadingPhase": "PreDefault"
+    },
+    {
+      "Name": "RedwoodXMPP",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault"
     }
   ],
   "Plugins": [

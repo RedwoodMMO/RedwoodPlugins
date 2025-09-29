@@ -14,11 +14,21 @@ void URedwoodChatClientSubsystem::Initialize(
 
 void URedwoodChatClientSubsystem::Deinitialize() {
   Super::Deinitialize();
+
+  FRedwoodXmppModule &Module =
+    FModuleManager::GetModuleChecked<FRedwoodXmppModule>("RedwoodXMPP");
+
+  Module.Deinit();
 }
 
 void URedwoodChatClientSubsystem::InitializeChatConnection(
   FRedwoodErrorOutputDelegate OnOutput
 ) {
+  if (bInitialized) {
+    OnOutput.ExecuteIfBound(TEXT("Already initialized."));
+    return;
+  }
+
   URedwoodClientGameSubsystem *GameSubsystem =
     GetGameInstance()->GetSubsystem<URedwoodClientGameSubsystem>();
 
@@ -58,8 +68,8 @@ void URedwoodChatClientSubsystem::InitializeChatConnection(
           XmppServer.ServerAddr = URedwoodChatSettings::GetXmppServerUri();
           XmppServer.Domain = XmppServer.ServerAddr;
 
-          FXmppModule &Module =
-            FModuleManager::GetModuleChecked<FXmppModule>("XMPP");
+          FRedwoodXmppModule &Module =
+            FModuleManager::GetModuleChecked<FRedwoodXmppModule>("RedwoodXMPP");
 
           if (!Module.IsXmppEnabled()) {
             OnOutput.ExecuteIfBound(
@@ -67,6 +77,8 @@ void URedwoodChatClientSubsystem::InitializeChatConnection(
             );
             return;
           }
+
+          Module.Init();
 
           XmppConnection = Module.CreateConnection(PlayerId).ToSharedPtr();
 
@@ -78,13 +90,19 @@ void URedwoodChatClientSubsystem::InitializeChatConnection(
             ) {
               if (bWasSuccess) {
                 UserJid = InUserJid;
+                bInitialized = true;
                 OnOutput.ExecuteIfBound(TEXT(""));
                 InitHandlers();
+
+                FXmppUserPresence Presence;
+                Presence.bIsAvailable = true;
+                Presence.Status = EXmppPresenceStatus::Online;
+                XmppConnection->Presence()->UpdatePresence(Presence);
               } else {
                 OnOutput.ExecuteIfBound(Error);
               }
 
-              XmppConnection->OnLoginComplete().RemoveAll(this);
+              XmppConnection->OnLoginComplete().Clear();
             }
           );
 
@@ -132,8 +150,28 @@ void URedwoodChatClientSubsystem::HandlePrivateChatReceiveMessage(
   SenderIdentity.PlayerId = InUserJid.Id;
   // SenderIdentity.Nickname = InUserJid.Nickname; // TODO
 
+  FString Body = Message->Body;
+  if (Body.IsEmpty()) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> MessageObject;
+  TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
+  if (!FJsonSerializer::Deserialize(Reader, MessageObject)) {
+    return;
+  }
+
+  if (!MessageObject->TryGetStringField(TEXT("nickname"), SenderIdentity.Nickname) || SenderIdentity.Nickname.IsEmpty()) {
+    return;
+  }
+
+  FString MessageText;
+  if (!MessageObject->TryGetStringField(TEXT("message"), MessageText) || MessageText.IsEmpty()) {
+    return;
+  }
+
   OnPrivateChatReceived.Broadcast(
-    SenderIdentity, Message->Timestamp, Message->Body
+    SenderIdentity, Message->Timestamp, MessageText
   );
 }
 
@@ -171,21 +209,52 @@ void URedwoodChatClientSubsystem::HandleRoomChatReceived(
 ) {
   FString RoomTypeString;
   FString RoomIdString;
-  RoomId.Split(TEXT(":"), &RoomTypeString, &RoomIdString);
+  RoomId.Split(TEXT("|"), &RoomTypeString, &RoomIdString);
+
+  FString Body = ChatMsg->Body;
+  if (Body.IsEmpty()) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> MessageObject;
+  TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
+  if (!FJsonSerializer::Deserialize(Reader, MessageObject)) {
+    return;
+  }
+
+  FString SenderPlayerId;
+  if (!MessageObject->TryGetStringField(TEXT("playerId"), SenderPlayerId) || SenderPlayerId.IsEmpty()) {
+    return;
+  }
+
+  FString MessageText;
+  if (!MessageObject->TryGetStringField(TEXT("message"), MessageText) || MessageText.IsEmpty()) {
+    return;
+  }
+
+  bool bHasLocation = false;
+  FVector Location;
+  FString LocationString;
+  if (MessageObject->TryGetStringField(TEXT("location"), LocationString) && !LocationString.IsEmpty()) {
+    if (Location.InitFromString(LocationString)) {
+      bHasLocation = true;
+    }
+  }
 
   FRedwoodChatRoomIdentity RoomIdentity;
-  RoomIdentity.CompleteRoomId = RoomId;
-  RoomIdentity.Type =
-    URedwoodChatClientSubsystem::ParseRoomType(RoomTypeString);
+  RoomIdentity.CompleteRoomId = bHasLocation ? TEXT("Nearby") : RoomId;
+  RoomIdentity.Type = bHasLocation
+    ? ERedwoodChatRoomType::Nearby
+    : URedwoodChatClientSubsystem::ParseRoomType(RoomTypeString);
   RoomIdentity.RedwoodId = RoomIdString;
   // TODO: RoomIdentity.Name
 
   FRedwoodChatIdentity SenderIdentity;
-  SenderIdentity.PlayerId = InUserJid.Id;
-  // SenderIdentity.Nickname = InUserJid.Nickname; // TODO
+  SenderIdentity.PlayerId = SenderPlayerId;
+  SenderIdentity.Nickname = InUserJid.Resource;
 
   OnRoomChatReceived.Broadcast(
-    RoomIdentity, SenderIdentity, ChatMsg->Timestamp, ChatMsg->Body
+    RoomIdentity, SenderIdentity, ChatMsg->Timestamp, MessageText, Location
   );
 }
 
@@ -202,8 +271,8 @@ void URedwoodChatClientSubsystem::JoinRoom(
   XmppConnection->MultiUserChat()->JoinPrivateRoom(RoomId, Nickname, FString());
 }
 
-void URedwoodChatClientSubsystem::SendMessageToRoom(
-  ERedwoodChatRoomType Type, FString Id, const FString &Message
+void URedwoodChatClientSubsystem::LeaveRoom(
+  ERedwoodChatRoomType Type, FString Id
 ) {
   if (!IsConnected()) {
     // TODO log error
@@ -212,7 +281,51 @@ void URedwoodChatClientSubsystem::SendMessageToRoom(
 
   FString RoomTypeString = URedwoodChatClientSubsystem::SerializeRoomType(Type);
   FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
-  XmppConnection->MultiUserChat()->SendChat(RoomId, Message, FString());
+  XmppConnection->MultiUserChat()->ExitRoom(RoomId);
+}
+
+void URedwoodChatClientSubsystem::SendMessageToRoom(
+  ERedwoodChatRoomType Type, FString Id, const FString &Message
+) {
+  if (!IsConnected()) {
+    // TODO log error
+    return;
+  }
+
+  TSharedPtr<FJsonObject> MessagePayload = MakeShareable(new FJsonObject);
+  MessagePayload->SetStringField(TEXT("playerId"), PlayerId);
+  MessagePayload->SetStringField(TEXT("message"), Message);
+
+  FString JsonString;
+  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+  FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
+  Writer->Close();
+
+  FString RoomTypeString = URedwoodChatClientSubsystem::SerializeRoomType(Type);
+  FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
+  XmppConnection->MultiUserChat()->SendChat(RoomId, JsonString, FString());
+}
+
+void URedwoodChatClientSubsystem::SendNearbyMessage(
+  const FString &ShardId, const FString &Message, const FVector &Location
+) {
+  if (!IsConnected()) {
+    // TODO log error
+    return;
+  }
+
+  TSharedPtr<FJsonObject> MessagePayload = MakeShareable(new FJsonObject);
+  MessagePayload->SetStringField(TEXT("playerId"), PlayerId);
+  MessagePayload->SetStringField(TEXT("message"), Message);
+  MessagePayload->SetStringField(TEXT("location"), Location.ToString());
+
+  FString JsonString;
+  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+  FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
+  Writer->Close();
+
+  FString RoomId = FString::Printf(TEXT("shard|%s"), *ShardId);
+  XmppConnection->MultiUserChat()->SendChat(RoomId, JsonString, FString());
 }
 
 void URedwoodChatClientSubsystem::SendMessageToPlayer(
@@ -227,5 +340,14 @@ void URedwoodChatClientSubsystem::SendMessageToPlayer(
   RecipientJid.Id = TargetPlayerId;
   RecipientJid.Domain = XmppConnection->GetServer().Domain;
 
-  XmppConnection->PrivateChat()->SendChat(RecipientJid, Message);
+  TSharedPtr<FJsonObject> MessagePayload = MakeShareable(new FJsonObject);
+  MessagePayload->SetStringField(TEXT("nickname"), Nickname);
+  MessagePayload->SetStringField(TEXT("message"), Message);
+
+  FString JsonString;
+  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+  FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
+  Writer->Close();
+
+  XmppConnection->PrivateChat()->SendChat(RecipientJid, JsonString);
 }

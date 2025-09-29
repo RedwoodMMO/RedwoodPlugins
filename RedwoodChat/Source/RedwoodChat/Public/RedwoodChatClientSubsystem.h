@@ -34,8 +34,16 @@ public:
   void JoinRoom(ERedwoodChatRoomType Type, FString Id);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
+  void LeaveRoom(ERedwoodChatRoomType Type, FString Id);
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
   void SendMessageToRoom(
     ERedwoodChatRoomType Type, FString Id, const FString &Message
+  );
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
+  void SendNearbyMessage(
+    const FString &ShardId, const FString &Message, const FVector &Location
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
@@ -64,6 +72,10 @@ public:
         return TEXT("shard");
       case ERedwoodChatRoomType::Team:
         return TEXT("team");
+      case ERedwoodChatRoomType::Nearby:
+        return TEXT("nearby");
+      case ERedwoodChatRoomType::Direct:
+        return TEXT("direct");
       default:
         return TEXT("unknown");
     }
@@ -80,11 +92,17 @@ public:
       return ERedwoodChatRoomType::Shard;
     } else if (RoomTypeString == TEXT("team")) {
       return ERedwoodChatRoomType::Team;
+    } else if (RoomTypeString == TEXT("nearby")) {
+      return ERedwoodChatRoomType::Nearby;
+    } else if (RoomTypeString == TEXT("direct")) {
+      return ERedwoodChatRoomType::Direct;
     }
     return ERedwoodChatRoomType::Unknown;
   }
 
 private:
+  bool bInitialized = false;
+
   void InitHandlers();
 
   void HandlePrivateChatReceiveMessage(

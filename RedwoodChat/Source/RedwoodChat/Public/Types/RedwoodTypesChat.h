@@ -13,6 +13,8 @@ enum class ERedwoodChatRoomType : uint8 {
   Proxy,
   Shard,
   Team,
+  Nearby,
+  Direct,
   Unknown
 };
 
@@ -63,7 +65,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 );
 
 UDELEGATE()
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
   FRedwoodChatRoomChatReceivedDynamicDelegate,
   const FRedwoodChatRoomIdentity &,
   RoomIdentity,
@@ -72,5 +74,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
   const FDateTime &,
   Timestamp,
   const FString &,
-  Message
+  Message,
+  const FVector &,
+  Location
 );
