@@ -46,6 +46,9 @@ protected:
   ) override;
 
 public:
+  REDWOODXMPP_API void Init();
+  REDWOODXMPP_API void Deinit();
+
   /**
 	 * Exec command handlers
 	 */

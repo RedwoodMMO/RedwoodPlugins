@@ -96,7 +96,7 @@ void FXmppConnectionStrophe::Login(const FString& UserId, const FString& Auth)
 			}
 
 			UserJid = MoveTemp(NewJid);
-			MucDomain = FString::Printf(TEXT("muc.%s"), *ServerConfiguration.Domain);
+			MucDomain = FString::Printf(TEXT("conference.%s"), *ServerConfiguration.Domain);
 
 			if (ServerConfiguration.ServerAddr.StartsWith(TEXT("wss://")) || ServerConfiguration.ServerAddr.StartsWith(TEXT("ws://")))
 			{

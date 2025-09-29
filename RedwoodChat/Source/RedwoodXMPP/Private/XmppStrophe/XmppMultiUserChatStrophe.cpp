@@ -877,7 +877,7 @@ void FXmppMultiUserChatStrophe::OnReceiveMucPresence(FXmppMucPresence&& MemberPr
 	FXmppRoomStrophe* RoomPtr = Chatrooms.Find(MemberPresence.GetRoomId());
 	if (RoomPtr != nullptr)
 	{
-		const bool bUpdateIsUs = MemberPresence.GetNickName().Contains(ConnectionManager.GetUserJid().Id, ESearchCase::CaseSensitive);
+		const bool bUpdateIsUs = MemberPresence.MemberJid.Id.Contains(ConnectionManager.GetUserJid().Id, ESearchCase::CaseSensitive);
 		const bool bLeftRoom = !MemberPresence.bIsAvailable;
 		const bool bCreateRoom = bUpdateIsUs && !bLeftRoom && RoomPtr->Status == ERoomStatusStrophe::CreatePending;
 		const bool bJoinPublicRoom = bUpdateIsUs && !bLeftRoom && RoomPtr->Status == ERoomStatusStrophe::JoinPublicPending;

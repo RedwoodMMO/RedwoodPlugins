@@ -28,7 +28,15 @@ void FRedwoodXmppModule::StartupModule() {
 
   bEnabled = true;
   GConfig->GetBool(TEXT("XMPP"), TEXT("bEnabled"), bEnabled, GEngineIni);
+}
 
+void FRedwoodXmppModule::ShutdownModule() {
+  Deinit();
+
+  Singleton = nullptr;
+}
+
+void FRedwoodXmppModule::Init() {
   if (bEnabled) {
 #if WITH_XMPP_STROPHE
     FXmppStrophe::Init();
@@ -37,18 +45,18 @@ void FRedwoodXmppModule::StartupModule() {
   }
 }
 
-void FRedwoodXmppModule::ShutdownModule() {
+void FRedwoodXmppModule::Deinit() {
   for (auto It = ActiveConnections.CreateIterator(); It; ++It) {
     CleanupConnection(It.Value());
   }
+
+  ActiveConnections.Empty();
 
   if (bEnabled) {
 #if WITH_XMPP_STROPHE
     FXmppStrophe::Cleanup();
 #endif
   }
-
-  Singleton = nullptr;
 }
 
 bool FRedwoodXmppModule::HandleXmppCommand(
@@ -724,7 +732,47 @@ void FRedwoodXmppModule::RemoveConnection(
 
 void FRedwoodXmppModule::CleanupConnection(
   const TSharedRef<class IXmppConnection> &Connection
-) {}
+) {
+  Connection->OnLoginComplete().Clear();
+  Connection->OnLoginChanged().Clear();
+  Connection->OnLogoutComplete().Clear();
+  Connection->OnStanzaSent().Clear();
+
+  if (Connection->Presence()) {
+    Connection->Presence()->OnReceivePresence().Clear();
+  }
+
+  if (Connection->PubSub()) {
+    Connection->PubSub()->OnCreateNodeComplete().Clear();
+    Connection->PubSub()->OnConfigureNodeComplete().Clear();
+    Connection->PubSub()->OnDestroyNodeComplete().Clear();
+    Connection->PubSub()->OnQueryNodeComplete().Clear();
+    Connection->PubSub()->OnSubscribed().Clear();
+    Connection->PubSub()->OnUnsubscribed().Clear();
+    Connection->PubSub()->OnMessageReceived().Clear();
+  }
+
+  if (Connection->Messages()) {
+    Connection->Messages()->OnReceiveMessage().Clear();
+  }
+
+  if (Connection->MultiUserChat()) {
+    Connection->MultiUserChat()->OnRoomCreated().Clear();
+    Connection->MultiUserChat()->OnRoomConfigured().Clear();
+    Connection->MultiUserChat()->OnRoomInfoRefreshed().Clear();
+    Connection->MultiUserChat()->OnJoinPublicRoom().Clear();
+    Connection->MultiUserChat()->OnJoinPrivateRoom().Clear();
+    Connection->MultiUserChat()->OnExitRoom().Clear();
+    Connection->MultiUserChat()->OnRoomMemberJoin().Clear();
+    Connection->MultiUserChat()->OnRoomMemberExit().Clear();
+    Connection->MultiUserChat()->OnRoomMemberChanged().Clear();
+    Connection->MultiUserChat()->OnRoomChatReceived().Clear();
+  }
+
+  if (Connection->PrivateChat()) {
+    Connection->PrivateChat()->OnReceiveChat().Clear();
+  }
+}
 
 void FRedwoodXmppModule::OnXmppRoomCreated(
   const TSharedRef<IXmppConnection> &Connection,

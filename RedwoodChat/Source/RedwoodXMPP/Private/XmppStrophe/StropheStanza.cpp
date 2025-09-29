@@ -158,17 +158,18 @@ xmpp_stanza_t* FindStanzaByNameAndNamespace(xmpp_stanza_t* ParentStanzaPtr, cons
 {
 	check(ParentStanzaPtr != nullptr);
 
-	for (xmpp_stanza_t* ChildStanza = xmpp_stanza_get_children(ParentStanzaPtr);
-		 ChildStanza != nullptr;
-		 ChildStanza = xmpp_stanza_get_next(ParentStanzaPtr))
+	xmpp_stanza_t* ChildStanza = xmpp_stanza_get_children(ParentStanzaPtr);
+	while (ChildStanza != nullptr)
 	{
 		const bool bIsNamedStanza = xmpp_stanza_is_tag(ChildStanza) != 0;
-		if (bIsNamedStanza &&
-			ChildName == UTF8_TO_TCHAR(xmpp_stanza_get_name(ChildStanza)) &&
-			Namespace == UTF8_TO_TCHAR(xmpp_stanza_get_ns(ChildStanza)))
+		FString ChildStanzaName = UTF8_TO_TCHAR(xmpp_stanza_get_name(ChildStanza));
+		FString ChildStanzaNamespace = UTF8_TO_TCHAR(xmpp_stanza_get_ns(ChildStanza));
+		if (bIsNamedStanza && ChildName == ChildStanzaName && Namespace == ChildStanzaNamespace)
 		{
 			return ChildStanza;
 		}
+
+		ChildStanza = xmpp_stanza_get_next(ChildStanza);
 	}
 
 	return nullptr;
