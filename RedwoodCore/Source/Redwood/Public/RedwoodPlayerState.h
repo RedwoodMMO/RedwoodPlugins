@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerState.h"
 
 #include "Types/RedwoodTypesCharacters.h"
+#include "Types/RedwoodTypesPlayersGuilds.h"
 
 #include "RedwoodPlayerState.generated.h"
 
