@@ -9,10 +9,10 @@
 #include "RedwoodAsyncCommon.h"
 #include "RedwoodClientGameSubsystem.h"
 
-#include "RedwoodJoinServerInstanceAsync.generated.h"
+#include "RedwoodJoinProxyWithSingleInstanceAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodJoinServerInstanceAsync
+class REDWOOD_API URedwoodJoinProxyWithSingleInstanceAsync
   : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
@@ -23,14 +23,14 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Join Server Instance",
+       DisplayName = "Join Proxy with Single Instance",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodJoinServerInstanceAsync *JoinServerInstance(
+  static URedwoodJoinProxyWithSingleInstanceAsync *JoinProxyWithSingleInstance(
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
-    FString ServerReference,
+    FString ProxyReference,
     FString Password
   );
 
@@ -40,6 +40,6 @@ public:
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
-  FString ServerReference;
+  FString ProxyReference;
   FString Password;
 };

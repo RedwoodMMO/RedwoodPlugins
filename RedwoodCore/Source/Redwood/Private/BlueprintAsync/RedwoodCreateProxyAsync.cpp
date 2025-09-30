@@ -1,14 +1,14 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "BlueprintAsync/RedwoodCreateServerAsync.h"
+#include "BlueprintAsync/RedwoodCreateProxyAsync.h"
 
-URedwoodCreateServerAsync *URedwoodCreateServerAsync::CreateServer(
+URedwoodCreateProxyAsync *URedwoodCreateProxyAsync::CreateProxy(
   URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   bool bJoinSession,
-  FRedwoodCreateServerInput Parameters
+  FRedwoodCreateProxyInput Parameters
 ) {
-  URedwoodCreateServerAsync *Action = NewObject<URedwoodCreateServerAsync>();
+  URedwoodCreateProxyAsync *Action = NewObject<URedwoodCreateProxyAsync>();
   Action->Target = Target;
   Action->bJoinSession = bJoinSession;
   Action->Parameters = Parameters;
@@ -17,12 +17,12 @@ URedwoodCreateServerAsync *URedwoodCreateServerAsync::CreateServer(
   return Action;
 }
 
-void URedwoodCreateServerAsync::Activate() {
-  Target->CreateServer(
+void URedwoodCreateProxyAsync::Activate() {
+  Target->CreateProxy(
     bJoinSession,
     Parameters,
-    FRedwoodCreateServerOutputDelegate::CreateLambda(
-      [this](FRedwoodCreateServerOutput Output) {
+    FRedwoodCreateProxyOutputDelegate::CreateLambda(
+      [this](FRedwoodCreateProxyOutput Output) {
         OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       }

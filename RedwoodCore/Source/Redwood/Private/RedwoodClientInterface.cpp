@@ -1919,7 +1919,7 @@ void URedwoodClientInterface::BindRealmEvents() {
   );
 
   Realm->OnEvent(
-    TEXT("realm:servers:connect"),
+    TEXT("realm:servers:connect-to-instance"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
 
@@ -2276,12 +2276,12 @@ void URedwoodClientInterface::LeaveTicketing(
   );
 }
 
-void URedwoodClientInterface::ListServers(
-  TArray<FString> PrivateServerReferences,
-  FRedwoodListServersOutputDelegate OnOutput
+void URedwoodClientInterface::ListProxies(
+  TArray<FString> PrivateProxyReferences,
+  FRedwoodListProxiesOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodListServersOutput Output;
+    FRedwoodListProxiesOutput Output;
     Output.Error = TEXT("Not connected to Realm.");
     OnOutput.ExecuteIfBound(Output);
     return;
@@ -2290,48 +2290,48 @@ void URedwoodClientInterface::ListServers(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
 
-  TArray<TSharedPtr<FJsonValue>> PrivateServerReferencesArray;
-  for (FString Reference : PrivateServerReferences) {
+  TArray<TSharedPtr<FJsonValue>> PrivateProxyReferencesArray;
+  for (FString Reference : PrivateProxyReferences) {
     TSharedPtr<FJsonValueString> Value =
       MakeShareable(new FJsonValueString(Reference));
-    PrivateServerReferencesArray.Add(Value);
+    PrivateProxyReferencesArray.Add(Value);
   }
   Payload->SetArrayField(
-    TEXT("privateServerReferences"), PrivateServerReferencesArray
+    TEXT("privateProxyReferences"), PrivateProxyReferencesArray
   );
 
   Realm->Emit(
-    TEXT("realm:servers:list"),
+    TEXT("realm:servers:list-proxies"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
-      TArray<TSharedPtr<FJsonValue>> Servers =
-        MessageObject->GetArrayField(TEXT("servers"));
+      TArray<TSharedPtr<FJsonValue>> Proxies =
+        MessageObject->GetArrayField(TEXT("proxies"));
 
-      TArray<FRedwoodGameServerProxy> ServersStruct;
-      for (TSharedPtr<FJsonValue> Server : Servers) {
-        TSharedPtr<FJsonObject> ServerData = Server->AsObject();
-        ServersStruct.Add(
-          URedwoodCommonGameSubsystem::ParseServerProxy(ServerData)
+      TArray<FRedwoodGameServerProxy> ProxiesStruct;
+      for (TSharedPtr<FJsonValue> Proxy : Proxies) {
+        TSharedPtr<FJsonObject> ProxyData = Proxy->AsObject();
+        ProxiesStruct.Add(
+          URedwoodCommonGameSubsystem::ParseServerProxy(ProxyData)
         );
       }
 
-      FRedwoodListServersOutput Output;
+      FRedwoodListProxiesOutput Output;
       Output.Error = Error;
-      Output.Servers = ServersStruct;
+      Output.Proxies = ProxiesStruct;
       OnOutput.ExecuteIfBound(Output);
     }
   );
 }
 
-void URedwoodClientInterface::CreateServer(
+void URedwoodClientInterface::CreateProxy(
   bool bJoinSession,
-  FRedwoodCreateServerInput Parameters,
-  FRedwoodCreateServerOutputDelegate OnOutput
+  FRedwoodCreateProxyInput Parameters,
+  FRedwoodCreateProxyOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
-    FRedwoodCreateServerOutput Output;
+    FRedwoodCreateProxyOutput Output;
     Output.Error = TEXT("Not connected to Realm.");
     OnOutput.ExecuteIfBound(Output);
     return;
@@ -2342,7 +2342,7 @@ void URedwoodClientInterface::CreateServer(
 
   if (bJoinSession) {
     if (SelectedCharacterId.IsEmpty()) {
-      FRedwoodCreateServerOutput Output;
+      FRedwoodCreateProxyOutput Output;
       Output.Error =
         TEXT("Please select a character before joining a session.");
       OnOutput.ExecuteIfBound(Output);
@@ -2397,16 +2397,16 @@ void URedwoodClientInterface::CreateServer(
   Payload->SetBoolField(TEXT("startOnBoot"), Parameters.bStartOnBoot);
 
   Realm->Emit(
-    TEXT("realm:servers:create"),
+    TEXT("realm:servers:create-proxy"),
     Payload,
     [this, OnOutput](auto Response) {
-      FRedwoodCreateServerOutput Output;
+      FRedwoodCreateProxyOutput Output;
 
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       Output.Error = MessageObject->GetStringField(TEXT("error"));
 
       MessageObject->TryGetStringField(
-        TEXT("serverReference"), Output.ServerReference
+        TEXT("proxyReference"), Output.ProxyReference
       );
 
       OnOutput.ExecuteIfBound(Output);
@@ -2414,8 +2414,8 @@ void URedwoodClientInterface::CreateServer(
   );
 }
 
-void URedwoodClientInterface::JoinServerInstance(
-  FString ServerReference,
+void URedwoodClientInterface::JoinProxyWithSingleInstance(
+  FString ProxyReference,
   FString Password,
   FRedwoodJoinServerOutputDelegate OnOutput
 ) {
@@ -2439,7 +2439,7 @@ void URedwoodClientInterface::JoinServerInstance(
 
   Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
 
-  Payload->SetStringField(TEXT("serverReference"), ServerReference);
+  Payload->SetStringField(TEXT("proxyReference"), ProxyReference);
 
   if (!Password.IsEmpty()) {
     Payload->SetStringField(TEXT("password"), Password);
@@ -2449,7 +2449,7 @@ void URedwoodClientInterface::JoinServerInstance(
   }
 
   Realm->Emit(
-    TEXT("realm:servers:join"),
+    TEXT("realm:servers:join-proxy"),
     Payload,
     [this, OnOutput](auto Response) {
       FRedwoodJoinServerOutput Output;
@@ -2467,7 +2467,7 @@ void URedwoodClientInterface::JoinServerInstance(
   );
 }
 
-void URedwoodClientInterface::StopServer(
+void URedwoodClientInterface::StopProxy(
   FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
@@ -2482,7 +2482,7 @@ void URedwoodClientInterface::StopServer(
   Payload->SetStringField(TEXT("proxyId"), ServerProxyId);
 
   Realm->Emit(
-    TEXT("realm:servers:stop"),
+    TEXT("realm:servers:stop-proxy"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();

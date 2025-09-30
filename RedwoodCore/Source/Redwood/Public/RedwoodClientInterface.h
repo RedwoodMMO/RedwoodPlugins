@@ -299,21 +299,21 @@ public:
 
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
-  void ListServers(
-    TArray<FString> PrivateServerReferences,
-    FRedwoodListServersOutputDelegate OnOutput
+  void ListProxies(
+    TArray<FString> PrivateProxyReferences,
+    FRedwoodListProxiesOutputDelegate OnOutput
   );
-  void CreateServer(
+  void CreateProxy(
     bool bJoinSession,
-    FRedwoodCreateServerInput Parameters,
-    FRedwoodCreateServerOutputDelegate OnOutput
+    FRedwoodCreateProxyInput Parameters,
+    FRedwoodCreateProxyOutputDelegate OnOutput
   );
-  void JoinServerInstance(
-    FString ServerReference,
+  void JoinProxyWithSingleInstance(
+    FString ProxyReference,
     FString Password,
     FRedwoodJoinServerOutputDelegate OnOutput
   );
-  void StopServer(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
+  void StopProxy(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
 
   FString GetConnectionConsoleCommand();
   FURL GetConnectionURL();

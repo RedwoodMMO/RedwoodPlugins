@@ -563,7 +563,7 @@ void URedwoodServerGameSubsystem::SendUpdateToSidecar() {
       );
     }
 
-    Sidecar->Emit(TEXT("realm:servers:update-state"), JsonObject);
+    Sidecar->Emit(TEXT("realm:servers:update-instance-state"), JsonObject);
   }
 }
 

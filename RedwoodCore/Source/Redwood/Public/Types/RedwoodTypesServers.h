@@ -135,7 +135,7 @@ struct FRedwoodGameServerInstance {
 };
 
 USTRUCT(BlueprintType)
-struct FRedwoodCreateServerInput {
+struct FRedwoodCreateProxyInput {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -174,41 +174,41 @@ struct FRedwoodCreateServerInput {
 };
 
 USTRUCT(BlueprintType)
-struct FRedwoodListServersOutput {
+struct FRedwoodListProxiesOutput {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  TArray<FRedwoodGameServerProxy> Servers;
+  TArray<FRedwoodGameServerProxy> Proxies;
 };
 
-typedef TDelegate<void(const FRedwoodListServersOutput &)>
-  FRedwoodListServersOutputDelegate;
+typedef TDelegate<void(const FRedwoodListProxiesOutput &)>
+  FRedwoodListProxiesOutputDelegate;
 
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-  FRedwoodListServersOutputDynamicDelegate, FRedwoodListServersOutput, Data
+  FRedwoodListProxiesOutputDynamicDelegate, FRedwoodListProxiesOutput, Data
 );
 
 USTRUCT(BlueprintType)
-struct FRedwoodCreateServerOutput {
+struct FRedwoodCreateProxyOutput {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString ServerReference;
+  FString ProxyReference;
 };
 
-typedef TDelegate<void(const FRedwoodCreateServerOutput &)>
-  FRedwoodCreateServerOutputDelegate;
+typedef TDelegate<void(const FRedwoodCreateProxyOutput &)>
+  FRedwoodCreateProxyOutputDelegate;
 
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-  FRedwoodCreateServerOutputDynamicDelegate, FRedwoodCreateServerOutput, Data
+  FRedwoodCreateProxyOutputDynamicDelegate, FRedwoodCreateProxyOutput, Data
 );
 
 USTRUCT(BlueprintType)

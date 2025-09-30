@@ -9,10 +9,10 @@
 #include "RedwoodAsyncCommon.h"
 #include "RedwoodClientGameSubsystem.h"
 
-#include "RedwoodStopServerAsync.generated.h"
+#include "RedwoodListProxiesAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodStopServerAsync : public UBlueprintAsyncActionBase {
+class REDWOOD_API URedwoodListProxiesAsync : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
@@ -22,21 +22,21 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Stop Server",
+       DisplayName = "List Proxies",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodStopServerAsync *StopServer(
+  static URedwoodListProxiesAsync *ListProxies(
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
-    FString ServerProxyId
+    TArray<FString> PrivateProxyReferences
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodErrorOutputDynamicDelegate OnOutput;
+  FRedwoodListProxiesOutputDynamicDelegate OnOutput;
 
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
-  FString ServerProxyId;
+  TArray<FString> PrivateProxyReferences;
 };

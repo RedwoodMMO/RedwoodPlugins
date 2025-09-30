@@ -9,10 +9,10 @@
 #include "RedwoodAsyncCommon.h"
 #include "RedwoodClientGameSubsystem.h"
 
-#include "RedwoodCreateServerAsync.generated.h"
+#include "RedwoodStopProxyAsync.generated.h"
 
 UCLASS()
-class REDWOOD_API URedwoodCreateServerAsync : public UBlueprintAsyncActionBase {
+class REDWOOD_API URedwoodStopProxyAsync : public UBlueprintAsyncActionBase {
   GENERATED_BODY()
 
 public:
@@ -22,24 +22,21 @@ public:
     BlueprintCallable,
     meta =
       (BlueprintInternalUseOnly = "true",
-       DisplayName = "Create Server",
+       DisplayName = "Stop Proxy",
        Category = "Redwood",
        WorldContext = "WorldContextObject")
   )
-  static URedwoodCreateServerAsync *CreateServer(
+  static URedwoodStopProxyAsync *StopProxy(
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
-    bool bJoinSession,
-    FRedwoodCreateServerInput Parameters
+    FString ServerProxyId
   );
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodCreateServerOutputDynamicDelegate OnOutput;
+  FRedwoodErrorOutputDynamicDelegate OnOutput;
 
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
-  bool bJoinSession;
-
-  FRedwoodCreateServerInput Parameters;
+  FString ServerProxyId;
 };

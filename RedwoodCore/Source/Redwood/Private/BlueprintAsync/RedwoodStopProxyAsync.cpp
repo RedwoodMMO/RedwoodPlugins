@@ -1,13 +1,13 @@
 // Copyright Incanta Games. All Rights Reserved.
 
-#include "BlueprintAsync/RedwoodStopServerAsync.h"
+#include "BlueprintAsync/RedwoodStopProxyAsync.h"
 
-URedwoodStopServerAsync *URedwoodStopServerAsync::StopServer(
+URedwoodStopProxyAsync *URedwoodStopProxyAsync::StopProxy(
   URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
   FString ServerProxyId
 ) {
-  URedwoodStopServerAsync *Action = NewObject<URedwoodStopServerAsync>();
+  URedwoodStopProxyAsync *Action = NewObject<URedwoodStopProxyAsync>();
   Action->Target = Target;
   Action->ServerProxyId = ServerProxyId;
   Action->RegisterWithGameInstance(WorldContextObject);
@@ -15,8 +15,8 @@ URedwoodStopServerAsync *URedwoodStopServerAsync::StopServer(
   return Action;
 }
 
-void URedwoodStopServerAsync::Activate() {
-  Target->StopServer(
+void URedwoodStopProxyAsync::Activate() {
+  Target->StopProxy(
     ServerProxyId,
     FRedwoodErrorOutputDelegate::CreateLambda([this](FString Error) {
       OnOutput.Broadcast(Error);

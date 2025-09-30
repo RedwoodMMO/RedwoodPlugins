@@ -3,13 +3,15 @@
 #include "../../../../TestCommon.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-  FMockRealmsServersCreate,
-  "Redwood.Mock.Realms.Servers.Create",
+  FMockRealmsServersJoinProxyWithSingleInstance,
+  "Redwood.Mock.Realms.Servers.JoinProxyWithSingleInstance",
   EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter
 );
 
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersCreateInitialize);
-void FMockRealmsServersCreateInitialize::Initialize() {
+DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(
+  FMockRealmsServersJoinProxyWithSingleInstanceInitialize
+);
+void FMockRealmsServersJoinProxyWithSingleInstanceInitialize::Initialize() {
   Redwood->InitializeDirectorConnection(
     FRedwoodSocketConnectedDelegate::CreateLambda(
       [this](const FRedwoodSocketConnected &Result) {
@@ -42,29 +44,30 @@ void FMockRealmsServersCreateInitialize::Initialize() {
   );
 }
 
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersCreateRun);
-void FMockRealmsServersCreateRun::Initialize() {
-  FRedwoodCreateServerInput Parameters;
-
-  Parameters.Name = "mock-server-name";
-  Parameters.Region = "mock-server-region";
-  Parameters.ModeId = "mock-server-mode-id";
-  Parameters.MapId = "mock-server-map-id";
-
-  Redwood->CreateServer(
-    false,
-    Parameters,
-    FRedwoodCreateServerOutputDelegate::CreateLambda(
-      [this](const FRedwoodCreateServerOutput &Output) {
+DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(
+  FMockRealmsServersJoinProxyWithSingleInstanceRun
+);
+void FMockRealmsServersJoinProxyWithSingleInstanceRun::Initialize() {
+  Redwood->SetSelectedCharacter(TEXT("mock-character-id"));
+  Redwood->JoinProxyWithSingleInstance(
+    FString("mock-proxy-id"),
+    FString(),
+    FRedwoodJoinServerOutputDelegate::CreateLambda(
+      [this](const FRedwoodJoinServerOutput &Output) {
         CurrentTest->TestEqual(
           TEXT("returns correct error"),
           Output.Error,
-          TEXT("mock-server-create-error")
+          TEXT("mock-server-get-error")
         );
+
         CurrentTest->TestEqual(
-          TEXT("returns correct reference"),
-          Output.ServerReference,
-          TEXT("mock-proxy-id")
+          TEXT("returns correct connection"),
+          Output.ConnectionUri,
+          TEXT("mock-connection")
+        );
+
+        CurrentTest->TestEqual(
+          TEXT("returns correct token"), Output.Token, TEXT("mock-token")
         );
 
         Context->bIsCurrentTestComplete = true;
@@ -73,7 +76,9 @@ void FMockRealmsServersCreateRun::Initialize() {
   );
 }
 
-bool FMockRealmsServersCreate::RunTest(const FString &Parameters) {
+bool FMockRealmsServersJoinProxyWithSingleInstance::RunTest(
+  const FString &Parameters
+) {
   URedwoodClientInterface *Redwood = NewObject<URedwoodClientInterface>();
   UAsyncTestContext *Context = NewObject<UAsyncTestContext>();
 
@@ -81,9 +86,10 @@ bool FMockRealmsServersCreate::RunTest(const FString &Parameters) {
   Context->AddToRoot();
 
   ADD_LATENT_AUTOMATION_COMMAND(
-    FMockRealmsServersCreateInitialize(Redwood, Context, 0)
+    FMockRealmsServersJoinProxyWithSingleInstanceInitialize(Redwood, Context, 0)
   );
-  ADD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersCreateRun(Redwood, Context, 1)
+  ADD_LATENT_AUTOMATION_COMMAND(
+    FMockRealmsServersJoinProxyWithSingleInstanceRun(Redwood, Context, 1)
   );
 
   ADD_LATENT_AUTOMATION_COMMAND(FWaitForEnd(Redwood, Context, 2));

@@ -865,40 +865,42 @@ void URedwoodClientGameSubsystem::LeaveTicketing(
   }
 }
 
-void URedwoodClientGameSubsystem::ListServers(
-  TArray<FString> PrivateServerReferences,
-  FRedwoodListServersOutputDelegate OnOutput
+void URedwoodClientGameSubsystem::ListProxies(
+  TArray<FString> PrivateProxyReferences,
+  FRedwoodListProxiesOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->ListServers(PrivateServerReferences, OnOutput);
+    ClientInterface->ListProxies(PrivateProxyReferences, OnOutput);
   } else {
-    FRedwoodListServersOutput Output;
+    FRedwoodListProxiesOutput Output;
     OnOutput.ExecuteIfBound(Output);
   }
 }
 
-void URedwoodClientGameSubsystem::CreateServer(
+void URedwoodClientGameSubsystem::CreateProxy(
   bool bJoinSession,
-  FRedwoodCreateServerInput Parameters,
-  FRedwoodCreateServerOutputDelegate OnOutput
+  FRedwoodCreateProxyInput Parameters,
+  FRedwoodCreateProxyOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->CreateServer(bJoinSession, Parameters, OnOutput);
+    ClientInterface->CreateProxy(bJoinSession, Parameters, OnOutput);
   } else {
-    FRedwoodCreateServerOutput Output;
+    FRedwoodCreateProxyOutput Output;
     Output.Error =
       "Cannot create server in PIE when connecting to the backend is disabled";
     OnOutput.ExecuteIfBound(Output);
   }
 }
 
-void URedwoodClientGameSubsystem::JoinServerInstance(
-  FString ServerReference,
+void URedwoodClientGameSubsystem::JoinProxyWithSingleInstance(
+  FString ProxyReference,
   FString Password,
   FRedwoodJoinServerOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->JoinServerInstance(ServerReference, Password, OnOutput);
+    ClientInterface->JoinProxyWithSingleInstance(
+      ProxyReference, Password, OnOutput
+    );
   } else {
     FRedwoodJoinServerOutput Output;
     Output.Error =
@@ -907,11 +909,11 @@ void URedwoodClientGameSubsystem::JoinServerInstance(
   }
 }
 
-void URedwoodClientGameSubsystem::StopServer(
+void URedwoodClientGameSubsystem::StopProxy(
   FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->StopServer(ServerProxyId, OnOutput);
+    ClientInterface->StopProxy(ServerProxyId, OnOutput);
   } else {
     FString Error =
       "Cannot stop server in PIE when connecting to the backend is disabled";

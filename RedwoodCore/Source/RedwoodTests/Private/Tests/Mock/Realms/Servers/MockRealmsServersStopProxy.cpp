@@ -3,13 +3,13 @@
 #include "../../../../TestCommon.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-  FMockRealmsServersJoin,
-  "Redwood.Mock.Realms.Servers.Join",
+  FMockRealmsServersStopProxy,
+  "Redwood.Mock.Realms.Servers.StopProxy",
   EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter
 );
 
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersJoinInitialize);
-void FMockRealmsServersJoinInitialize::Initialize() {
+DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersStopProxyInitialize);
+void FMockRealmsServersStopProxyInitialize::Initialize() {
   Redwood->InitializeDirectorConnection(
     FRedwoodSocketConnectedDelegate::CreateLambda(
       [this](const FRedwoodSocketConnected &Result) {
@@ -42,37 +42,21 @@ void FMockRealmsServersJoinInitialize::Initialize() {
   );
 }
 
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersJoinRun);
-void FMockRealmsServersJoinRun::Initialize() {
-  Redwood->SetSelectedCharacter(TEXT("mock-character-id"));
-  Redwood->JoinServerInstance(
+DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersStopProxyRun);
+void FMockRealmsServersStopProxyRun::Initialize() {
+  Redwood->StopProxy(
     FString("mock-proxy-id"),
-    FString(),
-    FRedwoodJoinServerOutputDelegate::CreateLambda(
-      [this](const FRedwoodJoinServerOutput &Output) {
-        CurrentTest->TestEqual(
-          TEXT("returns correct error"),
-          Output.Error,
-          TEXT("mock-server-get-error")
-        );
+    FRedwoodErrorOutputDelegate::CreateLambda([this](const FString &Error) {
+      CurrentTest->TestEqual(
+        TEXT("returns correct error"), Error, TEXT("mock-server-stop-error")
+      );
 
-        CurrentTest->TestEqual(
-          TEXT("returns correct connection"),
-          Output.ConnectionUri,
-          TEXT("mock-connection")
-        );
-
-        CurrentTest->TestEqual(
-          TEXT("returns correct token"), Output.Token, TEXT("mock-token")
-        );
-
-        Context->bIsCurrentTestComplete = true;
-      }
-    )
+      Context->bIsCurrentTestComplete = true;
+    })
   );
 }
 
-bool FMockRealmsServersJoin::RunTest(const FString &Parameters) {
+bool FMockRealmsServersStopProxy::RunTest(const FString &Parameters) {
   URedwoodClientInterface *Redwood = NewObject<URedwoodClientInterface>();
   UAsyncTestContext *Context = NewObject<UAsyncTestContext>();
 
@@ -80,9 +64,11 @@ bool FMockRealmsServersJoin::RunTest(const FString &Parameters) {
   Context->AddToRoot();
 
   ADD_LATENT_AUTOMATION_COMMAND(
-    FMockRealmsServersJoinInitialize(Redwood, Context, 0)
+    FMockRealmsServersStopProxyInitialize(Redwood, Context, 0)
   );
-  ADD_LATENT_AUTOMATION_COMMAND(FMockRealmsServersJoinRun(Redwood, Context, 1));
+  ADD_LATENT_AUTOMATION_COMMAND(
+    FMockRealmsServersStopProxyRun(Redwood, Context, 1)
+  );
 
   ADD_LATENT_AUTOMATION_COMMAND(FWaitForEnd(Redwood, Context, 2));
 
