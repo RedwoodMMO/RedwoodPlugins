@@ -112,7 +112,12 @@ public:
 
   void FlushSync();
   void FlushPersistence();
-  void FlushPlayerCharacterData();
+  void FlushPlayerCharacterData(
+    TArray<APlayerState *> PlayerArray, bool bForce
+  );
+  TSharedPtr<FJsonObject> CreatePlayerCharacterDataObject(
+    APlayerState *PlayerState, bool bForce
+  );
   void FlushZoneData();
 
   void InitialDataLoad(FRedwoodDelegate OnComplete);

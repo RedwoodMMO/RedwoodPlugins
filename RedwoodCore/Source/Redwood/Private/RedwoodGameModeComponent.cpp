@@ -121,6 +121,16 @@ void URedwoodGameModeComponent::OnGameModeLogout(
   ARedwoodPlayerState *RedwoodPlayerState =
     Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
   if (IsValid(RedwoodPlayerState)) {
+    URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+      GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>(
+      );
+
+    TArray<APlayerState *> PlayerFlushArray;
+    PlayerFlushArray.Add(RedwoodPlayerState);
+    RedwoodServerGameSubsystem->FlushPlayerCharacterData(
+      PlayerFlushArray, true
+    );
+
     if (URedwoodCommonGameSubsystem::ShouldUseBackend(GameMode->GetWorld())) {
       if (Sidecar.IsValid() && Sidecar->bIsConnected) {
         TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);

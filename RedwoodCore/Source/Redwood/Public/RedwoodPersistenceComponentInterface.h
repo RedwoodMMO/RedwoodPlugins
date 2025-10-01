@@ -17,5 +17,7 @@ class REDWOOD_API IRedwoodPersistenceComponentInterface {
   GENERATED_BODY()
 
 public:
-  virtual void AddPersistedData(TSharedPtr<FJsonObject> JsonObject) = 0;
+  virtual void AddPersistedData(
+    TSharedPtr<FJsonObject> JsonObject, bool bForce
+  ) = 0;
 };

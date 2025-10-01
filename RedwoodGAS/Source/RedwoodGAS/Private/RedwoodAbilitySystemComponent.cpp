@@ -102,7 +102,7 @@ void URedwoodAbilitySystemComponent::BeginPlay() {
 }
 
 void URedwoodAbilitySystemComponent::AddPersistedData(
-  TSharedPtr<FJsonObject> JsonObject
+  TSharedPtr<FJsonObject> JsonObject, bool bForce
 ) {
   UWorld *World = GetWorld();
 
@@ -110,7 +110,7 @@ void URedwoodAbilitySystemComponent::AddPersistedData(
     return;
   }
 
-  if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) || (IsDirty() && (UpdateIntervals <= 0 || UpdateIntervalCounter % UpdateIntervals == 0))) {
+  if (bForce || !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) || (IsDirty() && (UpdateIntervals <= 0 || UpdateIntervalCounter % UpdateIntervals == 0))) {
     UpdateIntervalCounter = 0;
     TSharedPtr<FJsonObject> AbilitySystemObject = SerializeASC();
 
