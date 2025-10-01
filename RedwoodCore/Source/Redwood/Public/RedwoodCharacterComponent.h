@@ -106,6 +106,15 @@ public:
   int32 LatestNonequippedInventorySchemaVersion = 0;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  bool bUseProgress = false;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  FString ProgressVariableName = TEXT("Progress");
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  int32 LatestProgressSchemaVersion = 0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   bool bUseData = true;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
@@ -162,6 +171,13 @@ public:
   }
 
   UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
+  void MarkProgressDirty() {
+    if (bUseProgress) {
+      bProgressDirty = true;
+    }
+  }
+
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void MarkDataDirty() {
     if (bUseData) {
       bDataDirty = true;
@@ -201,6 +217,11 @@ public:
   }
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsProgressDirty() const {
+    return bProgressDirty;
+  }
+
+  UFUNCTION(BlueprintPure, Category = "Redwood")
   bool IsDataDirty() const {
     return bDataDirty;
   }
@@ -216,6 +237,7 @@ public:
     bMetadataDirty = false;
     bEquippedInventoryDirty = false;
     bNonequippedInventoryDirty = false;
+    bProgressDirty = false;
     bDataDirty = false;
     bAbilitySystemDirty = false;
   }
@@ -243,6 +265,7 @@ private:
   bool bMetadataDirty = false;
   bool bEquippedInventoryDirty = false;
   bool bNonequippedInventoryDirty = false;
+  bool bProgressDirty = false;
   bool bDataDirty = false;
   bool bAbilitySystemDirty = false;
 };

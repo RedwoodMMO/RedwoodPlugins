@@ -79,6 +79,11 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
       Character.NonequippedInventory->GetRootObject()
     );
   }
+  if (Character.Progress) {
+    JsonObject->SetObjectField(
+      TEXT("progress"), Character.Progress->GetRootObject()
+    );
+  }
   if (Character.Data) {
     JsonObject->SetObjectField(TEXT("data"), Character.Data->GetRootObject());
   }
@@ -205,6 +210,12 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::ParseCharacter(
       )) {
     Character.NonequippedInventory = NewObject<USIOJsonObject>();
     Character.NonequippedInventory->SetRootObject(*NonequippedInventory);
+  }
+
+  const TSharedPtr<FJsonObject> *Progress = nullptr;
+  if (CharacterObj->TryGetObjectField(TEXT("progress"), Progress)) {
+    Character.Progress = NewObject<USIOJsonObject>();
+    Character.Progress->SetRootObject(*Progress);
   }
 
   const TSharedPtr<FJsonObject> *CharacterData = nullptr;

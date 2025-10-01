@@ -744,6 +744,7 @@ void URedwoodClientGameSubsystem::CreateCharacter(
     Character.Metadata = NewObject<USIOJsonObject>();
     Character.EquippedInventory = NewObject<USIOJsonObject>();
     Character.NonequippedInventory = NewObject<USIOJsonObject>();
+    Character.Progress = NewObject<USIOJsonObject>();
     Character.Data = NewObject<USIOJsonObject>();
     Character.AbilitySystem = NewObject<USIOJsonObject>();
 

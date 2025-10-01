@@ -1029,6 +1029,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             !CharacterComponent->IsMetadataDirty() &&
             !CharacterComponent->IsEquippedInventoryDirty() &&
             !CharacterComponent->IsNonequippedInventoryDirty() &&
+            !CharacterComponent->IsProgressDirty() &&
             !CharacterComponent->IsDataDirty() &&
             !CharacterComponent->IsAbilitySystemDirty()) {
           continue;
@@ -1105,6 +1106,23 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
             CharacterObject->SetObjectField(
               TEXT("nonequippedInventory"),
               NonequippedInventory->GetRootObject()
+            );
+          }
+        }
+
+        if (bUseBackend ? CharacterComponent->IsProgressDirty()
+                        : CharacterComponent->bUseProgress) {
+          USIOJsonObject *Progress =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->ProgressVariableName
+            );
+          if (Progress) {
+            RedwoodPlayerState->RedwoodCharacter.Progress = Progress;
+            CharacterObject->SetObjectField(
+              TEXT("progress"), Progress->GetRootObject()
             );
           }
         }

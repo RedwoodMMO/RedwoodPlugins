@@ -250,6 +250,19 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
       }
     }
 
+    if (bUseProgress) {
+      bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
+        bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
+        RedwoodCharacterBackend.Progress,
+        *ProgressVariableName,
+        LatestProgressSchemaVersion
+      );
+
+      if (bDirty) {
+        MarkProgressDirty();
+      }
+    }
+
     if (bUseData) {
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,

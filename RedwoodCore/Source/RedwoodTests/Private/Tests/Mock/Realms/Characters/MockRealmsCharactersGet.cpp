@@ -130,6 +130,11 @@ void FMockRealmsCharactersGetRun::Initialize() {
         );
 
         CurrentTest->TestTrue(
+          TEXT("returns valid Progress object"),
+          IsValid(Output.Character.Progress)
+        );
+
+        CurrentTest->TestTrue(
           TEXT("returns valid Data object"), IsValid(Output.Character.Data)
         );
 
