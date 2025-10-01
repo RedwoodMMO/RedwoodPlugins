@@ -762,12 +762,19 @@ void URedwoodClientGameSubsystem::SetCharacterArchived(
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->SetCharacterArchived(CharacterId, bArchived, OnOutput);
   } else {
-    FRedwoodCharacterBackend Character =
-      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
-    Character.bArchived = bArchived;
-    Character.ArchivedAt = FDateTime::UtcNow();
+    TSharedPtr<FJsonObject> CharacterObject =
+      URedwoodCommonGameSubsystem::LoadCharacterJsonFromDisk(CharacterId);
 
-    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+    if (bArchived) {
+      CharacterObject->SetStringField(
+        TEXT("archivedAt"), FDateTime::UtcNow().ToString()
+      );
+    } else {
+      TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull);
+      CharacterObject->SetField(TEXT("archivedAt"), NullValue);
+    }
+
+    URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
 
     OnOutput.ExecuteIfBound(TEXT(""));
   }
@@ -797,21 +804,24 @@ void URedwoodClientGameSubsystem::SetCharacterData(
       CharacterId, Name, CharacterCreatorData, OnOutput
     );
   } else {
-    FRedwoodCharacterBackend Character =
-      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+    TSharedPtr<FJsonObject> CharacterObject =
+      URedwoodCommonGameSubsystem::LoadCharacterJsonFromDisk(CharacterId);
 
     if (!Name.IsEmpty()) {
-      Character.Name = Name;
+      CharacterObject->SetStringField(TEXT("name"), Name);
     }
 
     if (CharacterCreatorData) {
-      Character.CharacterCreatorData = CharacterCreatorData;
+      CharacterObject->SetObjectField(
+        TEXT("characterCreatorData"), CharacterCreatorData->GetRootObject()
+      );
     }
 
     FRedwoodGetCharacterOutput Output;
-    Output.Character = Character;
+    Output.Character =
+      URedwoodCommonGameSubsystem::ParseCharacter(CharacterObject);
 
-    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+    URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
 
     OnOutput.ExecuteIfBound(Output);
   }

@@ -22,10 +22,12 @@ public:
   virtual void Deinitialize() override;
   // End USubsystem
 
+  static void SaveCharacterJsonToDisk(TSharedPtr<FJsonObject> JsonObject);
   static void SaveCharacterToDisk(FRedwoodCharacterBackend &Character);
 
   static TArray<FRedwoodCharacterBackend> LoadAllCharactersFromDisk();
 
+  static TSharedPtr<FJsonObject> LoadCharacterJsonFromDisk(FString CharacterId);
   static FRedwoodCharacterBackend LoadCharacterFromDisk(FString CharacterId);
 
   static uint8 GetCharactersOnDiskCount();

@@ -34,6 +34,7 @@ public class RedwoodGAS : ModuleRules {
         "JsonUtilities",
         "GameplayTags",
         "GameplayTasks",
+        "SIOJson",
       }
     );
 

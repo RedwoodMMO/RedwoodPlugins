@@ -7,6 +7,7 @@
 #include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodMapAsset.h"
+#include "RedwoodPersistenceComponentInterface.h"
 #include "RedwoodPlayerState.h"
 #include "RedwoodSettings.h"
 #include "RedwoodSyncComponent.h"
@@ -988,6 +989,40 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
         CharacterComponents.Append(PawnCharacterComponents);
       }
 
+      TArray<TScriptInterface<IRedwoodPersistenceComponentInterface>>
+        PersistenceComponents;
+
+      TArray<UActorComponent *> AllComponents;
+      RedwoodPlayerState->GetComponents<UActorComponent>(AllComponents);
+      if (Pawn) {
+        TArray<UActorComponent *> PawnComponents;
+        Pawn->GetComponents<UActorComponent>(PawnComponents);
+        AllComponents.Append(PawnComponents);
+      }
+
+      for (UActorComponent *Component : AllComponents) {
+        if (Component->Implements<URedwoodPersistenceComponentInterface>()) {
+          PersistenceComponents.Add(
+            TScriptInterface<IRedwoodPersistenceComponentInterface>(Component)
+          );
+        }
+      }
+
+      UE_LOG(
+        LogRedwood,
+        VeryVerbose,
+        TEXT("Flushing character %s"),
+        *RedwoodPlayerState->RedwoodCharacter.Name
+      );
+
+      TSharedPtr<FJsonObject> CharacterObject = MakeShareable(new FJsonObject);
+      CharacterObject->SetStringField(
+        TEXT("playerId"), *RedwoodPlayerState->RedwoodCharacter.PlayerId
+      );
+      CharacterObject->SetStringField(
+        TEXT("characterId"), *RedwoodPlayerState->RedwoodCharacter.Id
+      );
+
       for (URedwoodCharacterComponent *CharacterComponent :
            CharacterComponents) {
         if (!CharacterComponent->IsCharacterCreatorDataDirty() &&
@@ -1000,22 +1035,6 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
         }
 
         AActor *ComponentOwner = CharacterComponent->GetOwner();
-
-        UE_LOG(
-          LogRedwood,
-          Log,
-          TEXT("Flushing character %s"),
-          *CharacterComponent->RedwoodCharacterName
-        );
-
-        TSharedPtr<FJsonObject> CharacterObject =
-          MakeShareable(new FJsonObject);
-        CharacterObject->SetStringField(
-          TEXT("playerId"), CharacterComponent->RedwoodPlayerId
-        );
-        CharacterObject->SetStringField(
-          TEXT("characterId"), CharacterComponent->RedwoodCharacterId
-        );
 
         if (bUseBackend ? CharacterComponent->IsCharacterCreatorDataDirty()
                         : CharacterComponent->bUseCharacterCreatorData) {
@@ -1123,18 +1142,25 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
           }
         }
 
-        TSharedPtr<FJsonValueObject> Value =
-          MakeShareable(new FJsonValueObject(CharacterObject));
-        CharactersArray.Add(Value);
-
         CharacterComponent->ClearDirtyFlags();
       }
 
+      for (TScriptInterface<IRedwoodPersistenceComponentInterface>
+             ComponentInterface : PersistenceComponents) {
+        IRedwoodPersistenceComponentInterface *PersistenceComponent =
+          ComponentInterface.GetInterface();
+        if (PersistenceComponent) {
+          PersistenceComponent->AddPersistedData(CharacterObject);
+        }
+      }
+
+      TSharedPtr<FJsonValueObject> Value =
+        MakeShareable(new FJsonValueObject(CharacterObject));
+      CharactersArray.Add(Value);
+
       if (!bUseBackend) {
         // save to disk
-        URedwoodCommonGameSubsystem::SaveCharacterToDisk(
-          RedwoodPlayerState->RedwoodCharacter
-        );
+        URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
       }
     } else {
       UE_LOG(

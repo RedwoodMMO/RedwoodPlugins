@@ -19,6 +19,24 @@ void URedwoodCommonGameSubsystem::Deinitialize() {
   Super::Deinitialize();
 }
 
+void URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(
+  TSharedPtr<FJsonObject> JsonObject
+) {
+  FString CharacterId = JsonObject->GetStringField(TEXT("id"));
+
+  FString OutputString;
+  TSharedRef<TJsonWriter<TCHAR>> JsonWriter =
+    TJsonWriterFactory<TCHAR>::Create(&OutputString);
+  FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
+
+  FString SavePath =
+    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
+  FPaths::NormalizeFilename(SavePath);
+  FString FileName = SavePath / (CharacterId + TEXT(".json"));
+
+  FFileHelper::SaveStringToFile(OutputString, *FileName);
+}
+
 void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
   FRedwoodCharacterBackend &Character
 ) {
@@ -70,17 +88,7 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
     );
   }
 
-  FString OutputString;
-  TSharedRef<TJsonWriter<TCHAR>> JsonWriter =
-    TJsonWriterFactory<TCHAR>::Create(&OutputString);
-  FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
-
-  FString SavePath =
-    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
-  FPaths::NormalizeFilename(SavePath);
-  FString FileName = SavePath / (Character.Id + TEXT(".json"));
-
-  FFileHelper::SaveStringToFile(OutputString, *FileName);
+  SaveCharacterJsonToDisk(JsonObject);
 }
 
 TArray<FRedwoodCharacterBackend>
@@ -101,7 +109,7 @@ URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk() {
   return Characters;
 }
 
-FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
+TSharedPtr<FJsonObject> URedwoodCommonGameSubsystem::LoadCharacterJsonFromDisk(
   FString CharacterId
 ) {
   FString SavePath =
@@ -115,69 +123,20 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
   TSharedPtr<FJsonObject> JsonObject;
   TSharedRef<TJsonReader<TCHAR>> JsonReader =
     TJsonReaderFactory<TCHAR>::Create(FileContents);
-  if (!FJsonSerializer::Deserialize(JsonReader, JsonObject)) {
+  FJsonSerializer::Deserialize(JsonReader, JsonObject);
+
+  return JsonObject;
+}
+
+FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
+  FString CharacterId
+) {
+  TSharedPtr<FJsonObject> JsonObject = LoadCharacterJsonFromDisk(CharacterId);
+  if (!JsonObject.IsValid()) {
     return FRedwoodCharacterBackend();
   }
 
-  FRedwoodCharacterBackend Character;
-
-  Character.Id = JsonObject->GetStringField(TEXT("id"));
-  FDateTime::Parse(
-    JsonObject->GetStringField(TEXT("createdAt")), Character.CreatedAt
-  );
-  FDateTime::Parse(
-    JsonObject->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
-  );
-
-  FString ArchivedAt;
-  if (JsonObject->TryGetStringField(TEXT("archivedAt"), ArchivedAt)) {
-    FDateTime::Parse(ArchivedAt, Character.ArchivedAt);
-    Character.bArchived = true;
-  }
-
-  Character.PlayerId = JsonObject->GetStringField(TEXT("playerId"));
-  Character.Name = JsonObject->GetStringField(TEXT("name"));
-
-  TSharedPtr<FJsonObject> CharacterCreatorDataObj =
-    JsonObject->GetObjectField(TEXT("characterCreatorData"));
-  if (CharacterCreatorDataObj.IsValid()) {
-    Character.CharacterCreatorData = NewObject<USIOJsonObject>();
-    Character.CharacterCreatorData->SetRootObject(CharacterCreatorDataObj);
-  }
-
-  TSharedPtr<FJsonObject> MetadataObj =
-    JsonObject->GetObjectField(TEXT("metadata"));
-  if (MetadataObj.IsValid()) {
-    Character.Metadata = NewObject<USIOJsonObject>();
-    Character.Metadata->SetRootObject(MetadataObj);
-  }
-
-  TSharedPtr<FJsonObject> EquippedInventoryObj =
-    JsonObject->GetObjectField(TEXT("equippedInventory"));
-  if (EquippedInventoryObj.IsValid()) {
-    Character.EquippedInventory = NewObject<USIOJsonObject>();
-    Character.EquippedInventory->SetRootObject(EquippedInventoryObj);
-  }
-
-  TSharedPtr<FJsonObject> NonequippedInventoryObj =
-    JsonObject->GetObjectField(TEXT("nonequippedInventory"));
-  if (NonequippedInventoryObj.IsValid()) {
-    Character.NonequippedInventory = NewObject<USIOJsonObject>();
-    Character.NonequippedInventory->SetRootObject(NonequippedInventoryObj);
-  }
-
-  TSharedPtr<FJsonObject> DataObj = JsonObject->GetObjectField(TEXT("data"));
-  if (DataObj.IsValid()) {
-    Character.Data = NewObject<USIOJsonObject>();
-    Character.Data->SetRootObject(DataObj);
-  }
-
-  TSharedPtr<FJsonObject> AbilitySystemObj =
-    JsonObject->GetObjectField(TEXT("abilitySystem"));
-  if (AbilitySystemObj.IsValid()) {
-    Character.AbilitySystem = NewObject<USIOJsonObject>();
-    Character.AbilitySystem->SetRootObject(AbilitySystemObj);
-  }
+  FRedwoodCharacterBackend Character = ParseCharacter(JsonObject);
 
   return Character;
 }
