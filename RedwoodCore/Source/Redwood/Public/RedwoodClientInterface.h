@@ -321,6 +321,35 @@ public:
   FString GetConnectionConsoleCommand();
   FURL GetConnectionURL();
 
+  FRedwoodPartyInvitedDynamicDelegate OnPartyInvited;
+  FRedwoodPartyUpdatedDynamicDelegate OnPartyUpdated;
+  FRedwoodDynamicDelegate OnPartyKicked;
+  FRedwoodParty GetCachedParty() {
+    return CurrentParty;
+  }
+  void GetOrCreateParty(
+    bool bCreateIfNotInParty, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  void LeaveParty(FRedwoodErrorOutputDelegate OnOutput);
+  void InviteToParty(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void ListPartyInvites(FRedwoodListPartyInvitesOutputDelegate OnOutput);
+  void RespondToPartyInvite(
+    FString PartyId, bool bAccept, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  void PromoteToPartyLeader(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void KickFromParty(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void SetPartyData(
+    FString LootType,
+    USIOJsonObject *PartyData,
+    FRedwoodGetPartyOutputDelegate OnOutput
+  );
+
 private:
   bool bSentDirectorConnected;
   bool bDirectorDisconnected = true;
@@ -373,4 +402,6 @@ private:
   FString CurrentRealmId;
 
   FTimerManager TimerManager;
+
+  FRedwoodParty CurrentParty;
 };

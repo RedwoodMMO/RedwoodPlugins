@@ -47,6 +47,15 @@ public:
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodDynamicDelegate OnRealmConnectionLost;
 
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodPartyInvitedDynamicDelegate OnPartyInvited;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodPartyUpdatedDynamicDelegate OnPartyUpdated;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnPartyKicked;
+
   void Register(
     const FString &Username,
     const FString &Password,
@@ -319,6 +328,32 @@ public:
   );
   void StopProxy(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
 
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  FRedwoodParty GetCachedParty();
+
+  void GetOrCreateParty(
+    bool bCreateIfNotInParty, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  void LeaveParty(FRedwoodErrorOutputDelegate OnOutput);
+  void InviteToParty(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void ListPartyInvites(FRedwoodListPartyInvitesOutputDelegate OnOutput);
+  void RespondToPartyInvite(
+    FString PartyId, bool bAccept, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  void PromoteToPartyLeader(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void KickFromParty(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void SetPartyData(
+    FString LootType,
+    USIOJsonObject *PartyData,
+    FRedwoodGetPartyOutputDelegate OnOutput
+  );
+
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionConsoleCommand();
 
@@ -344,6 +379,15 @@ private:
 
   UFUNCTION()
   void HandleRequestToJoinServer(FString ConsoleCommand);
+
+  UFUNCTION()
+  void HandleOnPartyInvited(FRedwoodPartyInvite Invite);
+
+  UFUNCTION()
+  void HandleOnPartyUpdated(FRedwoodParty Party);
+
+  UFUNCTION()
+  void HandleOnPartyKicked();
 
   void HandleOnWorldAdded(UWorld *World, FWorldInitializationValues IVS);
   void HandleOnWorldBeginPlay(bool bBegunPlay);

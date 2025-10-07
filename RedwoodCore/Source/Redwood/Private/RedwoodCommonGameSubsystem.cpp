@@ -993,3 +993,67 @@ FRedwoodPlayerData URedwoodCommonGameSubsystem::ParsePlayerData(
 
   return PlayerData;
 }
+
+FRedwoodPartyInvite URedwoodCommonGameSubsystem::ParsePartyInvite(
+  const TSharedPtr<FJsonObject> &InviteObject
+) {
+  FRedwoodPartyInvite PartyInvite;
+
+  if (InviteObject.IsValid()) {
+    PartyInvite.Id = InviteObject->GetStringField(TEXT("id"));
+    PartyInvite.FromPlayerId =
+      InviteObject->GetStringField(TEXT("fromPlayerId"));
+    PartyInvite.FromPlayerName =
+      InviteObject->GetStringField(TEXT("fromPlayerName"));
+  }
+
+  return PartyInvite;
+}
+
+TArray<FRedwoodPartyInvite> URedwoodCommonGameSubsystem::ParsePartyInvites(
+  const TArray<TSharedPtr<FJsonValue>> &InvitesArray
+) {
+  TArray<FRedwoodPartyInvite> PartyInvites;
+
+  for (const TSharedPtr<FJsonValue> &InviteValue : InvitesArray) {
+    TSharedPtr<FJsonObject> InviteObject = InviteValue->AsObject();
+    if (InviteObject.IsValid()) {
+      PartyInvites.Add(
+        URedwoodCommonGameSubsystem::ParsePartyInvite(InviteObject)
+      );
+    }
+  }
+
+  return PartyInvites;
+}
+
+FRedwoodParty URedwoodCommonGameSubsystem::ParseParty(
+  const TSharedPtr<FJsonObject> &PartyObj
+) {
+  FRedwoodParty Party;
+
+  Party.bValid = true;
+  Party.Id = PartyObj->GetStringField(TEXT("id"));
+  Party.LootType = PartyObj->GetStringField(TEXT("lootType"));
+  Party.LeaderId = PartyObj->GetStringField(TEXT("leaderId"));
+
+  const TArray<TSharedPtr<FJsonValue>> *MembersArray;
+  if (PartyObj->TryGetArrayField(TEXT("members"), MembersArray)) {
+    for (const TSharedPtr<FJsonValue> &MemberValue : *MembersArray) {
+      FRedwoodPartyMember Member;
+      TSharedPtr<FJsonObject> MemberObject = MemberValue->AsObject();
+
+      Member.PlayerId = MemberObject->GetStringField(TEXT("playerId"));
+
+      Party.Members.Add(Member);
+    }
+  }
+
+  const TSharedPtr<FJsonObject> *Data = nullptr;
+  if (PartyObj->TryGetObjectField(TEXT("data"), Data)) {
+    Party.Data = NewObject<USIOJsonObject>();
+    Party.Data->SetRootObject(*Data);
+  }
+
+  return Party;
+}

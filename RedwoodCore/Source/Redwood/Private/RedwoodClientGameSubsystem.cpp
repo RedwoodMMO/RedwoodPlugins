@@ -42,6 +42,15 @@ void URedwoodClientGameSubsystem::Initialize(
     ClientInterface->OnRealmConnectionLost.AddDynamic(
       this, &URedwoodClientGameSubsystem::HandleOnRealmConnectionLost
     );
+    ClientInterface->OnPartyInvited.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyInvited
+    );
+    ClientInterface->OnPartyUpdated.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyUpdated
+    );
+    ClientInterface->OnPartyKicked.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyKicked
+    );
   }
 
   FWorldDelegates::OnPostWorldInitialization.AddUObject(
@@ -944,6 +953,115 @@ void URedwoodClientGameSubsystem::StopProxy(
   }
 }
 
+FRedwoodParty URedwoodClientGameSubsystem::GetCachedParty() {
+  if (ClientInterface) {
+    return ClientInterface->GetCachedParty();
+  }
+  return FRedwoodParty();
+}
+
+void URedwoodClientGameSubsystem::GetOrCreateParty(
+  bool bCreateIfNotInParty, FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetOrCreateParty(bCreateIfNotInParty, OnOutput);
+  } else {
+    FRedwoodGetPartyOutput Output;
+    Output.Error =
+      "Cannot get or create party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::LeaveParty(
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LeaveParty(OnOutput);
+  } else {
+    FString Error =
+      "Cannot leave party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::InviteToParty(
+  FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->InviteToParty(TargetPlayerId, OnOutput);
+  } else {
+    FString Error =
+      "Cannot invite to party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::ListPartyInvites(
+  FRedwoodListPartyInvitesOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListPartyInvites(OnOutput);
+  } else {
+    FRedwoodListPartyInvitesOutput Output;
+    Output.Error =
+      "Cannot list party invites in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::RespondToPartyInvite(
+  FString PartyId, bool bAccept, FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RespondToPartyInvite(PartyId, bAccept, OnOutput);
+  } else {
+    FRedwoodGetPartyOutput Output;
+    Output.Error =
+      "Cannot respond to party invite in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::PromoteToPartyLeader(
+  FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->PromoteToPartyLeader(TargetPlayerId, OnOutput);
+  } else {
+    FString Error =
+      "Cannot promote to party leader in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::KickFromParty(
+  FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->KickFromParty(TargetPlayerId, OnOutput);
+  } else {
+    FString Error =
+      "Cannot kick from party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::SetPartyData(
+  FString LootType,
+  USIOJsonObject *PartyData,
+  FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetPartyData(LootType, PartyData, OnOutput);
+  } else {
+    FRedwoodGetPartyOutput Output;
+    Output.Error =
+      "Cannot set party data in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
 FString URedwoodClientGameSubsystem::GetConnectionConsoleCommand() {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetConnectionConsoleCommand();
@@ -984,4 +1102,18 @@ void URedwoodClientGameSubsystem::HandleOnDirectorConnectionReestablished() {
 
 void URedwoodClientGameSubsystem::HandleOnRealmConnectionLost() {
   OnRealmConnectionLost.Broadcast();
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyInvited(
+  FRedwoodPartyInvite Invite
+) {
+  OnPartyInvited.Broadcast(Invite);
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyUpdated(FRedwoodParty Party) {
+  OnPartyUpdated.Broadcast(Party);
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyKicked() {
+  OnPartyKicked.Broadcast();
 }

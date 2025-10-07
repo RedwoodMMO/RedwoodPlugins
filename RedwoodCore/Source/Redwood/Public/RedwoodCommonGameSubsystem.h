@@ -90,5 +90,14 @@ public:
     TSharedPtr<FJsonObject> PlayerDataObj
   );
 
+  static FRedwoodPartyInvite ParsePartyInvite(
+    const TSharedPtr<FJsonObject> &InviteObject
+  );
+  static TArray<FRedwoodPartyInvite> ParsePartyInvites(
+    const TArray<TSharedPtr<FJsonValue>> &InvitesArray
+  );
+
+  static FRedwoodParty ParseParty(const TSharedPtr<FJsonObject> &PartyObj);
+
 private:
 };
