@@ -102,7 +102,7 @@ public:
   URedwoodClientGameSubsystem *Target;
 
   UPROPERTY()
-  ERedwoodFriendListType Filter;
+  ERedwoodFriendListType Filter = ERedwoodFriendListType::Unknown;
 };
 
 UCLASS()

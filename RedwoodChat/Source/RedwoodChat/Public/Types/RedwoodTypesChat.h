@@ -37,7 +37,7 @@ struct FRedwoodChatRoomIdentity {
   FString CompleteRoomId;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood Chat")
-  ERedwoodChatRoomType Type;
+  ERedwoodChatRoomType Type = ERedwoodChatRoomType::Unknown;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood Chat")
   FString RedwoodId;

@@ -46,7 +46,7 @@ public:
   FString GuildId;
   FString GuildName;
   FString GuildTag;
-  ERedwoodGuildInviteType InviteType;
+  ERedwoodGuildInviteType InviteType = ERedwoodGuildInviteType::Unknown;
   bool bListed;
   bool bMembershipPublic;
 };

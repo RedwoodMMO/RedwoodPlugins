@@ -41,5 +41,6 @@ public:
   URedwoodClientGameSubsystem *Target;
 
   FString GuildId;
-  ERedwoodGuildAndAllianceMemberState State;
+  ERedwoodGuildAndAllianceMemberState State =
+    ERedwoodGuildAndAllianceMemberState::Unknown;
 };
