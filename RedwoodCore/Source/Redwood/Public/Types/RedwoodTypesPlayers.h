@@ -28,7 +28,7 @@ enum class ERedwoodFriendListType : uint8 {
 };
 
 USTRUCT(BlueprintType)
-struct FRedwoodFriend {
+struct FRedwoodPlayer {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -38,7 +38,7 @@ struct FRedwoodFriend {
   FString Nickname;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  ERedwoodFriendListType State = ERedwoodFriendListType::Unknown;
+  ERedwoodFriendListType FriendshipState = ERedwoodFriendListType::Unknown;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bOnline = false;
@@ -51,20 +51,39 @@ struct FRedwoodFriend {
 };
 
 USTRUCT(BlueprintType)
-struct FRedwoodListFriendsOutput {
+struct FRedwoodListPlayersOutput {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString Error;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  TArray<FRedwoodFriend> Players;
+  TArray<FRedwoodPlayer> Players;
 };
 
-typedef TDelegate<void(const FRedwoodListFriendsOutput &)>
-  FRedwoodListFriendsOutputDelegate;
+typedef TDelegate<void(const FRedwoodListPlayersOutput &)>
+  FRedwoodListPlayersOutputDelegate;
 
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-  FRedwoodListFriendsOutputDynamicDelegate, FRedwoodListFriendsOutput, Data
+  FRedwoodListPlayersOutputDynamicDelegate, FRedwoodListPlayersOutput, Data
+);
+
+USTRUCT(BlueprintType)
+struct FRedwoodPlayerOutput {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Error;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FRedwoodPlayer Player;
+};
+
+typedef TDelegate<void(const FRedwoodPlayerOutput &)>
+  FRedwoodPlayerOutputDelegate;
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodPlayerOutputDynamicDelegate, FRedwoodPlayerOutput, Data
 );

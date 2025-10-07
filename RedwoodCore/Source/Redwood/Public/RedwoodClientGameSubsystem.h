@@ -81,11 +81,14 @@ public:
   void SearchForPlayers(
     FString UsernameOrNickname,
     bool bIncludePartialMatches,
-    FRedwoodListFriendsOutputDelegate OnOutput
+    FRedwoodListPlayersOutputDelegate OnOutput
+  );
+  void SearchForPlayerById(
+    FString TargetPlayerId, FRedwoodPlayerOutputDelegate OnOutput
   );
 
   void ListFriends(
-    ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+    ERedwoodFriendListType Filter, FRedwoodListPlayersOutputDelegate OnOutput
   );
 
   void RequestFriend(

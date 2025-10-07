@@ -182,26 +182,38 @@ FString URedwoodClientGameSubsystem::GetPlayerId() {
 void URedwoodClientGameSubsystem::SearchForPlayers(
   FString UsernameOrNickname,
   bool bIncludePartialMatches,
-  FRedwoodListFriendsOutputDelegate OnOutput
+  FRedwoodListPlayersOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->SearchForPlayers(
       UsernameOrNickname, bIncludePartialMatches, OnOutput
     );
   } else {
-    FRedwoodListFriendsOutput Output;
+    FRedwoodListPlayersOutput Output;
+    Output.Error = TEXT("Cannot search for players without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SearchForPlayerById(
+  FString TargetPlayerId, FRedwoodPlayerOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForPlayerById(TargetPlayerId, OnOutput);
+  } else {
+    FRedwoodPlayerOutput Output;
     Output.Error = TEXT("Cannot search for players without using a backend");
     OnOutput.ExecuteIfBound(Output);
   }
 }
 
 void URedwoodClientGameSubsystem::ListFriends(
-  ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+  ERedwoodFriendListType Filter, FRedwoodListPlayersOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->ListFriends(Filter, OnOutput);
   } else {
-    FRedwoodListFriendsOutput Output;
+    FRedwoodListPlayersOutput Output;
     Output.Error = TEXT("Cannot list friends without using a backend");
     OnOutput.ExecuteIfBound(Output);
   }

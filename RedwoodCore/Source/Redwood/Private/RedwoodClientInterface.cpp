@@ -471,10 +471,10 @@ void URedwoodClientInterface::CancelWaitingForAccountVerification() {
 void URedwoodClientInterface::SearchForPlayers(
   FString UsernameOrNickname,
   bool bIncludePartialMatches,
-  FRedwoodListFriendsOutputDelegate OnOutput
+  FRedwoodListPlayersOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
-    FRedwoodListFriendsOutput Output;
+    FRedwoodListPlayersOutput Output;
     Output.Error = TEXT("Not connected to Director.");
     OnOutput.ExecuteIfBound(Output);
     return;
@@ -486,12 +486,12 @@ void URedwoodClientInterface::SearchForPlayers(
   Payload->SetBoolField(TEXT("includePartial"), bIncludePartialMatches);
 
   Director->Emit(
-    TEXT("director:players:search"),
+    TEXT("director:players:search:name"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
 
-      FRedwoodListFriendsOutput Output;
+      FRedwoodListPlayersOutput Output;
 
       Output.Error = MessageObject->GetStringField(TEXT("error"));
 
@@ -499,12 +499,13 @@ void URedwoodClientInterface::SearchForPlayers(
         MessageObject->GetArrayField(TEXT("players"));
 
       for (TSharedPtr<FJsonValue> InPlayer : Players) {
-        FRedwoodFriend OutPlayer;
+        FRedwoodPlayer OutPlayer;
         TSharedPtr<FJsonObject> FriendObj = InPlayer->AsObject();
         OutPlayer.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
         OutPlayer.Nickname = FriendObj->GetStringField(TEXT("nickname"));
-        OutPlayer.State = URedwoodCommonGameSubsystem::ParseFriendListType(
-          FriendObj->GetStringField(TEXT("state"))
+        OutPlayer.FriendshipState =
+          URedwoodCommonGameSubsystem::ParseFriendListType(
+            FriendObj->GetStringField(TEXT("friendshipState"))
         );
 
         const TSharedPtr<FJsonObject> *OnlineStateObj;
@@ -539,11 +540,78 @@ void URedwoodClientInterface::SearchForPlayers(
   );
 }
 
-void URedwoodClientInterface::ListFriends(
-  ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+void URedwoodClientInterface::SearchForPlayerById(
+  FString TargetPlayerId, FRedwoodPlayerOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
-    FRedwoodListFriendsOutput Output;
+    FRedwoodPlayerOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("id"), PlayerId);
+  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+
+  Director->Emit(
+    TEXT("director:players:search:id"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodPlayerOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TSharedPtr<FJsonObject> *PlayerObject = nullptr;
+      if (MessageObject->TryGetObjectField(TEXT("player"), PlayerObject)) {
+        FRedwoodPlayer OutPlayer;
+        OutPlayer.PlayerId = (*PlayerObject)->GetStringField(TEXT("playerId"));
+        OutPlayer.Nickname = (*PlayerObject)->GetStringField(TEXT("nickname"));
+        OutPlayer.FriendshipState =
+          URedwoodCommonGameSubsystem::ParseFriendListType(
+            (*PlayerObject)->GetStringField(TEXT("friendshipState"))
+          );
+
+        const TSharedPtr<FJsonObject> *OnlineStateObj;
+        OutPlayer.bOnline =
+          (*PlayerObject)
+            ->TryGetObjectField(TEXT("onlineState"), OnlineStateObj);
+        if (OutPlayer.bOnline) {
+
+          const TSharedPtr<FJsonObject> *OnlineStateRealmObj;
+          OutPlayer.bPlaying =
+            (*OnlineStateObj)
+              ->TryGetObjectField(TEXT("realm"), OnlineStateRealmObj);
+
+          if (OutPlayer.bPlaying) {
+            OutPlayer.OnlineStateRealm.RealmName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("realmName"));
+            OutPlayer.OnlineStateRealm.ProxyId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("proxyId"));
+            OutPlayer.OnlineStateRealm.ZoneName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("zoneName"));
+            OutPlayer.OnlineStateRealm.ShardName =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("shardName"));
+            OutPlayer.OnlineStateRealm.CharacterId =
+              (*OnlineStateRealmObj)->GetStringField(TEXT("characterId"));
+          }
+        }
+
+        Output.Player = OutPlayer;
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::ListFriends(
+  ERedwoodFriendListType Filter, FRedwoodListPlayersOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodListPlayersOutput Output;
     Output.Error = TEXT("Not connected to Director.");
     OnOutput.ExecuteIfBound(Output);
     return;
@@ -565,7 +633,7 @@ void URedwoodClientInterface::ListFriends(
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
 
-      FRedwoodListFriendsOutput Output;
+      FRedwoodListPlayersOutput Output;
 
       Output.Error = MessageObject->GetStringField(TEXT("error"));
 
@@ -573,12 +641,13 @@ void URedwoodClientInterface::ListFriends(
         MessageObject->GetArrayField(TEXT("players"));
 
       for (TSharedPtr<FJsonValue> InPlayer : Players) {
-        FRedwoodFriend OutPlayer;
+        FRedwoodPlayer OutPlayer;
         TSharedPtr<FJsonObject> FriendObj = InPlayer->AsObject();
         OutPlayer.PlayerId = FriendObj->GetStringField(TEXT("playerId"));
         OutPlayer.Nickname = FriendObj->GetStringField(TEXT("nickname"));
-        OutPlayer.State = URedwoodCommonGameSubsystem::ParseFriendListType(
-          FriendObj->GetStringField(TEXT("state"))
+        OutPlayer.FriendshipState =
+          URedwoodCommonGameSubsystem::ParseFriendListType(
+            FriendObj->GetStringField(TEXT("friendshipState"))
         );
 
         const TSharedPtr<FJsonObject> *OnlineStateObj;
