@@ -51,6 +51,9 @@ void URedwoodClientGameSubsystem::Initialize(
     ClientInterface->OnPartyKicked.AddDynamic(
       this, &URedwoodClientGameSubsystem::HandleOnPartyKicked
     );
+    ClientInterface->OnPartyEmoteReceived.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyEmoteReceived
+    );
   }
 
   FWorldDelegates::OnPostWorldInitialization.AddUObject(
@@ -872,10 +875,15 @@ void URedwoodClientGameSubsystem::JoinMatchmaking(
 }
 
 void URedwoodClientGameSubsystem::JoinQueue(
-  FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+  FString ProxyId,
+  FString ZoneName,
+  bool bTransferWholeParty,
+  FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->JoinQueue(ProxyId, ZoneName, OnUpdate);
+    ClientInterface->JoinQueue(
+      ProxyId, ZoneName, bTransferWholeParty, OnUpdate
+    );
   } else {
     FRedwoodTicketingUpdate Output;
     Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
@@ -1062,6 +1070,20 @@ void URedwoodClientGameSubsystem::SetPartyData(
   }
 }
 
+void URedwoodClientGameSubsystem::SendEmoteToParty(FString Emote) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SendEmoteToParty(Emote);
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Cannot send emote to party in PIE when connecting to the backend is disabled"
+      )
+    );
+  }
+}
+
 FString URedwoodClientGameSubsystem::GetConnectionConsoleCommand() {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetConnectionConsoleCommand();
@@ -1116,4 +1138,10 @@ void URedwoodClientGameSubsystem::HandleOnPartyUpdated(FRedwoodParty Party) {
 
 void URedwoodClientGameSubsystem::HandleOnPartyKicked() {
   OnPartyKicked.Broadcast();
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyEmoteReceived(
+  const FString &PlayerId, const FString &Emote
+) {
+  OnPartyEmoteReceived.Broadcast(PlayerId, Emote);
 }

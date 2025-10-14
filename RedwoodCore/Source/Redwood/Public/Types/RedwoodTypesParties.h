@@ -21,11 +21,55 @@ struct FRedwoodPartyInvite {
 };
 
 USTRUCT(BlueprintType)
+struct FRedwoodPartyMemberCharacter {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Id;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Name;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *CharacterCreatorData = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *Metadata = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *EquippedInventory = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *NonequippedInventory = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *Progress = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *Data = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *AbilitySystem = nullptr;
+};
+
+USTRUCT(BlueprintType)
 struct FRedwoodPartyMember {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString PlayerId;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Nickname;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bInstanceIdValid = false;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString InstanceId;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FRedwoodPartyMemberCharacter Character;
 };
 
 USTRUCT(BlueprintType) struct FRedwoodParty {
@@ -98,4 +142,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodListPartyInvitesOutputDynamicDelegate,
   FRedwoodListPartyInvitesOutput,
   Data
+);
+
+typedef TDelegate<void(const FString &PlayerId, const FString &Emote)>
+  FRedwoodPartyEmoteReceivedDelegate;
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+  FRedwoodPartyEmoteReceivedDynamicDelegate,
+  const FString &,
+  PlayerId,
+  const FString &,
+  Emote
 );

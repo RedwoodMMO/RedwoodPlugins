@@ -297,7 +297,10 @@ public:
   );
 
   void JoinQueue(
-    FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+    FString ProxyId,
+    FString ZoneName,
+    bool bTransferWholeParty,
+    FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
@@ -324,6 +327,7 @@ public:
   FRedwoodPartyInvitedDynamicDelegate OnPartyInvited;
   FRedwoodPartyUpdatedDynamicDelegate OnPartyUpdated;
   FRedwoodDynamicDelegate OnPartyKicked;
+  FRedwoodPartyEmoteReceivedDynamicDelegate OnPartyEmoteReceived;
   FRedwoodParty GetCachedParty() {
     return CurrentParty;
   }
@@ -349,6 +353,7 @@ public:
     USIOJsonObject *PartyData,
     FRedwoodGetPartyOutputDelegate OnOutput
   );
+  void SendEmoteToParty(FString Emote);
 
 private:
   bool bSentDirectorConnected;
@@ -403,5 +408,6 @@ private:
 
   FTimerManager TimerManager;
 
+  UPROPERTY()
   FRedwoodParty CurrentParty;
 };

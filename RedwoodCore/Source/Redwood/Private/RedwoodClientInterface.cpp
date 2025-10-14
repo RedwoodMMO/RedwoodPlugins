@@ -17,11 +17,15 @@
 
 void URedwoodClientInterface::Deinitialize() {
   if (Director.IsValid()) {
+    Director->ClearAllCallbacks();
+    Director->Disconnect();
     ISocketIOClientModule::Get().ReleaseNativePointer(Director);
     Director = nullptr;
   }
 
   if (Realm.IsValid()) {
+    Realm->ClearAllCallbacks();
+    Realm->Disconnect();
     ISocketIOClientModule::Get().ReleaseNativePointer(Realm);
     Realm = nullptr;
   }
@@ -338,6 +342,7 @@ void URedwoodClientInterface::Logout() {
 
     if (Realm.IsValid() && Realm->bIsConnected) {
       Realm->Emit(TEXT("realm:auth:player:logout"), Payload);
+      Realm->Disconnect();
     }
 
     PlayerId = TEXT("");
@@ -1982,6 +1987,8 @@ void URedwoodClientInterface::BindRealmEvents() {
       Update.Type = ERedwoodTicketingUpdateType::TicketError;
       Update.Message = Message->AsObject()->GetStringField(TEXT("error"));
       OnTicketingUpdate.ExecuteIfBound(Update);
+
+      OnTicketingUpdate = FRedwoodTicketingUpdateDelegate();
     },
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
@@ -2003,6 +2010,8 @@ void URedwoodClientInterface::BindRealmEvents() {
         FString ConsoleCommand = GetConnectionConsoleCommand();
         OnRequestToJoinServer.Broadcast(ConsoleCommand);
       }
+
+      OnTicketingUpdate = FRedwoodTicketingUpdateDelegate();
     },
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
@@ -2043,6 +2052,20 @@ void URedwoodClientInterface::BindRealmEvents() {
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       CurrentParty = FRedwoodParty();
       OnPartyKicked.Broadcast();
+    },
+    TEXT("/"),
+    ESIOThreadOverrideOption::USE_GAME_THREAD
+  );
+
+  Realm->OnEvent(
+    TEXT("realm:parties:emote"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
+
+      FString PlayerId = MessageObject->GetStringField(TEXT("playerId"));
+      FString Emote = MessageObject->GetStringField(TEXT("emote"));
+
+      OnPartyEmoteReceived.Broadcast(PlayerId, Emote);
     },
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
@@ -2298,6 +2321,16 @@ void URedwoodClientInterface::SetCharacterData(
 
 void URedwoodClientInterface::SetSelectedCharacter(FString CharacterId) {
   SelectedCharacterId = CharacterId;
+
+  if (!CurrentParty.bValid || !Realm.IsValid() || !Realm->bIsConnected) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+
+  Realm->Emit(TEXT("realm:parties:select-character"), Payload);
 }
 
 void URedwoodClientInterface::JoinMatchmaking(
@@ -2321,7 +2354,10 @@ void URedwoodClientInterface::JoinMatchmaking(
 }
 
 void URedwoodClientInterface::JoinQueue(
-  FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+  FString ProxyId,
+  FString ZoneName,
+  bool bTransferWholeParty,
+  FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   if (SelectedCharacterId.IsEmpty()) {
     FRedwoodTicketingUpdate Update;
@@ -2340,6 +2376,7 @@ void URedwoodClientInterface::JoinQueue(
 
   QueueData->SetStringField(TEXT("proxyId"), ProxyId);
   QueueData->SetStringField(TEXT("zoneName"), ZoneName);
+  QueueData->SetBoolField(TEXT("transferWholeParty"), bTransferWholeParty);
 
   TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
   QueueData->SetField(TEXT("priorZoneName"), NullValue);
@@ -2358,6 +2395,10 @@ void URedwoodClientInterface::JoinQueue(
       Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
       Update.Message = Error;
       OnTicketingUpdate.ExecuteIfBound(Update);
+
+      if (!Error.IsEmpty()) {
+        OnTicketingUpdate = FRedwoodTicketingUpdateDelegate();
+      }
     });
 }
 
@@ -2607,6 +2648,7 @@ void URedwoodClientInterface::AttemptJoinMatchmaking() {
     Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
     Update.Message = TEXT("Not connected to Realm.");
     OnTicketingUpdate.ExecuteIfBound(Update);
+    OnTicketingUpdate = FRedwoodTicketingUpdateDelegate();
     return;
   }
 
@@ -2679,6 +2721,10 @@ void URedwoodClientInterface::AttemptJoinMatchmaking() {
       Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
       Update.Message = Error;
       OnTicketingUpdate.ExecuteIfBound(Update);
+
+      if (!Error.IsEmpty()) {
+        OnTicketingUpdate = FRedwoodTicketingUpdateDelegate();
+      }
     }
   );
 }
@@ -2693,8 +2739,16 @@ void URedwoodClientInterface::GetOrCreateParty(
     return;
   }
 
+  if (SelectedCharacterId == TEXT("")) {
+    FRedwoodGetPartyOutput Output;
+    Output.Error = TEXT("Please select a character before joining a party.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
   Payload->SetBoolField(TEXT("createIfNotInParty"), bCreateIfNotInParty);
 
   Realm->Emit(
@@ -2813,8 +2867,17 @@ void URedwoodClientInterface::RespondToPartyInvite(
     return;
   }
 
+  if (SelectedCharacterId == TEXT("")) {
+    FRedwoodGetPartyOutput Output;
+    Output.Error =
+      TEXT("Please select a character before responding to a party invite.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
   Payload->SetStringField(TEXT("partyId"), PartyId);
   Payload->SetBoolField(TEXT("accept"), bAccept);
 
@@ -2918,6 +2981,25 @@ void URedwoodClientInterface::SetPartyData(
 
     OnOutput.ExecuteIfBound(Output);
   });
+}
+
+void URedwoodClientInterface::SendEmoteToParty(FString Emote) {
+  if (!Realm.IsValid() || !Realm->bIsConnected || !CurrentParty.bValid) {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Cannot send emote to party: not connected to Realm or not in a party."
+      )
+    );
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("emote"), Emote);
+
+  Realm->Emit(TEXT("realm:parties:emote"), Payload);
 }
 
 FString URedwoodClientInterface::GetConnectionConsoleCommand() {

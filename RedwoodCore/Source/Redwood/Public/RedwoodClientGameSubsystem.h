@@ -56,6 +56,9 @@ public:
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodDynamicDelegate OnPartyKicked;
 
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodPartyEmoteReceivedDynamicDelegate OnPartyEmoteReceived;
+
   void Register(
     const FString &Username,
     const FString &Password,
@@ -307,7 +310,10 @@ public:
   );
 
   void JoinQueue(
-    FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+    FString ProxyId,
+    FString ZoneName,
+    bool bTransferWholeParty,
+    FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
@@ -353,6 +359,8 @@ public:
     USIOJsonObject *PartyData,
     FRedwoodGetPartyOutputDelegate OnOutput
   );
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void SendEmoteToParty(FString Emote);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionConsoleCommand();
@@ -388,6 +396,11 @@ private:
 
   UFUNCTION()
   void HandleOnPartyKicked();
+
+  UFUNCTION()
+  void HandleOnPartyEmoteReceived(
+    const FString &PlayerId, const FString &Emote
+  );
 
   void HandleOnWorldAdded(UWorld *World, FWorldInitializationValues IVS);
   void HandleOnWorldBeginPlay(bool bBegunPlay);

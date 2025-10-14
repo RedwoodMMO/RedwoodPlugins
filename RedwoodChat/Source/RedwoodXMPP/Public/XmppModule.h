@@ -197,6 +197,7 @@ private:
 
   /** toggles Xmpp requests */
   bool bEnabled;
+  bool bInitialized = false;
   /** singleton for the module while loaded and available */
   static REDWOODXMPP_API FRedwoodXmppModule *Singleton;
 

@@ -37,7 +37,9 @@ void FRedwoodXmppModule::ShutdownModule() {
 }
 
 void FRedwoodXmppModule::Init() {
-  if (bEnabled) {
+  if (bEnabled && !bInitialized) {
+    bInitialized = true;
+
 #if WITH_XMPP_STROPHE
     FXmppStrophe::Init();
     FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
@@ -46,6 +48,12 @@ void FRedwoodXmppModule::Init() {
 }
 
 void FRedwoodXmppModule::Deinit() {
+  if (!bInitialized) {
+    return;
+  }
+
+  bInitialized = false;
+
   for (auto It = ActiveConnections.CreateIterator(); It; ++It) {
     CleanupConnection(It.Value());
   }

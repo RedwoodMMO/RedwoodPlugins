@@ -1044,6 +1044,67 @@ FRedwoodParty URedwoodCommonGameSubsystem::ParseParty(
       TSharedPtr<FJsonObject> MemberObject = MemberValue->AsObject();
 
       Member.PlayerId = MemberObject->GetStringField(TEXT("playerId"));
+      Member.Nickname = MemberObject->GetStringField(TEXT("nickname"));
+      Member.bInstanceIdValid =
+        MemberObject->TryGetStringField(TEXT("instanceId"), Member.InstanceId);
+
+      TSharedPtr<FJsonObject> CharacterObj =
+        MemberObject->GetObjectField(TEXT("character"));
+
+      Member.Character.Id = CharacterObj->GetStringField(TEXT("id"));
+      Member.Character.Name = CharacterObj->GetStringField(TEXT("name"));
+
+      const TSharedPtr<FJsonObject> *CharacterCreatorData = nullptr;
+      if (CharacterObj->TryGetObjectField(
+            TEXT("characterCreatorData"), CharacterCreatorData
+          )) {
+        Member.Character.CharacterCreatorData = NewObject<USIOJsonObject>();
+        Member.Character.CharacterCreatorData->SetRootObject(
+          *CharacterCreatorData
+        );
+      }
+
+      const TSharedPtr<FJsonObject> *Metadata = nullptr;
+      if (CharacterObj->TryGetObjectField(TEXT("metadata"), Metadata)) {
+        Member.Character.Metadata = NewObject<USIOJsonObject>();
+        Member.Character.Metadata->SetRootObject(*Metadata);
+      }
+
+      const TSharedPtr<FJsonObject> *EquippedInventory = nullptr;
+      if (CharacterObj->TryGetObjectField(
+            TEXT("equippedInventory"), EquippedInventory
+          )) {
+        Member.Character.EquippedInventory = NewObject<USIOJsonObject>();
+        Member.Character.EquippedInventory->SetRootObject(*EquippedInventory);
+      }
+
+      const TSharedPtr<FJsonObject> *NonequippedInventory = nullptr;
+      if (CharacterObj->TryGetObjectField(
+            TEXT("nonequippedInventory"), NonequippedInventory
+          )) {
+        Member.Character.NonequippedInventory = NewObject<USIOJsonObject>();
+        Member.Character.NonequippedInventory->SetRootObject(
+          *NonequippedInventory
+        );
+      }
+
+      const TSharedPtr<FJsonObject> *Progress = nullptr;
+      if (CharacterObj->TryGetObjectField(TEXT("progress"), Progress)) {
+        Member.Character.Progress = NewObject<USIOJsonObject>();
+        Member.Character.Progress->SetRootObject(*Progress);
+      }
+
+      const TSharedPtr<FJsonObject> *Data = nullptr;
+      if (CharacterObj->TryGetObjectField(TEXT("data"), Data)) {
+        Member.Character.Data = NewObject<USIOJsonObject>();
+        Member.Character.Data->SetRootObject(*Data);
+      }
+
+      const TSharedPtr<FJsonObject> *AbilitySystem = nullptr;
+      if (PartyObj->TryGetObjectField(TEXT("abilitySystem"), AbilitySystem)) {
+        Member.Character.AbilitySystem = NewObject<USIOJsonObject>();
+        Member.Character.AbilitySystem->SetRootObject(*AbilitySystem);
+      }
 
       Party.Members.Add(Member);
     }
