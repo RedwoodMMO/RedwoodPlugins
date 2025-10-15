@@ -2062,10 +2062,10 @@ void URedwoodClientInterface::BindRealmEvents() {
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       TSharedPtr<FJsonObject> MessageObject = Message->AsObject();
 
-      FString PlayerId = MessageObject->GetStringField(TEXT("playerId"));
+      FString TargetPlayerId = MessageObject->GetStringField(TEXT("playerId"));
       FString Emote = MessageObject->GetStringField(TEXT("emote"));
 
-      OnPartyEmoteReceived.Broadcast(PlayerId, Emote);
+      OnPartyEmoteReceived.Broadcast(TargetPlayerId, Emote);
     },
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
