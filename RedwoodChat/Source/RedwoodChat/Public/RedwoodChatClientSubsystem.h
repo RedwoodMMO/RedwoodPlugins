@@ -15,7 +15,7 @@
 #include "RedwoodChatClientSubsystem.generated.h"
 
 UCLASS(BlueprintType)
-class REDWOODCHAT_API URedwoodChatClientSubsystem
+class REDWOODCHAT_API URedwoodClientChatSubsystem
   : public UGameInstanceSubsystem {
   GENERATED_BODY()
 

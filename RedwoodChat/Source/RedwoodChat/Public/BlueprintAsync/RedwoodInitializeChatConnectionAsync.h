@@ -26,12 +26,12 @@ public:
        WorldContext = "WorldContextObject")
   )
   static URedwoodInitializeChatConnectionAsync *InitializeChatConnection(
-    URedwoodChatClientSubsystem *Target, UObject *WorldContextObject
+    URedwoodClientChatSubsystem *Target, UObject *WorldContextObject
   );
 
   UPROPERTY(BlueprintAssignable)
   FRedwoodErrorOutputDynamicDelegate OnOutput;
 
   UPROPERTY()
-  URedwoodChatClientSubsystem *Target;
+  URedwoodClientChatSubsystem *Target;
 };

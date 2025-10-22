@@ -6,13 +6,13 @@
 #include "RedwoodClientInterface.h"
 #include "XmppModule.h"
 
-void URedwoodChatClientSubsystem::Initialize(
+void URedwoodClientChatSubsystem::Initialize(
   FSubsystemCollectionBase &Collection
 ) {
   Super::Initialize(Collection);
 }
 
-void URedwoodChatClientSubsystem::Deinitialize() {
+void URedwoodClientChatSubsystem::Deinitialize() {
   Super::Deinitialize();
 
   FRedwoodXmppModule &Module =
@@ -21,7 +21,7 @@ void URedwoodChatClientSubsystem::Deinitialize() {
   Module.Deinit();
 }
 
-void URedwoodChatClientSubsystem::InitializeChatConnection(
+void URedwoodClientChatSubsystem::InitializeChatConnection(
   FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (bInitialized) {
@@ -120,28 +120,28 @@ void URedwoodChatClientSubsystem::InitializeChatConnection(
   }
 }
 
-bool URedwoodChatClientSubsystem::IsConnected() {
+bool URedwoodClientChatSubsystem::IsConnected() {
   return XmppConnection->GetLoginStatus() == EXmppLoginStatus::LoggedIn;
 }
 
-void URedwoodChatClientSubsystem::InitHandlers() {
+void URedwoodClientChatSubsystem::InitHandlers() {
   if (XmppConnection->PrivateChat().IsValid()) {
     XmppConnection->PrivateChat()->OnReceiveChat().AddUObject(
-      this, &URedwoodChatClientSubsystem::HandlePrivateChatReceiveMessage
+      this, &URedwoodClientChatSubsystem::HandlePrivateChatReceiveMessage
     );
   }
 
   if (XmppConnection->MultiUserChat().IsValid()) {
     XmppConnection->MultiUserChat()->OnRoomChatReceived().AddUObject(
-      this, &URedwoodChatClientSubsystem::HandleRoomChatReceived
+      this, &URedwoodClientChatSubsystem::HandleRoomChatReceived
     );
     XmppConnection->MultiUserChat()->OnJoinPrivateRoom().AddUObject(
-      this, &URedwoodChatClientSubsystem::HandleJoinPrivateRoom
+      this, &URedwoodClientChatSubsystem::HandleJoinPrivateRoom
     );
   }
 }
 
-void URedwoodChatClientSubsystem::HandlePrivateChatReceiveMessage(
+void URedwoodClientChatSubsystem::HandlePrivateChatReceiveMessage(
   const TSharedRef<IXmppConnection> &Connection,
   const FXmppUserJid &InUserJid,
   const TSharedRef<FXmppChatMessage> &Message
@@ -175,7 +175,7 @@ void URedwoodChatClientSubsystem::HandlePrivateChatReceiveMessage(
   );
 }
 
-void URedwoodChatClientSubsystem::HandleJoinPrivateRoom(
+void URedwoodClientChatSubsystem::HandleJoinPrivateRoom(
   const TSharedRef<IXmppConnection> &Connection,
   bool bSuccess,
   const FString &RoomId,
@@ -189,7 +189,7 @@ void URedwoodChatClientSubsystem::HandleJoinPrivateRoom(
     FRedwoodChatRoomIdentity RoomIdentity;
     RoomIdentity.CompleteRoomId = RoomId;
     RoomIdentity.Type =
-      URedwoodChatClientSubsystem::ParseRoomType(RoomTypeString);
+      URedwoodClientChatSubsystem::ParseRoomType(RoomTypeString);
     RoomIdentity.RedwoodId = RoomIdString;
     // TODO: RoomIdentity.Name
 
@@ -201,7 +201,7 @@ void URedwoodChatClientSubsystem::HandleJoinPrivateRoom(
   }
 }
 
-void URedwoodChatClientSubsystem::HandleRoomChatReceived(
+void URedwoodClientChatSubsystem::HandleRoomChatReceived(
   const TSharedRef<IXmppConnection> &Connection,
   const FString &RoomId,
   const FXmppUserJid &InUserJid,
@@ -245,7 +245,7 @@ void URedwoodChatClientSubsystem::HandleRoomChatReceived(
   RoomIdentity.CompleteRoomId = bHasLocation ? TEXT("Nearby") : RoomId;
   RoomIdentity.Type = bHasLocation
     ? ERedwoodChatRoomType::Nearby
-    : URedwoodChatClientSubsystem::ParseRoomType(RoomTypeString);
+    : URedwoodClientChatSubsystem::ParseRoomType(RoomTypeString);
   RoomIdentity.RedwoodId = RoomIdString;
   // TODO: RoomIdentity.Name
 
@@ -258,7 +258,7 @@ void URedwoodChatClientSubsystem::HandleRoomChatReceived(
   );
 }
 
-void URedwoodChatClientSubsystem::JoinRoom(
+void URedwoodClientChatSubsystem::JoinRoom(
   ERedwoodChatRoomType Type, FString Id
 ) {
   if (!IsConnected()) {
@@ -266,12 +266,12 @@ void URedwoodChatClientSubsystem::JoinRoom(
     return;
   }
 
-  FString RoomTypeString = URedwoodChatClientSubsystem::SerializeRoomType(Type);
+  FString RoomTypeString = URedwoodClientChatSubsystem::SerializeRoomType(Type);
   FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
   XmppConnection->MultiUserChat()->JoinPrivateRoom(RoomId, Nickname, FString());
 }
 
-void URedwoodChatClientSubsystem::LeaveRoom(
+void URedwoodClientChatSubsystem::LeaveRoom(
   ERedwoodChatRoomType Type, FString Id
 ) {
   if (!IsConnected()) {
@@ -279,12 +279,12 @@ void URedwoodChatClientSubsystem::LeaveRoom(
     return;
   }
 
-  FString RoomTypeString = URedwoodChatClientSubsystem::SerializeRoomType(Type);
+  FString RoomTypeString = URedwoodClientChatSubsystem::SerializeRoomType(Type);
   FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
   XmppConnection->MultiUserChat()->ExitRoom(RoomId);
 }
 
-void URedwoodChatClientSubsystem::SendMessageToRoom(
+void URedwoodClientChatSubsystem::SendMessageToRoom(
   ERedwoodChatRoomType Type, FString Id, const FString &Message
 ) {
   if (!IsConnected()) {
@@ -301,12 +301,12 @@ void URedwoodChatClientSubsystem::SendMessageToRoom(
   FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
   Writer->Close();
 
-  FString RoomTypeString = URedwoodChatClientSubsystem::SerializeRoomType(Type);
+  FString RoomTypeString = URedwoodClientChatSubsystem::SerializeRoomType(Type);
   FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
   XmppConnection->MultiUserChat()->SendChat(RoomId, JsonString, FString());
 }
 
-void URedwoodChatClientSubsystem::SendNearbyMessage(
+void URedwoodClientChatSubsystem::SendNearbyMessage(
   const FString &ShardId, const FString &Message, const FVector &Location
 ) {
   if (!IsConnected()) {
@@ -328,7 +328,7 @@ void URedwoodChatClientSubsystem::SendNearbyMessage(
   XmppConnection->MultiUserChat()->SendChat(RoomId, JsonString, FString());
 }
 
-void URedwoodChatClientSubsystem::SendMessageToPlayer(
+void URedwoodClientChatSubsystem::SendMessageToPlayer(
   const FString &TargetPlayerId, const FString &Message
 ) {
   if (!IsConnected()) {

@@ -4,7 +4,7 @@
 
 URedwoodInitializeChatConnectionAsync *
 URedwoodInitializeChatConnectionAsync::InitializeChatConnection(
-  URedwoodChatClientSubsystem *Target, UObject *WorldContextObject
+  URedwoodClientChatSubsystem *Target, UObject *WorldContextObject
 ) {
   URedwoodInitializeChatConnectionAsync *Action =
     NewObject<URedwoodInitializeChatConnectionAsync>();
