@@ -27,14 +27,17 @@ public:
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
     FString ProxyId,
-    FString ZoneName
+    FString ZoneName,
+    bool bTransferWholeParty
   );
 
   UPROPERTY(BlueprintAssignable)
   FRedwoodTicketingUpdateDynamicDelegate OnUpdate;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   FString ProxyId;
   FString ZoneName;
+  bool bTransferWholeParty;
 };

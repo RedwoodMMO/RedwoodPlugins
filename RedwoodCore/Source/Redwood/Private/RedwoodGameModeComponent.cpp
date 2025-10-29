@@ -118,14 +118,43 @@ void URedwoodGameModeComponent::OnGameModeLogout(
     return;
   }
 
-  if (UGameplayMessageSubsystem::HasInstance(this)) {
-    // When we stop PIE, it's possible for the subsystem to be destroyed
-    // before we get this event, so we need to check if it's valid
-    UGameplayMessageSubsystem &MessageSubsystem =
-      UGameplayMessageSubsystem::Get(this);
-    MessageSubsystem.BroadcastMessage(
-      TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
+  ARedwoodPlayerState *RedwoodPlayerState =
+    Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
+  if (IsValid(RedwoodPlayerState)) {
+    URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+      GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>(
+      );
+
+    TArray<APlayerState *> PlayerFlushArray;
+    PlayerFlushArray.Add(RedwoodPlayerState);
+    RedwoodServerGameSubsystem->FlushPlayerCharacterData(
+      PlayerFlushArray, true
     );
+
+    if (URedwoodCommonGameSubsystem::ShouldUseBackend(GameMode->GetWorld())) {
+      if (Sidecar.IsValid() && Sidecar->bIsConnected) {
+        TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+        JsonObject->SetStringField(
+          TEXT("playerId"), RedwoodPlayerState->RedwoodCharacter.PlayerId
+        );
+        JsonObject->SetStringField(
+          TEXT("characterId"), RedwoodPlayerState->RedwoodCharacter.Id
+        );
+        Sidecar->Emit(
+          TEXT("realm:servers:player-left:game-server-to-sidecar"), JsonObject
+        );
+      }
+    }
+
+    if (UGameplayMessageSubsystem::HasInstance(this)) {
+      // When we stop PIE, it's possible for the subsystem to be destroyed
+      // before we get this event, so we need to check if it's valid
+      UGameplayMessageSubsystem &MessageSubsystem =
+        UGameplayMessageSubsystem::Get(this);
+      MessageSubsystem.BroadcastMessage(
+        TAG_Redwood_Player_Left, FRedwoodPlayerLeft{PlayerController}
+      );
+    }
   }
 }
 
@@ -184,6 +213,11 @@ APlayerController *URedwoodGameModeComponent::Login(
       JsonObject->SetStringField(TEXT("characterId"), CharacterId);
       JsonObject->SetStringField(TEXT("token"), Token);
 
+      if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+        ErrorMessage = TEXT("Sidecar is not connected");
+        return PlayerController;
+      }
+
       Sidecar->Emit(
         TEXT("realm:servers:player-auth:game-server-to-sidecar"),
         JsonObject,
@@ -197,6 +231,10 @@ APlayerController *URedwoodGameModeComponent::Login(
             FString CharacterId = Character->GetStringField(TEXT("id"));
             FString CharacterName = Character->GetStringField(TEXT("name"));
 
+            TSharedPtr<FJsonObject> Player =
+              MessageStruct->GetObjectField(TEXT("player"));
+            FString TempPlayerId = Player->GetStringField(TEXT("id"));
+
             ARedwoodPlayerState *RedwoodPlayerState =
               Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
             if (IsValid(RedwoodPlayerState)) {
@@ -207,6 +245,12 @@ APlayerController *URedwoodGameModeComponent::Login(
                 *CharacterId
               );
 
+              // This notifies subscribers to the OnRedwoodPlayerUpdated delegate (e.g. URedwoodCharacterComponent)
+              RedwoodPlayerState->SetRedwoodPlayer(
+                URedwoodCommonGameSubsystem::ParsePlayerData(Player)
+              );
+
+              // This notifies subscribers to the OnRedwoodCharacterUpdated delegate (e.g. URedwoodCharacterComponent)
               RedwoodPlayerState->SetRedwoodCharacter(
                 URedwoodCommonGameSubsystem::ParseCharacter(Character)
               );
@@ -219,9 +263,10 @@ APlayerController *URedwoodGameModeComponent::Login(
                 LogRedwood,
                 Log,
                 TEXT(
-                  "Player joined as character %s, but we're not using RedwoodPlayerState"
+                  "Player joined as character %s (player %s), but we're not using RedwoodPlayerState"
                 ),
-                *CharacterId
+                *CharacterId,
+                *TempPlayerId
               );
             }
           } else {

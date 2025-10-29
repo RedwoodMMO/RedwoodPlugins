@@ -20,7 +20,7 @@ public:
     Target->SearchForPlayers(
       UsernameOrNickname,
       bIncludePartialMatches,
-      FRedwoodListFriendsOutputDelegate::CreateLambda([this](auto Output) {
+      FRedwoodListPlayersOutputDelegate::CreateLambda([this](auto Output) {
         OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       })
@@ -50,7 +50,7 @@ public:
   };
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodListFriendsOutputDynamicDelegate OnOutput;
+  FRedwoodListPlayersOutputDynamicDelegate OnOutput;
 
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
@@ -69,7 +69,7 @@ public:
   virtual void Activate() override {
     Target->ListFriends(
       Filter,
-      FRedwoodListFriendsOutputDelegate::CreateLambda([this](auto Output) {
+      FRedwoodListPlayersOutputDelegate::CreateLambda([this](auto Output) {
         OnOutput.Broadcast(Output);
         SetReadyToDestroy();
       })
@@ -96,13 +96,13 @@ public:
   };
 
   UPROPERTY(BlueprintAssignable)
-  FRedwoodListFriendsOutputDynamicDelegate OnOutput;
+  FRedwoodListPlayersOutputDynamicDelegate OnOutput;
 
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
   UPROPERTY()
-  ERedwoodFriendListType Filter;
+  ERedwoodFriendListType Filter = ERedwoodFriendListType::Unknown;
 };
 
 UCLASS()

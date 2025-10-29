@@ -19,6 +19,24 @@ void URedwoodCommonGameSubsystem::Deinitialize() {
   Super::Deinitialize();
 }
 
+void URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(
+  TSharedPtr<FJsonObject> JsonObject
+) {
+  FString CharacterId = JsonObject->GetStringField(TEXT("id"));
+
+  FString OutputString;
+  TSharedRef<TJsonWriter<TCHAR>> JsonWriter =
+    TJsonWriterFactory<TCHAR>::Create(&OutputString);
+  FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
+
+  FString SavePath =
+    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
+  FPaths::NormalizeFilename(SavePath);
+  FString FileName = SavePath / (CharacterId + TEXT(".json"));
+
+  FFileHelper::SaveStringToFile(OutputString, *FileName);
+}
+
 void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
   FRedwoodCharacterBackend &Character
 ) {
@@ -61,21 +79,21 @@ void URedwoodCommonGameSubsystem::SaveCharacterToDisk(
       Character.NonequippedInventory->GetRootObject()
     );
   }
+  if (Character.Progress) {
+    JsonObject->SetObjectField(
+      TEXT("progress"), Character.Progress->GetRootObject()
+    );
+  }
   if (Character.Data) {
     JsonObject->SetObjectField(TEXT("data"), Character.Data->GetRootObject());
   }
+  if (Character.AbilitySystem) {
+    JsonObject->SetObjectField(
+      TEXT("abilitySystem"), Character.AbilitySystem->GetRootObject()
+    );
+  }
 
-  FString OutputString;
-  TSharedRef<TJsonWriter<TCHAR>> JsonWriter =
-    TJsonWriterFactory<TCHAR>::Create(&OutputString);
-  FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
-
-  FString SavePath =
-    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
-  FPaths::NormalizeFilename(SavePath);
-  FString FileName = SavePath / (Character.Id + TEXT(".json"));
-
-  FFileHelper::SaveStringToFile(OutputString, *FileName);
+  SaveCharacterJsonToDisk(JsonObject);
 }
 
 TArray<FRedwoodCharacterBackend>
@@ -96,7 +114,7 @@ URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk() {
   return Characters;
 }
 
-FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
+TSharedPtr<FJsonObject> URedwoodCommonGameSubsystem::LoadCharacterJsonFromDisk(
   FString CharacterId
 ) {
   FString SavePath =
@@ -110,62 +128,20 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
   TSharedPtr<FJsonObject> JsonObject;
   TSharedRef<TJsonReader<TCHAR>> JsonReader =
     TJsonReaderFactory<TCHAR>::Create(FileContents);
-  if (!FJsonSerializer::Deserialize(JsonReader, JsonObject)) {
+  FJsonSerializer::Deserialize(JsonReader, JsonObject);
+
+  return JsonObject;
+}
+
+FRedwoodCharacterBackend URedwoodCommonGameSubsystem::LoadCharacterFromDisk(
+  FString CharacterId
+) {
+  TSharedPtr<FJsonObject> JsonObject = LoadCharacterJsonFromDisk(CharacterId);
+  if (!JsonObject.IsValid()) {
     return FRedwoodCharacterBackend();
   }
 
-  FRedwoodCharacterBackend Character;
-
-  Character.Id = JsonObject->GetStringField(TEXT("id"));
-  FDateTime::Parse(
-    JsonObject->GetStringField(TEXT("createdAt")), Character.CreatedAt
-  );
-  FDateTime::Parse(
-    JsonObject->GetStringField(TEXT("updatedAt")), Character.UpdatedAt
-  );
-
-  FString ArchivedAt;
-  if (JsonObject->TryGetStringField(TEXT("archivedAt"), ArchivedAt)) {
-    FDateTime::Parse(ArchivedAt, Character.ArchivedAt);
-    Character.bArchived = true;
-  }
-
-  Character.PlayerId = JsonObject->GetStringField(TEXT("playerId"));
-  Character.Name = JsonObject->GetStringField(TEXT("name"));
-
-  TSharedPtr<FJsonObject> CharacterCreatorDataObj =
-    JsonObject->GetObjectField(TEXT("characterCreatorData"));
-  if (CharacterCreatorDataObj.IsValid()) {
-    Character.CharacterCreatorData = NewObject<USIOJsonObject>();
-    Character.CharacterCreatorData->SetRootObject(CharacterCreatorDataObj);
-  }
-
-  TSharedPtr<FJsonObject> MetadataObj =
-    JsonObject->GetObjectField(TEXT("metadata"));
-  if (MetadataObj.IsValid()) {
-    Character.Metadata = NewObject<USIOJsonObject>();
-    Character.Metadata->SetRootObject(MetadataObj);
-  }
-
-  TSharedPtr<FJsonObject> EquippedInventoryObj =
-    JsonObject->GetObjectField(TEXT("equippedInventory"));
-  if (EquippedInventoryObj.IsValid()) {
-    Character.EquippedInventory = NewObject<USIOJsonObject>();
-    Character.EquippedInventory->SetRootObject(EquippedInventoryObj);
-  }
-
-  TSharedPtr<FJsonObject> NonequippedInventoryObj =
-    JsonObject->GetObjectField(TEXT("nonequippedInventory"));
-  if (NonequippedInventoryObj.IsValid()) {
-    Character.NonequippedInventory = NewObject<USIOJsonObject>();
-    Character.NonequippedInventory->SetRootObject(NonequippedInventoryObj);
-  }
-
-  TSharedPtr<FJsonObject> DataObj = JsonObject->GetObjectField(TEXT("data"));
-  if (DataObj.IsValid()) {
-    Character.Data = NewObject<USIOJsonObject>();
-    Character.Data->SetRootObject(DataObj);
-  }
+  FRedwoodCharacterBackend Character = ParseCharacter(JsonObject);
 
   return Character;
 }
@@ -236,10 +212,22 @@ FRedwoodCharacterBackend URedwoodCommonGameSubsystem::ParseCharacter(
     Character.NonequippedInventory->SetRootObject(*NonequippedInventory);
   }
 
+  const TSharedPtr<FJsonObject> *Progress = nullptr;
+  if (CharacterObj->TryGetObjectField(TEXT("progress"), Progress)) {
+    Character.Progress = NewObject<USIOJsonObject>();
+    Character.Progress->SetRootObject(*Progress);
+  }
+
   const TSharedPtr<FJsonObject> *CharacterData = nullptr;
   if (CharacterObj->TryGetObjectField(TEXT("data"), CharacterData)) {
     Character.Data = NewObject<USIOJsonObject>();
     Character.Data->SetRootObject(*CharacterData);
+  }
+
+  const TSharedPtr<FJsonObject> *AbilitySystem = nullptr;
+  if (CharacterObj->TryGetObjectField(TEXT("abilitySystem"), AbilitySystem)) {
+    Character.AbilitySystem = NewObject<USIOJsonObject>();
+    Character.AbilitySystem->SetRootObject(*AbilitySystem);
   }
 
   const TSharedPtr<FJsonObject> *RedwoodData = nullptr;
@@ -834,4 +822,299 @@ ERedwoodFriendListType URedwoodCommonGameSubsystem::ParseFriendListType(
   }
 
   return EnumValue;
+}
+
+ERedwoodGuildInviteType URedwoodCommonGameSubsystem::ParseGuildInviteType(
+  FString StringValue
+) {
+  if (StringValue == TEXT("public")) {
+    return ERedwoodGuildInviteType::Public;
+  } else if (StringValue == TEXT("admin")) {
+    return ERedwoodGuildInviteType::Admin;
+  } else if (StringValue == TEXT("member")) {
+    return ERedwoodGuildInviteType::Member;
+  }
+
+  return ERedwoodGuildInviteType::Unknown;
+}
+
+FString URedwoodCommonGameSubsystem::SerializeGuildInviteType(
+  ERedwoodGuildInviteType InviteType
+) {
+  switch (InviteType) {
+    case ERedwoodGuildInviteType::Public:
+      return TEXT("public");
+    case ERedwoodGuildInviteType::Admin:
+      return TEXT("admin");
+    case ERedwoodGuildInviteType::Member:
+      return TEXT("member");
+    default:
+      return TEXT("unknown");
+  }
+}
+
+ERedwoodGuildAndAllianceMemberState
+URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+  FString StringValue
+) {
+  if (StringValue == TEXT("none")) {
+    return ERedwoodGuildAndAllianceMemberState::None;
+  } else if (StringValue == TEXT("invited")) {
+    return ERedwoodGuildAndAllianceMemberState::Invited;
+  } else if (StringValue == TEXT("member")) {
+    return ERedwoodGuildAndAllianceMemberState::Member;
+  } else if (StringValue == TEXT("banned")) {
+    return ERedwoodGuildAndAllianceMemberState::Banned;
+  } else if (StringValue == TEXT("admin")) {
+    return ERedwoodGuildAndAllianceMemberState::Admin;
+  }
+
+  return ERedwoodGuildAndAllianceMemberState::Unknown;
+}
+
+FString URedwoodCommonGameSubsystem::SerializeGuildAndAllianceMemberState(
+  ERedwoodGuildAndAllianceMemberState State
+) {
+  switch (State) {
+    case ERedwoodGuildAndAllianceMemberState::None:
+      return TEXT("none");
+    case ERedwoodGuildAndAllianceMemberState::Invited:
+      return TEXT("invited");
+    case ERedwoodGuildAndAllianceMemberState::Member:
+      return TEXT("member");
+    case ERedwoodGuildAndAllianceMemberState::Banned:
+      return TEXT("banned");
+    case ERedwoodGuildAndAllianceMemberState::Admin:
+      return TEXT("admin");
+    default:
+      return TEXT("unknown");
+  }
+}
+
+FRedwoodGuild URedwoodCommonGameSubsystem::ParseGuild(
+  TSharedPtr<FJsonObject> GuildObject
+) {
+  FRedwoodGuild Guild;
+
+  Guild.Id = GuildObject->GetStringField(TEXT("id"));
+  FDateTime::ParseIso8601(
+    *GuildObject->GetStringField(TEXT("createdAt")), Guild.CreatedAt
+  );
+  FDateTime::ParseIso8601(
+    *GuildObject->GetStringField(TEXT("updatedAt")), Guild.UpdatedAt
+  );
+  Guild.Name = GuildObject->GetStringField(TEXT("name"));
+  Guild.Tag = GuildObject->GetStringField(TEXT("tag"));
+  Guild.InviteType = URedwoodCommonGameSubsystem::ParseGuildInviteType(
+    GuildObject->GetStringField(TEXT("inviteType"))
+  );
+  Guild.bListed = GuildObject->GetBoolField(TEXT("listed"));
+  Guild.bMembershipPublic = GuildObject->GetBoolField(TEXT("membershipPublic"));
+
+  return Guild;
+}
+
+FRedwoodGuildInfo URedwoodCommonGameSubsystem::ParseGuildInfo(
+  TSharedPtr<FJsonObject> GuildInfoObject
+) {
+  FRedwoodGuildInfo GuildInfo;
+
+  TSharedPtr<FJsonObject> GuildObject =
+    GuildInfoObject->GetObjectField(TEXT("guild"));
+  GuildInfo.Guild = URedwoodCommonGameSubsystem::ParseGuild(GuildObject);
+
+  GuildInfo.PlayerState =
+    URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+      GuildInfoObject->GetStringField(TEXT("playerState"))
+    );
+
+  const TArray<TSharedPtr<FJsonValue>> *AlliancesArray;
+  if (GuildInfoObject->TryGetArrayField(TEXT("alliances"), AlliancesArray)) {
+    for (const TSharedPtr<FJsonValue> &AllianceValue : *AlliancesArray) {
+      TSharedPtr<FJsonObject> AllianceObject = AllianceValue->AsObject();
+      FRedwoodGuildAllianceMembership AllianceMembership;
+
+      AllianceMembership.AllianceId =
+        AllianceObject->GetStringField(TEXT("allianceId"));
+      AllianceMembership.AllianceName =
+        AllianceObject->GetStringField(TEXT("allianceName"));
+      AllianceMembership.GuildState =
+        URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
+          AllianceObject->GetStringField(TEXT("guildState"))
+        );
+
+      GuildInfo.Alliances.Add(AllianceMembership);
+    }
+  }
+
+  return GuildInfo;
+}
+
+FRedwoodAlliance URedwoodCommonGameSubsystem::ParseAlliance(
+  TSharedPtr<FJsonObject> AllianceObj
+) {
+  FRedwoodAlliance OutAlliance;
+
+  OutAlliance.Id = AllianceObj->GetStringField(TEXT("id"));
+  FDateTime::ParseIso8601(
+    *AllianceObj->GetStringField(TEXT("createdAt")), OutAlliance.CreatedAt
+  );
+  FDateTime::ParseIso8601(
+    *AllianceObj->GetStringField(TEXT("updatedAt")), OutAlliance.UpdatedAt
+  );
+  OutAlliance.Name = AllianceObj->GetStringField(TEXT("name"));
+  OutAlliance.bInviteOnly = AllianceObj->GetBoolField(TEXT("inviteOnly"));
+
+  return OutAlliance;
+}
+
+FRedwoodPlayerData URedwoodCommonGameSubsystem::ParsePlayerData(
+  TSharedPtr<FJsonObject> PlayerDataObj
+) {
+  FRedwoodPlayerData PlayerData;
+
+  PlayerData.Id = PlayerDataObj->GetStringField(TEXT("id"));
+  PlayerData.Nickname = PlayerDataObj->GetStringField(TEXT("nickname"));
+
+  const TSharedPtr<FJsonObject> *SelectedGuildObj;
+  PlayerData.bSelectedGuildValid =
+    PlayerDataObj->TryGetObjectField(TEXT("selectedGuild"), SelectedGuildObj);
+
+  if (PlayerData.bSelectedGuildValid) {
+    PlayerData.SelectedGuild =
+      URedwoodCommonGameSubsystem::ParseGuildInfo(*SelectedGuildObj);
+  }
+
+  TSharedPtr<FJsonObject> DataObj = PlayerDataObj->GetObjectField(TEXT("data"));
+  if (DataObj.IsValid()) {
+    PlayerData.Data = NewObject<USIOJsonObject>();
+    PlayerData.Data->SetRootObject(DataObj);
+  }
+
+  return PlayerData;
+}
+
+FRedwoodPartyInvite URedwoodCommonGameSubsystem::ParsePartyInvite(
+  const TSharedPtr<FJsonObject> &InviteObject
+) {
+  FRedwoodPartyInvite PartyInvite;
+
+  if (InviteObject.IsValid()) {
+    PartyInvite.Id = InviteObject->GetStringField(TEXT("id"));
+    PartyInvite.FromPlayerId =
+      InviteObject->GetStringField(TEXT("fromPlayerId"));
+    PartyInvite.FromPlayerName =
+      InviteObject->GetStringField(TEXT("fromPlayerName"));
+  }
+
+  return PartyInvite;
+}
+
+TArray<FRedwoodPartyInvite> URedwoodCommonGameSubsystem::ParsePartyInvites(
+  const TArray<TSharedPtr<FJsonValue>> &InvitesArray
+) {
+  TArray<FRedwoodPartyInvite> PartyInvites;
+
+  for (const TSharedPtr<FJsonValue> &InviteValue : InvitesArray) {
+    TSharedPtr<FJsonObject> InviteObject = InviteValue->AsObject();
+    if (InviteObject.IsValid()) {
+      PartyInvites.Add(
+        URedwoodCommonGameSubsystem::ParsePartyInvite(InviteObject)
+      );
+    }
+  }
+
+  return PartyInvites;
+}
+
+FRedwoodParty URedwoodCommonGameSubsystem::ParseParty(
+  const TSharedPtr<FJsonObject> &PartyObj
+) {
+  FRedwoodParty Party;
+
+  Party.bValid = true;
+  Party.Id = PartyObj->GetStringField(TEXT("id"));
+  Party.LootType = PartyObj->GetStringField(TEXT("lootType"));
+  Party.LeaderId = PartyObj->GetStringField(TEXT("leaderId"));
+
+  const TArray<TSharedPtr<FJsonValue>> *MembersArray;
+  if (PartyObj->TryGetArrayField(TEXT("members"), MembersArray)) {
+    for (const TSharedPtr<FJsonValue> &MemberValue : *MembersArray) {
+      FRedwoodPartyMember Member;
+      TSharedPtr<FJsonObject> MemberObject = MemberValue->AsObject();
+
+      Member.PlayerId = MemberObject->GetStringField(TEXT("playerId"));
+      Member.Nickname = MemberObject->GetStringField(TEXT("nickname"));
+      Member.bInstanceIdValid =
+        MemberObject->TryGetStringField(TEXT("instanceId"), Member.InstanceId);
+
+      TSharedPtr<FJsonObject> CharacterObj =
+        MemberObject->GetObjectField(TEXT("character"));
+
+      Member.Character.Id = CharacterObj->GetStringField(TEXT("id"));
+      Member.Character.Name = CharacterObj->GetStringField(TEXT("name"));
+
+      const TSharedPtr<FJsonObject> *CharacterCreatorData = nullptr;
+      if (CharacterObj->TryGetObjectField(
+            TEXT("characterCreatorData"), CharacterCreatorData
+          )) {
+        Member.Character.CharacterCreatorData = NewObject<USIOJsonObject>();
+        Member.Character.CharacterCreatorData->SetRootObject(
+          *CharacterCreatorData
+        );
+      }
+
+      const TSharedPtr<FJsonObject> *Metadata = nullptr;
+      if (CharacterObj->TryGetObjectField(TEXT("metadata"), Metadata)) {
+        Member.Character.Metadata = NewObject<USIOJsonObject>();
+        Member.Character.Metadata->SetRootObject(*Metadata);
+      }
+
+      const TSharedPtr<FJsonObject> *EquippedInventory = nullptr;
+      if (CharacterObj->TryGetObjectField(
+            TEXT("equippedInventory"), EquippedInventory
+          )) {
+        Member.Character.EquippedInventory = NewObject<USIOJsonObject>();
+        Member.Character.EquippedInventory->SetRootObject(*EquippedInventory);
+      }
+
+      const TSharedPtr<FJsonObject> *NonequippedInventory = nullptr;
+      if (CharacterObj->TryGetObjectField(
+            TEXT("nonequippedInventory"), NonequippedInventory
+          )) {
+        Member.Character.NonequippedInventory = NewObject<USIOJsonObject>();
+        Member.Character.NonequippedInventory->SetRootObject(
+          *NonequippedInventory
+        );
+      }
+
+      const TSharedPtr<FJsonObject> *Progress = nullptr;
+      if (CharacterObj->TryGetObjectField(TEXT("progress"), Progress)) {
+        Member.Character.Progress = NewObject<USIOJsonObject>();
+        Member.Character.Progress->SetRootObject(*Progress);
+      }
+
+      const TSharedPtr<FJsonObject> *Data = nullptr;
+      if (CharacterObj->TryGetObjectField(TEXT("data"), Data)) {
+        Member.Character.Data = NewObject<USIOJsonObject>();
+        Member.Character.Data->SetRootObject(*Data);
+      }
+
+      const TSharedPtr<FJsonObject> *AbilitySystem = nullptr;
+      if (PartyObj->TryGetObjectField(TEXT("abilitySystem"), AbilitySystem)) {
+        Member.Character.AbilitySystem = NewObject<USIOJsonObject>();
+        Member.Character.AbilitySystem->SetRootObject(*AbilitySystem);
+      }
+
+      Party.Members.Add(Member);
+    }
+  }
+
+  const TSharedPtr<FJsonObject> *Data = nullptr;
+  if (PartyObj->TryGetObjectField(TEXT("data"), Data)) {
+    Party.Data = NewObject<USIOJsonObject>();
+    Party.Data->SetRootObject(*Data);
+  }
+
+  return Party;
 }

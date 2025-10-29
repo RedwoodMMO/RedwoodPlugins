@@ -42,6 +42,18 @@ void URedwoodClientGameSubsystem::Initialize(
     ClientInterface->OnRealmConnectionLost.AddDynamic(
       this, &URedwoodClientGameSubsystem::HandleOnRealmConnectionLost
     );
+    ClientInterface->OnPartyInvited.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyInvited
+    );
+    ClientInterface->OnPartyUpdated.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyUpdated
+    );
+    ClientInterface->OnPartyKicked.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyKicked
+    );
+    ClientInterface->OnPartyEmoteReceived.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnPartyEmoteReceived
+    );
   }
 
   FWorldDelegates::OnPostWorldInitialization.AddUObject(
@@ -73,41 +85,9 @@ void URedwoodClientGameSubsystem::HandleOnWorldBeginPlay(bool bBegunPlay) {
   UWorld *World = GetWorld();
 
   if (IsValid(World) && bBegunPlay) {
-    ReportOnlineStatus();
-
-    AGameStateBase *GameState = World->GetGameState();
-    if (GameState) {
-      URedwoodGameStateComponent *GameStateComponent =
-        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
-          URedwoodGameStateComponent::StaticClass()
-        ));
-      if (GameStateComponent) {
-        GameStateComponent->OnServerDetailsChanged.AddDynamic(
-          this, &URedwoodClientGameSubsystem::ReportOnlineStatus
-        );
-      }
-    }
-  }
-}
-
-void URedwoodClientGameSubsystem::ReportOnlineStatus() {
-  UWorld *World = GetWorld();
-
-  if (IsValid(World)) {
-    AGameStateBase *GameState = World->GetGameState();
-    if (GameState) {
-      URedwoodGameStateComponent *GameStateComponent =
-        Cast<URedwoodGameStateComponent>(GameState->GetComponentByClass(
-          URedwoodGameStateComponent::StaticClass()
-        ));
-      if (GameStateComponent) {
-        ClientInterface->ReportOnlineStatus(
-          true, GameStateComponent->GetServerDetails()
-        );
-      } else {
-        ClientInterface->ReportOnlineStatus(false, FRedwoodServerDetails());
-      }
-    }
+    // This function was using for an older method to report online status
+    // but this is now reported by the server instead of the client. We're
+    // leaving this function here just in case we need it in the future.
   }
 }
 
@@ -204,29 +184,48 @@ void URedwoodClientGameSubsystem::CancelWaitingForAccountVerification() {
   }
 }
 
+FString URedwoodClientGameSubsystem::GetPlayerId() {
+  if (ClientInterface) {
+    return ClientInterface->GetPlayerId();
+  }
+  return FString();
+}
+
 void URedwoodClientGameSubsystem::SearchForPlayers(
   FString UsernameOrNickname,
   bool bIncludePartialMatches,
-  FRedwoodListFriendsOutputDelegate OnOutput
+  FRedwoodListPlayersOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->SearchForPlayers(
       UsernameOrNickname, bIncludePartialMatches, OnOutput
     );
   } else {
-    FRedwoodListFriendsOutput Output;
+    FRedwoodListPlayersOutput Output;
+    Output.Error = TEXT("Cannot search for players without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SearchForPlayerById(
+  FString TargetPlayerId, FRedwoodPlayerOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForPlayerById(TargetPlayerId, OnOutput);
+  } else {
+    FRedwoodPlayerOutput Output;
     Output.Error = TEXT("Cannot search for players without using a backend");
     OnOutput.ExecuteIfBound(Output);
   }
 }
 
 void URedwoodClientGameSubsystem::ListFriends(
-  ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+  ERedwoodFriendListType Filter, FRedwoodListPlayersOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->ListFriends(Filter, OnOutput);
   } else {
-    FRedwoodListFriendsOutput Output;
+    FRedwoodListPlayersOutput Output;
     Output.Error = TEXT("Cannot list friends without using a backend");
     OnOutput.ExecuteIfBound(Output);
   }
@@ -277,6 +276,382 @@ void URedwoodClientGameSubsystem::SetPlayerBlocked(
   }
 }
 
+void URedwoodClientGameSubsystem::ListGuilds(
+  bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListGuilds(bOnlyPlayersGuilds, OnOutput);
+  } else {
+    FRedwoodListGuildsOutput Output;
+    Output.Error = TEXT("Cannot list guilds without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SearchForGuilds(
+  FString SearchText,
+  bool bIncludePartialMatches,
+  FRedwoodListGuildsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForGuilds(
+      SearchText, bIncludePartialMatches, OnOutput
+    );
+  } else {
+    FRedwoodListGuildsOutput Output;
+    Output.Error = TEXT("Cannot search for guilds without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::GetGuild(
+  FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetGuild(GuildId, OnOutput);
+  } else {
+    FRedwoodGetGuildOutput Output;
+    Output.Error = TEXT("Cannot get guild without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::GetSelectedGuild(
+  FRedwoodGetGuildOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetSelectedGuild(OnOutput);
+  } else {
+    FRedwoodGetGuildOutput Output;
+    Output.Error = TEXT("Cannot get selected guild without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SetSelectedGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetSelectedGuild(GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot set selected guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::JoinGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->JoinGuild(GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot join guild without using a backend"));
+  }
+}
+
+void URedwoodClientGameSubsystem::InviteToGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->InviteToGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot invite to guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::LeaveGuild(
+  FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LeaveGuild(GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot leave guild without using a backend"));
+  }
+}
+
+void URedwoodClientGameSubsystem::ListGuildMembers(
+  FString GuildId,
+  ERedwoodGuildAndAllianceMemberState State,
+  FRedwoodListGuildMembersOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListGuildMembers(GuildId, State, OnOutput);
+  } else {
+    FRedwoodListGuildMembersOutput Output;
+    Output.Error = TEXT("Cannot list guild members without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::CreateGuild(
+  FString GuildName,
+  FString GuildTag,
+  ERedwoodGuildInviteType InviteType,
+  bool bListed,
+  bool bMembershipPublic,
+  FRedwoodCreateGuildOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->CreateGuild(
+      GuildName, GuildTag, InviteType, bListed, bMembershipPublic, OnOutput
+    );
+  } else {
+    FRedwoodCreateGuildOutput Output;
+    Output.Error = TEXT("Cannot create guild without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::UpdateGuild(
+  FString GuildId,
+  FString GuildName,
+  FString GuildTag,
+  ERedwoodGuildInviteType InviteType,
+  bool bListed,
+  bool bMembershipPublic,
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UpdateGuild(
+      GuildId,
+      GuildName,
+      GuildTag,
+      InviteType,
+      bListed,
+      bMembershipPublic,
+      OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot update guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::KickPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->KickPlayerFromGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot kick player from guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::BanPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->BanPlayerFromGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot ban player from guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::UnbanPlayerFromGuild(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UnbanPlayerFromGuild(GuildId, TargetPlayerId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot unban player from guild without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::PromotePlayerToGuildAdmin(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->PromotePlayerToGuildAdmin(
+      GuildId, TargetPlayerId, OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot promote player to guild admin without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::DemotePlayerFromGuildAdmin(
+  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->DemotePlayerFromGuildAdmin(
+      GuildId, TargetPlayerId, OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot demote player from guild admin without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::ListAlliances(
+  FString GuildIdFilter, FRedwoodListAlliancesOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListAlliances(GuildIdFilter, OnOutput);
+  } else {
+    FRedwoodListAlliancesOutput Output;
+    Output.Error = TEXT("Cannot list alliances without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SearchForAlliances(
+  FString SearchText,
+  bool bIncludePartialMatches,
+  FRedwoodListAlliancesOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SearchForAlliances(
+      SearchText, bIncludePartialMatches, OnOutput
+    );
+  } else {
+    FRedwoodListAlliancesOutput Output;
+    Output.Error = TEXT("Cannot search for alliances without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::CanAdminAlliance(
+  FString AllianceId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->CanAdminAlliance(AllianceId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot check alliance admin privileges without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::CreateAlliance(
+  FString AllianceName,
+  FString GuildId,
+  bool bInviteOnly,
+  FRedwoodCreateAllianceOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->CreateAlliance(
+      AllianceName, GuildId, bInviteOnly, OnOutput
+    );
+  } else {
+    FRedwoodCreateAllianceOutput Output;
+    Output.Error = TEXT("Cannot create alliance without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::UpdateAlliance(
+  FString AllianceId,
+  FString AllianceName,
+  bool bInviteOnly,
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UpdateAlliance(
+      AllianceId, AllianceName, bInviteOnly, OnOutput
+    );
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot update alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::KickGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->KickGuildFromAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot kick guild from alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::BanGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->BanGuildFromAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot ban guild from alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::UnbanGuildFromAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->UnbanGuildFromAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot unban guild from alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::ListAllianceGuilds(
+  FString AllianceId,
+  ERedwoodGuildAndAllianceMemberState State,
+  FRedwoodListAllianceGuildsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListAllianceGuilds(AllianceId, State, OnOutput);
+  } else {
+    FRedwoodListAllianceGuildsOutput Output;
+    Output.Error = TEXT("Cannot list alliance guilds without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::JoinAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->JoinAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot join alliance without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::LeaveAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LeaveAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Cannot leave alliance without using a backend"
+    ));
+  }
+}
+
+void URedwoodClientGameSubsystem::InviteGuildToAlliance(
+  FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->InviteGuildToAlliance(AllianceId, GuildId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot invite guild to alliance without using a backend")
+    );
+  }
+}
+
 void URedwoodClientGameSubsystem::ListRealms(
   FRedwoodListRealmsOutputDelegate OnOutput
 ) {
@@ -291,7 +666,10 @@ void URedwoodClientGameSubsystem::ListRealms(
     FakeRealm.Uri = "ws://localhost";
     FakeRealm.bListed = true;
 
+    Realms.Add(FakeRealm);
+
     FRedwoodListRealmsOutput Output;
+    Output.Realms = Realms;
     OnOutput.ExecuteIfBound(Output);
   }
 }
@@ -390,7 +768,9 @@ void URedwoodClientGameSubsystem::CreateCharacter(
     Character.Metadata = NewObject<USIOJsonObject>();
     Character.EquippedInventory = NewObject<USIOJsonObject>();
     Character.NonequippedInventory = NewObject<USIOJsonObject>();
+    Character.Progress = NewObject<USIOJsonObject>();
     Character.Data = NewObject<USIOJsonObject>();
+    Character.AbilitySystem = NewObject<USIOJsonObject>();
 
     FRedwoodGetCharacterOutput Output;
     Output.Character = Character;
@@ -407,12 +787,19 @@ void URedwoodClientGameSubsystem::SetCharacterArchived(
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->SetCharacterArchived(CharacterId, bArchived, OnOutput);
   } else {
-    FRedwoodCharacterBackend Character =
-      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
-    Character.bArchived = bArchived;
-    Character.ArchivedAt = FDateTime::UtcNow();
+    TSharedPtr<FJsonObject> CharacterObject =
+      URedwoodCommonGameSubsystem::LoadCharacterJsonFromDisk(CharacterId);
 
-    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+    if (bArchived) {
+      CharacterObject->SetStringField(
+        TEXT("archivedAt"), FDateTime::UtcNow().ToString()
+      );
+    } else {
+      TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull);
+      CharacterObject->SetField(TEXT("archivedAt"), NullValue);
+    }
+
+    URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
 
     OnOutput.ExecuteIfBound(TEXT(""));
   }
@@ -442,21 +829,24 @@ void URedwoodClientGameSubsystem::SetCharacterData(
       CharacterId, Name, CharacterCreatorData, OnOutput
     );
   } else {
-    FRedwoodCharacterBackend Character =
-      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+    TSharedPtr<FJsonObject> CharacterObject =
+      URedwoodCommonGameSubsystem::LoadCharacterJsonFromDisk(CharacterId);
 
     if (!Name.IsEmpty()) {
-      Character.Name = Name;
+      CharacterObject->SetStringField(TEXT("name"), Name);
     }
 
     if (CharacterCreatorData) {
-      Character.CharacterCreatorData = CharacterCreatorData;
+      CharacterObject->SetObjectField(
+        TEXT("characterCreatorData"), CharacterCreatorData->GetRootObject()
+      );
     }
 
     FRedwoodGetCharacterOutput Output;
-    Output.Character = Character;
+    Output.Character =
+      URedwoodCommonGameSubsystem::ParseCharacter(CharacterObject);
 
-    URedwoodCommonGameSubsystem::SaveCharacterToDisk(Character);
+    URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
 
     OnOutput.ExecuteIfBound(Output);
   }
@@ -485,10 +875,15 @@ void URedwoodClientGameSubsystem::JoinMatchmaking(
 }
 
 void URedwoodClientGameSubsystem::JoinQueue(
-  FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+  FString ProxyId,
+  FString ZoneName,
+  bool bTransferWholeParty,
+  FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->JoinQueue(ProxyId, ZoneName, OnUpdate);
+    ClientInterface->JoinQueue(
+      ProxyId, ZoneName, bTransferWholeParty, OnUpdate
+    );
   } else {
     FRedwoodTicketingUpdate Output;
     Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
@@ -510,40 +905,42 @@ void URedwoodClientGameSubsystem::LeaveTicketing(
   }
 }
 
-void URedwoodClientGameSubsystem::ListServers(
-  TArray<FString> PrivateServerReferences,
-  FRedwoodListServersOutputDelegate OnOutput
+void URedwoodClientGameSubsystem::ListProxies(
+  TArray<FString> PrivateProxyReferences,
+  FRedwoodListProxiesOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->ListServers(PrivateServerReferences, OnOutput);
+    ClientInterface->ListProxies(PrivateProxyReferences, OnOutput);
   } else {
-    FRedwoodListServersOutput Output;
+    FRedwoodListProxiesOutput Output;
     OnOutput.ExecuteIfBound(Output);
   }
 }
 
-void URedwoodClientGameSubsystem::CreateServer(
+void URedwoodClientGameSubsystem::CreateProxy(
   bool bJoinSession,
-  FRedwoodCreateServerInput Parameters,
-  FRedwoodCreateServerOutputDelegate OnOutput
+  FRedwoodCreateProxyInput Parameters,
+  FRedwoodCreateProxyOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->CreateServer(bJoinSession, Parameters, OnOutput);
+    ClientInterface->CreateProxy(bJoinSession, Parameters, OnOutput);
   } else {
-    FRedwoodCreateServerOutput Output;
+    FRedwoodCreateProxyOutput Output;
     Output.Error =
       "Cannot create server in PIE when connecting to the backend is disabled";
     OnOutput.ExecuteIfBound(Output);
   }
 }
 
-void URedwoodClientGameSubsystem::JoinServerInstance(
-  FString ServerReference,
+void URedwoodClientGameSubsystem::JoinProxyWithSingleInstance(
+  FString ProxyReference,
   FString Password,
   FRedwoodJoinServerOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->JoinServerInstance(ServerReference, Password, OnOutput);
+    ClientInterface->JoinProxyWithSingleInstance(
+      ProxyReference, Password, OnOutput
+    );
   } else {
     FRedwoodJoinServerOutput Output;
     Output.Error =
@@ -552,15 +949,138 @@ void URedwoodClientGameSubsystem::JoinServerInstance(
   }
 }
 
-void URedwoodClientGameSubsystem::StopServer(
+void URedwoodClientGameSubsystem::StopProxy(
   FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->StopServer(ServerProxyId, OnOutput);
+    ClientInterface->StopProxy(ServerProxyId, OnOutput);
   } else {
     FString Error =
       "Cannot stop server in PIE when connecting to the backend is disabled";
     OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+FRedwoodParty URedwoodClientGameSubsystem::GetCachedParty() {
+  if (ClientInterface) {
+    return ClientInterface->GetCachedParty();
+  }
+  return FRedwoodParty();
+}
+
+void URedwoodClientGameSubsystem::GetOrCreateParty(
+  bool bCreateIfNotInParty, FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetOrCreateParty(bCreateIfNotInParty, OnOutput);
+  } else {
+    FRedwoodGetPartyOutput Output;
+    Output.Error =
+      "Cannot get or create party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::LeaveParty(
+  FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LeaveParty(OnOutput);
+  } else {
+    FString Error =
+      "Cannot leave party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::InviteToParty(
+  FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->InviteToParty(TargetPlayerId, OnOutput);
+  } else {
+    FString Error =
+      "Cannot invite to party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::ListPartyInvites(
+  FRedwoodListPartyInvitesOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListPartyInvites(OnOutput);
+  } else {
+    FRedwoodListPartyInvitesOutput Output;
+    Output.Error =
+      "Cannot list party invites in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::RespondToPartyInvite(
+  FString PartyId, bool bAccept, FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RespondToPartyInvite(PartyId, bAccept, OnOutput);
+  } else {
+    FRedwoodGetPartyOutput Output;
+    Output.Error =
+      "Cannot respond to party invite in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::PromoteToPartyLeader(
+  FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->PromoteToPartyLeader(TargetPlayerId, OnOutput);
+  } else {
+    FString Error =
+      "Cannot promote to party leader in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::KickFromParty(
+  FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->KickFromParty(TargetPlayerId, OnOutput);
+  } else {
+    FString Error =
+      "Cannot kick from party in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Error);
+  }
+}
+
+void URedwoodClientGameSubsystem::SetPartyData(
+  FString LootType,
+  USIOJsonObject *PartyData,
+  FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SetPartyData(LootType, PartyData, OnOutput);
+  } else {
+    FRedwoodGetPartyOutput Output;
+    Output.Error =
+      "Cannot set party data in PIE when connecting to the backend is disabled";
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::SendEmoteToParty(FString Emote) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->SendEmoteToParty(Emote);
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Cannot send emote to party in PIE when connecting to the backend is disabled"
+      )
+    );
   }
 }
 
@@ -604,4 +1124,24 @@ void URedwoodClientGameSubsystem::HandleOnDirectorConnectionReestablished() {
 
 void URedwoodClientGameSubsystem::HandleOnRealmConnectionLost() {
   OnRealmConnectionLost.Broadcast();
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyInvited(
+  FRedwoodPartyInvite Invite
+) {
+  OnPartyInvited.Broadcast(Invite);
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyUpdated(FRedwoodParty Party) {
+  OnPartyUpdated.Broadcast(Party);
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyKicked() {
+  OnPartyKicked.Broadcast();
+}
+
+void URedwoodClientGameSubsystem::HandleOnPartyEmoteReceived(
+  const FString &PlayerId, const FString &Emote
+) {
+  OnPartyEmoteReceived.Broadcast(PlayerId, Emote);
 }

@@ -47,6 +47,18 @@ public:
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodDynamicDelegate OnRealmConnectionLost;
 
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodPartyInvitedDynamicDelegate OnPartyInvited;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodPartyUpdatedDynamicDelegate OnPartyUpdated;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnPartyKicked;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodPartyEmoteReceivedDynamicDelegate OnPartyEmoteReceived;
+
   void Register(
     const FString &Username,
     const FString &Password,
@@ -75,14 +87,20 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void CancelWaitingForAccountVerification();
 
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  FString GetPlayerId();
+
   void SearchForPlayers(
     FString UsernameOrNickname,
     bool bIncludePartialMatches,
-    FRedwoodListFriendsOutputDelegate OnOutput
+    FRedwoodListPlayersOutputDelegate OnOutput
+  );
+  void SearchForPlayerById(
+    FString TargetPlayerId, FRedwoodPlayerOutputDelegate OnOutput
   );
 
   void ListFriends(
-    ERedwoodFriendListType Filter, FRedwoodListFriendsOutputDelegate OnOutput
+    ERedwoodFriendListType Filter, FRedwoodListPlayersOutputDelegate OnOutput
   );
 
   void RequestFriend(
@@ -99,6 +117,145 @@ public:
 
   void SetPlayerBlocked(
     FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void ListGuilds(
+    bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
+  );
+
+  void SearchForGuilds(
+    FString SearchText,
+    bool bIncludePartialMatches,
+    FRedwoodListGuildsOutputDelegate OnOutput
+  );
+
+  void GetGuild(FString GuildId, FRedwoodGetGuildOutputDelegate OnOutput);
+
+  void GetSelectedGuild(FRedwoodGetGuildOutputDelegate OnOutput);
+
+  void SetSelectedGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
+
+  void JoinGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
+
+  void InviteToGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void LeaveGuild(FString GuildId, FRedwoodErrorOutputDelegate OnOutput);
+
+  void ListGuildMembers(
+    FString GuildId,
+    ERedwoodGuildAndAllianceMemberState State,
+    FRedwoodListGuildMembersOutputDelegate OnOutput
+  );
+
+  void CreateGuild(
+    FString GuildName,
+    FString GuildTag,
+    ERedwoodGuildInviteType InviteType,
+    bool bListed,
+    bool bMembershipPublic,
+    FRedwoodCreateGuildOutputDelegate OnOutput
+  );
+
+  void UpdateGuild(
+    FString GuildId,
+    FString GuildName,
+    FString GuildTag,
+    ERedwoodGuildInviteType InviteType,
+    bool bListed,
+    bool bMembershipPublic,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void KickPlayerFromGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void BanPlayerFromGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void UnbanPlayerFromGuild(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void PromotePlayerToGuildAdmin(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void DemotePlayerFromGuildAdmin(
+    FString GuildId,
+    FString TargetPlayerId,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void ListAlliances(
+    FString GuildIdFilter, FRedwoodListAlliancesOutputDelegate OnOutput
+  );
+
+  void SearchForAlliances(
+    FString SearchText,
+    bool bIncludePartialMatches,
+    FRedwoodListAlliancesOutputDelegate OnOutput
+  );
+
+  void CanAdminAlliance(
+    FString AllianceId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void CreateAlliance(
+    FString AllianceName,
+    FString GuildId,
+    bool bInviteOnly,
+    FRedwoodCreateAllianceOutputDelegate OnOutput
+  );
+
+  void UpdateAlliance(
+    FString AllianceId,
+    FString AllianceName,
+    bool bInviteOnly,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void KickGuildFromAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void BanGuildFromAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void UnbanGuildFromAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void ListAllianceGuilds(
+    FString AllianceId,
+    ERedwoodGuildAndAllianceMemberState State,
+    FRedwoodListAllianceGuildsOutputDelegate OnOutput
+  );
+
+  void JoinAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void LeaveAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void InviteGuildToAlliance(
+    FString AllianceId, FString GuildId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void ListRealms(FRedwoodListRealmsOutputDelegate OnOutput);
@@ -153,26 +310,57 @@ public:
   );
 
   void JoinQueue(
-    FString ProxyId, FString ZoneName, FRedwoodTicketingUpdateDelegate OnUpdate
+    FString ProxyId,
+    FString ZoneName,
+    bool bTransferWholeParty,
+    FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
-  void ListServers(
-    TArray<FString> PrivateServerReferences,
-    FRedwoodListServersOutputDelegate OnOutput
+  void ListProxies(
+    TArray<FString> PrivateProxyReferences,
+    FRedwoodListProxiesOutputDelegate OnOutput
   );
-  void CreateServer(
+  void CreateProxy(
     bool bJoinSession,
-    FRedwoodCreateServerInput Parameters,
-    FRedwoodCreateServerOutputDelegate OnOutput
+    FRedwoodCreateProxyInput Parameters,
+    FRedwoodCreateProxyOutputDelegate OnOutput
   );
-  void JoinServerInstance(
-    FString ServerReference,
+  void JoinProxyWithSingleInstance(
+    FString ProxyReference,
     FString Password,
     FRedwoodJoinServerOutputDelegate OnOutput
   );
-  void StopServer(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
+  void StopProxy(FString ServerProxyId, FRedwoodErrorOutputDelegate OnOutput);
+
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  FRedwoodParty GetCachedParty();
+
+  void GetOrCreateParty(
+    bool bCreateIfNotInParty, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  void LeaveParty(FRedwoodErrorOutputDelegate OnOutput);
+  void InviteToParty(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void ListPartyInvites(FRedwoodListPartyInvitesOutputDelegate OnOutput);
+  void RespondToPartyInvite(
+    FString PartyId, bool bAccept, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  void PromoteToPartyLeader(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void KickFromParty(
+    FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  );
+  void SetPartyData(
+    FString LootType,
+    USIOJsonObject *PartyData,
+    FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void SendEmoteToParty(FString Emote);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionConsoleCommand();
@@ -200,9 +388,20 @@ private:
   UFUNCTION()
   void HandleRequestToJoinServer(FString ConsoleCommand);
 
-  void HandleOnWorldAdded(UWorld *World, FWorldInitializationValues IVS);
-  void HandleOnWorldBeginPlay(bool bBegunPlay);
+  UFUNCTION()
+  void HandleOnPartyInvited(FRedwoodPartyInvite Invite);
 
   UFUNCTION()
-  void ReportOnlineStatus();
+  void HandleOnPartyUpdated(FRedwoodParty Party);
+
+  UFUNCTION()
+  void HandleOnPartyKicked();
+
+  UFUNCTION()
+  void HandleOnPartyEmoteReceived(
+    const FString &PlayerId, const FString &Emote
+  );
+
+  void HandleOnWorldAdded(UWorld *World, FWorldInitializationValues IVS);
+  void HandleOnWorldBeginPlay(bool bBegunPlay);
 };

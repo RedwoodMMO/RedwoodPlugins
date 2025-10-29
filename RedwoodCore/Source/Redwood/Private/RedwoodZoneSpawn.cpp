@@ -1,6 +1,7 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodZoneSpawn.h"
+#include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 
 ARedwoodZoneSpawn::ARedwoodZoneSpawn(const FObjectInitializer &ObjectInitializer
@@ -14,6 +15,16 @@ ARedwoodZoneSpawn::ARedwoodZoneSpawn(const FObjectInitializer &ObjectInitializer
   UBillboardComponent *BillboardComponent =
     CreateDefaultSubobject<UBillboardComponent>(TEXT("BillboardComponent"));
   BillboardComponent->SetupAttachment(RootComponent);
+
+  // add a arrow component
+  UArrowComponent *ArrowComponent =
+    CreateDefaultSubobject<UArrowComponent>(TEXT("ArrowComponent"));
+  ArrowComponent->SetupAttachment(RootComponent);
+  ArrowComponent->ArrowColor = FColor::Red;
+  ArrowComponent->ArrowSize = 1.0f;
+  ArrowComponent->ArrowLength = 100.0f;
+  ArrowComponent->bTreatAsASprite = true;
+  ArrowComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
 }
 
 FTransform ARedwoodZoneSpawn::GetSpawnTransform() {

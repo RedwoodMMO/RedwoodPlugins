@@ -7,6 +7,7 @@
 #include "RedwoodGameModeAsset.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodMapAsset.h"
+#include "RedwoodPersistenceComponentInterface.h"
 #include "RedwoodPlayerState.h"
 #include "RedwoodSettings.h"
 #include "RedwoodSyncComponent.h"
@@ -37,13 +38,9 @@ void URedwoodServerGameSubsystem::Initialize(
 
   UWorld *World = GetWorld();
 
-  if (
-    IsValid(World) &&
-    (
-      World->GetNetMode() == ENetMode::NM_DedicatedServer ||
-      World->GetNetMode() == ENetMode::NM_ListenServer
-    )
-  ) {
+  if (IsValid(World) &&
+      (World->GetNetMode() == ENetMode::NM_DedicatedServer ||
+       World->GetNetMode() == ENetMode::NM_ListenServer)) {
     UE_LOG(
       LogRedwood,
       Log,
@@ -420,6 +417,40 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
     }
   );
 
+  Sidecar->OnEvent(
+    TEXT("realm:players:data-changed"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (Message->TryGetObject(Object) && Object) {
+        TSharedPtr<FJsonObject> ActualObject = *Object;
+        FString PlayerId = ActualObject->GetStringField(TEXT("playerId"));
+
+        // find the player state with this PlayerId
+        UWorld *World = GetWorld();
+        if (IsValid(World)) {
+          for (APlayerState *PlayerState : World->GetGameState()->PlayerArray) {
+            ARedwoodPlayerState *RedwoodPlayerState =
+              Cast<ARedwoodPlayerState>(PlayerState);
+            if (!IsValid(RedwoodPlayerState)) {
+              continue;
+            }
+
+            if (RedwoodPlayerState->RedwoodPlayer.Id == PlayerId) {
+              // Found the player state
+              TSharedPtr<FJsonObject> PlayerData =
+                ActualObject->GetObjectField(TEXT("data"));
+              RedwoodPlayerState->SetRedwoodPlayer(
+                URedwoodCommonGameSubsystem::ParsePlayerData(PlayerData)
+              );
+              break;
+            }
+          }
+        }
+      }
+    }
+  );
+
   Sidecar->OnConnectedCallback =
     [this](const FString &InSocketId, const FString &InSessionId) {
       if (Sidecar.IsValid()) {
@@ -533,7 +564,7 @@ void URedwoodServerGameSubsystem::SendUpdateToSidecar() {
       );
     }
 
-    Sidecar->Emit(TEXT("realm:servers:update-state"), JsonObject);
+    Sidecar->Emit(TEXT("realm:servers:update-instance-state"), JsonObject);
   }
 }
 
@@ -560,7 +591,8 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   APlayerController *PlayerController,
   const FString &InZoneName,
   const FTransform &InTransform,
-  const FString &OptionalProxyId
+  const FString &OptionalProxyId,
+  bool bShouldStitch
 ) {
   FString UniqueId = PlayerController->PlayerState->GetUniqueId().ToString();
 
@@ -612,6 +644,8 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
   } else {
     Payload->SetField(TEXT("proxyId"), NullValue);
   }
+
+  Payload->SetBoolField(TEXT("shouldStitch"), bShouldStitch);
 
   Payload->SetField(TEXT("spawnName"), NullValue);
 
@@ -820,7 +854,8 @@ void URedwoodServerGameSubsystem::FlushSync() {
       bSyncMovement = true;
     } else {
       if (SyncItemComponent->MovementSyncIntervalSeconds > 0) {
-        if (CurrentTime - SyncItemComponent->GetLastMovementSyncTime() <= SyncItemComponent->MovementSyncIntervalSeconds) {
+        if (CurrentTime - SyncItemComponent->GetLastMovementSyncTime() <=
+            SyncItemComponent->MovementSyncIntervalSeconds) {
           bSyncMovement = true;
         }
       }
@@ -891,11 +926,6 @@ void URedwoodServerGameSubsystem::FlushSync() {
 }
 
 void URedwoodServerGameSubsystem::FlushPersistence() {
-  FlushPlayerCharacterData();
-  FlushZoneData();
-}
-
-void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
   UWorld *World = GetWorld();
   if (!IsValid(World)) {
     UE_LOG(
@@ -913,280 +943,280 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData() {
       Error,
       TEXT("Can't FlushPlayerCharacterData: GameState is not valid")
     );
+  } else {
+    FlushPlayerCharacterData(GameState->PlayerArray, false);
+  }
+
+  FlushZoneData();
+}
+
+void URedwoodServerGameSubsystem::FlushPlayerCharacterData(
+  TArray<APlayerState *> PlayerArray, bool bForce
+) {
+  UWorld *World = GetWorld();
+  if (!IsValid(World)) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't FlushPlayerCharacterData: World is not valid")
+    );
     return;
   }
 
-  TArray<TObjectPtr<APlayerState>> PlayerArray = GameState->PlayerArray;
+  bool bUseBackend = URedwoodCommonGameSubsystem::ShouldUseBackend(World);
 
-  if (PlayerArray.Num() == 0) {
-    return;
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  FString SavePath =
+    FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
+  FPaths::NormalizeDirectoryName(SavePath);
+
+  if (!bUseBackend) {
+    IFileManager::Get().MakeDirectory(*SavePath, true);
   }
 
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-    TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+  TArray<TSharedPtr<FJsonValue>> CharactersArray;
+  for (TObjectPtr<APlayerState> PlayerState : PlayerArray) {
+    TSharedPtr<FJsonObject> CharacterObject =
+      CreatePlayerCharacterDataObject(PlayerState, bForce);
 
-    TArray<TSharedPtr<FJsonValue>> CharactersArray;
-    for (TObjectPtr<APlayerState> PlayerState : GameState->PlayerArray) {
-      ARedwoodPlayerState *RedwoodPlayerState =
-        Cast<ARedwoodPlayerState>(PlayerState);
-      if (RedwoodPlayerState) {
-        APawn *Pawn = PlayerState->GetPawn();
-        if (Pawn) {
-          URedwoodCharacterComponent *CharacterComponent =
-            Pawn->GetComponentByClass<URedwoodCharacterComponent>();
-          if (CharacterComponent) {
-            if (
-            !CharacterComponent->IsCharacterCreatorDataDirty() &&
-            !CharacterComponent->IsMetadataDirty() &&
-            !CharacterComponent->IsEquippedInventoryDirty() &&
-            !CharacterComponent->IsNonequippedInventoryDirty() &&
-            !CharacterComponent->IsDataDirty()
-            ) {
-              continue;
-            }
+    if (CharacterObject.IsValid()) {
+      TSharedPtr<FJsonValueObject> Value =
+        MakeShareable(new FJsonValueObject(CharacterObject));
+      CharactersArray.Add(Value);
 
-            UE_LOG(
-              LogRedwood,
-              Log,
-              TEXT("Flushing character %s"),
-              *CharacterComponent->RedwoodCharacterName
-            );
+      if (!bUseBackend) {
+        // save to disk
+        URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
+      }
+    }
+  }
 
-            TSharedPtr<FJsonObject> CharacterObject =
-              MakeShareable(new FJsonObject);
-            CharacterObject->SetStringField(
-              TEXT("playerId"), CharacterComponent->RedwoodPlayerId
-            );
-            CharacterObject->SetStringField(
-              TEXT("characterId"), CharacterComponent->RedwoodCharacterId
-            );
+  Payload->SetArrayField(TEXT("characters"), CharactersArray);
+  Payload->SetStringField(TEXT("id"), TEXT("game-server"));
 
-            if (CharacterComponent->IsCharacterCreatorDataDirty()) {
-              USIOJsonObject *CharacterCreatorData =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->CharacterCreatorDataVariableName
-                );
-              if (CharacterCreatorData) {
-                RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
-                  CharacterCreatorData;
-                CharacterObject->SetObjectField(
-                  TEXT("characterCreatorData"),
-                  CharacterCreatorData->GetRootObject()
-                );
-              }
-            }
+  if (bUseBackend) {
+    Sidecar->Emit(TEXT("realm:characters:set:server"), Payload);
+  }
+}
 
-            if (CharacterComponent->IsMetadataDirty()) {
-              USIOJsonObject *Metadata =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->MetadataVariableName
-                );
-              if (Metadata) {
-                RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
-                CharacterObject->SetObjectField(
-                  TEXT("metadata"), Metadata->GetRootObject()
-                );
-              }
-            }
+TSharedPtr<FJsonObject>
+URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
+  APlayerState *PlayerState, bool bForce
+) {
+  UWorld *World = GetWorld();
+  if (!IsValid(World)) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't CreatePlayerCharacterDataObject: World is not valid")
+    );
+    return TSharedPtr<FJsonObject>();
+  }
 
-            if (CharacterComponent->IsEquippedInventoryDirty()) {
-              USIOJsonObject *EquippedInventory =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->EquippedInventoryVariableName
-                );
-              if (EquippedInventory) {
-                RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
-                  EquippedInventory;
-                CharacterObject->SetObjectField(
-                  TEXT("equippedInventory"), EquippedInventory->GetRootObject()
-                );
-              }
-            }
+  bool bUseBackend = URedwoodCommonGameSubsystem::ShouldUseBackend(World);
 
-            if (CharacterComponent->IsNonequippedInventoryDirty()) {
-              USIOJsonObject *NonequippedInventory =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->NonequippedInventoryVariableName
-                );
-              if (NonequippedInventory) {
-                RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
-                  NonequippedInventory;
-                CharacterObject->SetObjectField(
-                  TEXT("nonequippedInventory"),
-                  NonequippedInventory->GetRootObject()
-                );
-              }
-            }
+  ARedwoodPlayerState *RedwoodPlayerState =
+    Cast<ARedwoodPlayerState>(PlayerState);
 
-            if (CharacterComponent->IsDataDirty()) {
-              USIOJsonObject *CharData =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->DataVariableName
-                );
-              if (CharData) {
-                RedwoodPlayerState->RedwoodCharacter.Data = CharData;
-                CharacterObject->SetObjectField(
-                  TEXT("data"), CharData->GetRootObject()
-                );
-              }
-            }
+  if (RedwoodPlayerState) {
+    TArray<URedwoodCharacterComponent *> CharacterComponents;
+    RedwoodPlayerState->GetComponents<URedwoodCharacterComponent>(
+      CharacterComponents
+    );
 
-            TSharedPtr<FJsonValueObject> Value =
-              MakeShareable(new FJsonValueObject(CharacterObject));
-            CharactersArray.Add(Value);
+    APawn *Pawn = PlayerState->GetPawn();
+    if (Pawn) {
+      TArray<URedwoodCharacterComponent *> PawnCharacterComponents;
+      Pawn->GetComponents<URedwoodCharacterComponent>(PawnCharacterComponents);
+      CharacterComponents.Append(PawnCharacterComponents);
+    }
 
-            CharacterComponent->ClearDirtyFlags();
-          } else {
-            UE_LOG(
-              LogRedwood,
-              Error,
-              TEXT("Pawn %s doesn't have a RedwoodCharacterComponent"),
-              *Pawn->GetName()
-            );
-          }
-        } else {
-          UE_LOG(
-            LogRedwood,
-            Error,
-            TEXT("PlayerState %s has no pawn"),
-            *PlayerState->GetPlayerName()
-          );
-        }
-      } else {
-        UE_LOG(
-          LogRedwood, Error, TEXT("PlayerState is not a RedwoodPlayerState")
+    TArray<TScriptInterface<IRedwoodPersistenceComponentInterface>>
+      PersistenceComponents;
+
+    TArray<UActorComponent *> AllComponents;
+    RedwoodPlayerState->GetComponents<UActorComponent>(AllComponents);
+    if (Pawn) {
+      TArray<UActorComponent *> PawnComponents;
+      Pawn->GetComponents<UActorComponent>(PawnComponents);
+      AllComponents.Append(PawnComponents);
+    }
+
+    for (UActorComponent *Component : AllComponents) {
+      if (Component->Implements<URedwoodPersistenceComponentInterface>()) {
+        PersistenceComponents.Add(
+          TScriptInterface<IRedwoodPersistenceComponentInterface>(Component)
         );
       }
     }
 
-    Payload->SetArrayField(TEXT("characters"), CharactersArray);
-    Payload->SetStringField(TEXT("id"), TEXT("game-server"));
+    UE_LOG(
+      LogRedwood,
+      VeryVerbose,
+      TEXT("Flushing character %s"),
+      *RedwoodPlayerState->RedwoodCharacter.Name
+    );
 
-    Sidecar->Emit(TEXT("realm:characters:set:server"), Payload);
-  } else {
-    // save the dirty characters to disk
+    TSharedPtr<FJsonObject> CharacterObject = MakeShareable(new FJsonObject);
+    CharacterObject->SetStringField(
+      TEXT("playerId"), *RedwoodPlayerState->RedwoodCharacter.PlayerId
+    );
+    CharacterObject->SetStringField(
+      TEXT("characterId"), *RedwoodPlayerState->RedwoodCharacter.Id
+    );
 
-    FString SavePath =
-      FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
-    FPaths::NormalizeDirectoryName(SavePath);
-
-    if (!FPaths::DirectoryExists(SavePath)) {
-      IFileManager::Get().MakeDirectory(*SavePath, true);
-    }
-
-    for (TObjectPtr<APlayerState> PlayerState : GameState->PlayerArray) {
-      ARedwoodPlayerState *RedwoodPlayerState =
-        Cast<ARedwoodPlayerState>(PlayerState);
-      if (RedwoodPlayerState) {
-        APawn *Pawn = PlayerState->GetPawn();
-        if (Pawn) {
-          URedwoodCharacterComponent *CharacterComponent =
-            Pawn->GetComponentByClass<URedwoodCharacterComponent>();
-          if (CharacterComponent) {
-            if (
-            !CharacterComponent->IsCharacterCreatorDataDirty() &&
+    for (URedwoodCharacterComponent *CharacterComponent : CharacterComponents) {
+      if (!CharacterComponent->IsCharacterCreatorDataDirty() &&
             !CharacterComponent->IsMetadataDirty() &&
             !CharacterComponent->IsEquippedInventoryDirty() &&
             !CharacterComponent->IsNonequippedInventoryDirty() &&
-            !CharacterComponent->IsDataDirty()
-            ) {
-              continue;
-            }
+            !CharacterComponent->IsProgressDirty() &&
+            !CharacterComponent->IsDataDirty() &&
+            !CharacterComponent->IsAbilitySystemDirty()) {
+        continue;
+      }
 
-            // since we save the whole json to disk, we update all
-            // of the data here to ensure proper variable name serialization
+      AActor *ComponentOwner = CharacterComponent->GetOwner();
 
-            if (CharacterComponent->bUseCharacterCreatorData) {
-              USIOJsonObject *CharacterCreatorData =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->CharacterCreatorDataVariableName
-                );
-              if (CharacterCreatorData) {
-                RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
-                  CharacterCreatorData;
-              }
-            }
-
-            if (CharacterComponent->bUseMetadata) {
-              USIOJsonObject *Metadata =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->MetadataVariableName
-                );
-              if (Metadata) {
-                RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
-              }
-            }
-
-            if (CharacterComponent->bUseEquippedInventory) {
-              USIOJsonObject *EquippedInventory =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->EquippedInventoryVariableName
-                );
-              if (EquippedInventory) {
-                RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
-                  EquippedInventory;
-              }
-            }
-
-            if (CharacterComponent->bUseNonequippedInventory) {
-              USIOJsonObject *NonequippedInventory =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->NonequippedInventoryVariableName
-                );
-              if (NonequippedInventory) {
-                RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
-                  NonequippedInventory;
-              }
-            }
-
-            if (CharacterComponent->bUseData) {
-              USIOJsonObject *CharData =
-                URedwoodCommonGameSubsystem::SerializeBackendData(
-                  CharacterComponent->bStoreDataInActor
-                    ? (UObject *)Pawn
-                    : (UObject *)CharacterComponent,
-                  CharacterComponent->DataVariableName
-                );
-              if (CharData) {
-                RedwoodPlayerState->RedwoodCharacter.Data = CharData;
-              }
-            }
-
-            URedwoodCommonGameSubsystem::SaveCharacterToDisk(
-              RedwoodPlayerState->RedwoodCharacter
-            );
-          }
+      if (bForce || bUseBackend ? CharacterComponent->IsCharacterCreatorDataDirty()
+                        : CharacterComponent->bUseCharacterCreatorData) {
+        USIOJsonObject *CharacterCreatorData =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            CharacterComponent->bStoreDataInActor
+              ? (UObject *)ComponentOwner
+              : (UObject *)CharacterComponent,
+            CharacterComponent->CharacterCreatorDataVariableName
+          );
+        if (CharacterCreatorData) {
+          RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
+            CharacterCreatorData;
+          CharacterObject->SetObjectField(
+            TEXT("characterCreatorData"), CharacterCreatorData->GetRootObject()
+          );
         }
       }
+
+      if (bForce || bUseBackend ? CharacterComponent->IsMetadataDirty()
+                        : CharacterComponent->bUseMetadata) {
+        USIOJsonObject *Metadata =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            CharacterComponent->bStoreDataInActor
+              ? (UObject *)ComponentOwner
+              : (UObject *)CharacterComponent,
+            CharacterComponent->MetadataVariableName
+          );
+        if (Metadata) {
+          RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
+          CharacterObject->SetObjectField(
+            TEXT("metadata"), Metadata->GetRootObject()
+          );
+        }
+      }
+
+      if (bForce || bUseBackend ? CharacterComponent->IsEquippedInventoryDirty()
+                        : CharacterComponent->bUseEquippedInventory) {
+        USIOJsonObject *EquippedInventory =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            CharacterComponent->bStoreDataInActor
+              ? (UObject *)ComponentOwner
+              : (UObject *)CharacterComponent,
+            CharacterComponent->EquippedInventoryVariableName
+          );
+        if (EquippedInventory) {
+          RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
+            EquippedInventory;
+          CharacterObject->SetObjectField(
+            TEXT("equippedInventory"), EquippedInventory->GetRootObject()
+          );
+        }
+      }
+
+      if (bForce || bUseBackend ? CharacterComponent->IsNonequippedInventoryDirty()
+                        : CharacterComponent->bUseNonequippedInventory) {
+        USIOJsonObject *NonequippedInventory =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            CharacterComponent->bStoreDataInActor
+              ? (UObject *)ComponentOwner
+              : (UObject *)CharacterComponent,
+            CharacterComponent->NonequippedInventoryVariableName
+          );
+        if (NonequippedInventory) {
+          RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
+            NonequippedInventory;
+          CharacterObject->SetObjectField(
+            TEXT("nonequippedInventory"), NonequippedInventory->GetRootObject()
+          );
+        }
+      }
+
+      if (bForce || bUseBackend ? CharacterComponent->IsProgressDirty()
+                        : CharacterComponent->bUseProgress) {
+        USIOJsonObject *Progress =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            CharacterComponent->bStoreDataInActor
+              ? (UObject *)ComponentOwner
+              : (UObject *)CharacterComponent,
+            CharacterComponent->ProgressVariableName
+          );
+        if (Progress) {
+          RedwoodPlayerState->RedwoodCharacter.Progress = Progress;
+          CharacterObject->SetObjectField(
+            TEXT("progress"), Progress->GetRootObject()
+          );
+        }
+      }
+
+      if (bForce || bUseBackend ? CharacterComponent->IsDataDirty() : CharacterComponent->bUseData) {
+        USIOJsonObject *CharData =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            CharacterComponent->bStoreDataInActor
+              ? (UObject *)ComponentOwner
+              : (UObject *)CharacterComponent,
+            CharacterComponent->DataVariableName
+          );
+        if (CharData) {
+          RedwoodPlayerState->RedwoodCharacter.Data = CharData;
+          CharacterObject->SetObjectField(
+            TEXT("data"), CharData->GetRootObject()
+          );
+        }
+      }
+
+      if (bForce || bUseBackend ? CharacterComponent->IsAbilitySystemDirty()
+                        : CharacterComponent->bUseAbilitySystem) {
+        USIOJsonObject *AbilitySystem =
+          URedwoodCommonGameSubsystem::SerializeBackendData(
+            CharacterComponent->bStoreDataInActor
+              ? (UObject *)ComponentOwner
+              : (UObject *)CharacterComponent,
+            CharacterComponent->AbilitySystemVariableName
+          );
+        if (AbilitySystem) {
+          RedwoodPlayerState->RedwoodCharacter.AbilitySystem = AbilitySystem;
+          CharacterObject->SetObjectField(
+            TEXT("abilitySystem"), AbilitySystem->GetRootObject()
+          );
+        }
+      }
+
+      CharacterComponent->ClearDirtyFlags();
     }
+
+    for (TScriptInterface<IRedwoodPersistenceComponentInterface>
+           ComponentInterface : PersistenceComponents) {
+      IRedwoodPersistenceComponentInterface *PersistenceComponent =
+        ComponentInterface.GetInterface();
+      if (PersistenceComponent) {
+        PersistenceComponent->AddPersistedData(CharacterObject, bForce);
+      }
+    }
+
+    return CharacterObject;
+  } else {
+    UE_LOG(LogRedwood, Error, TEXT("PlayerState is not a RedwoodPlayerState"));
+    return TSharedPtr<FJsonObject>();
   }
 }
 
@@ -1471,11 +1501,9 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
     GameState->GetComponentByClass<URedwoodSyncComponent>();
 
   if (GameStatePersistence) {
-    if (
-        !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
+    if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
         GameStatePersistence->IsDataDirty(true) ||
-        GameStatePersistence->ShouldDoInitialSave()
-      ) {
+        GameStatePersistence->ShouldDoInitialSave()) {
       // always add the data if we're not using the backend
 
       if (GameStatePersistence->IsDataDirty(true)) {
@@ -1532,11 +1560,9 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
       // but we'll keep it just for now.
       bool bItemShouldBeSaved = false;
 
-      if (
-        !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
-        SyncItemComponent->IsMovementDirty(true) ||
-        SyncItemComponent->ShouldDoInitialSave()
-      ) {
+      if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
+          SyncItemComponent->IsMovementDirty(true) ||
+          SyncItemComponent->ShouldDoInitialSave()) {
         bItemShouldBeSaved = true;
 
         FTransform Transform = SyncItemComponent->GetOwner()->GetTransform();
@@ -1566,11 +1592,9 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
         ItemObject->SetObjectField(TEXT("transform"), TransformObject);
       }
 
-      if (
-        !URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
-        SyncItemComponent->IsDataDirty(true) ||
-        SyncItemComponent->ShouldDoInitialSave()
-      ) {
+      if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
+          SyncItemComponent->IsDataDirty(true) ||
+          SyncItemComponent->ShouldDoInitialSave()) {
         bItemShouldBeSaved = true;
 
         USIOJsonObject *DataObject =
@@ -1695,7 +1719,8 @@ void URedwoodServerGameSubsystem::RegisterSyncComponent(
 void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
   URedwoodSyncComponent *InComponent
 ) {
-  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) && Sidecar.IsValid() && Sidecar->bIsConnected) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) &&
+      Sidecar.IsValid() && Sidecar->bIsConnected) {
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
     TSharedPtr<FJsonObject> StateObject = MakeShareable(new FJsonObject);

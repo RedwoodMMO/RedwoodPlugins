@@ -35,6 +35,7 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodGetBlobOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodServerGameSubsystem *Target;
 
   FString Key;

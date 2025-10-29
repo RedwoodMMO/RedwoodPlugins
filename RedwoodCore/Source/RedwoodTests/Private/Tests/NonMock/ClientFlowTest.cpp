@@ -202,15 +202,15 @@ void FGetCharacter::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListNoServers);
 void FListNoServers::Initialize() {
-  Redwood->ListServers(
+  Redwood->ListProxies(
     TArray<FString>(),
-    FRedwoodListServersOutputDelegate::CreateLambda(
-      [this](const FRedwoodListServersOutput &Output) {
+    FRedwoodListProxiesOutputDelegate::CreateLambda(
+      [this](const FRedwoodListProxiesOutput &Output) {
         CurrentTest->TestEqual(
-          TEXT("ListServers no error"), Output.Error, TEXT("")
+          TEXT("ListProxies no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestEqual(
-          TEXT("ListServers returns no servers"), Output.Servers.Num(), 0
+          TEXT("ListProxies returns no servers"), Output.Proxies.Num(), 0
         );
         Context->bIsCurrentTestComplete = true;
       }
@@ -220,7 +220,7 @@ void FListNoServers::Initialize() {
 
 DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FCreatePublicServer);
 void FCreatePublicServer::Initialize() {
-  FRedwoodCreateServerInput Parameters;
+  FRedwoodCreateProxyInput Parameters;
   Parameters.Name = TEXT("Test Server");
   Parameters.Region = TEXT("local");
   Parameters.ModeId = TEXT("match");
@@ -231,36 +231,35 @@ void FCreatePublicServer::Initialize() {
   Parameters.Password = TEXT("");
   Parameters.ShortCode = TEXT("");
 
-  Redwood->CreateServer(
+  Redwood->CreateProxy(
     false,
     Parameters,
-    FRedwoodCreateServerOutputDelegate::CreateLambda(
-      [this](const FRedwoodCreateServerOutput &Output) {
+    FRedwoodCreateProxyOutputDelegate::CreateLambda(
+      [this](const FRedwoodCreateProxyOutput &Output) {
         CurrentTest->TestEqual(
-          TEXT("CreateServer no error"), Output.Error, TEXT("")
+          TEXT("CreateProxy no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestTrue(
-          TEXT("CreateServer has valid server"),
-          !Output.ServerReference.IsEmpty()
+          TEXT("CreateProxy has valid server"), !Output.ProxyReference.IsEmpty()
         );
-        Context->Data.SetStringField("ServerReference", Output.ServerReference);
+        Context->Data.SetStringField("ProxyReference", Output.ProxyReference);
         Context->bIsCurrentTestComplete = true;
       }
     )
   );
 }
 
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListServers);
-void FListServers::Initialize() {
-  Redwood->ListServers(
+DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FListProxies);
+void FListProxies::Initialize() {
+  Redwood->ListProxies(
     TArray<FString>(),
-    FRedwoodListServersOutputDelegate::CreateLambda(
-      [this](const FRedwoodListServersOutput &Output) {
+    FRedwoodListProxiesOutputDelegate::CreateLambda(
+      [this](const FRedwoodListProxiesOutput &Output) {
         CurrentTest->TestEqual(
-          TEXT("ListServers no error"), Output.Error, TEXT("")
+          TEXT("ListProxies no error"), Output.Error, TEXT("")
         );
         CurrentTest->TestEqual(
-          TEXT("ListServers returns server"), Output.Servers.Num(), 1
+          TEXT("ListProxies returns server"), Output.Proxies.Num(), 1
         );
         Context->bIsCurrentTestComplete = true;
       }
@@ -268,12 +267,12 @@ void FListServers::Initialize() {
   );
 }
 
-DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FStopServer);
-void FStopServer::Initialize() {
-  Redwood->StopServer(
-    Context->Data.GetStringField(TEXT("ServerReference")),
+DEFINE_REDWOOD_LATENT_AUTOMATION_COMMAND(FStopProxy);
+void FStopProxy::Initialize() {
+  Redwood->StopProxy(
+    Context->Data.GetStringField(TEXT("ProxyReference")),
     FRedwoodErrorOutputDelegate::CreateLambda([this](const FString &Error) {
-      CurrentTest->TestEqual(TEXT("StopServer no error"), Error, TEXT(""));
+      CurrentTest->TestEqual(TEXT("StopProxy no error"), Error, TEXT(""));
       Context->bIsCurrentTestComplete = true;
     })
   );
@@ -297,8 +296,8 @@ bool FClientFlowTest::RunTest(const FString &Parameters) {
   ADD_LATENT_AUTOMATION_COMMAND(FGetCharacter(Redwood, Context, 8));
   ADD_LATENT_AUTOMATION_COMMAND(FListNoServers(Redwood, Context, 9));
   ADD_LATENT_AUTOMATION_COMMAND(FCreatePublicServer(Redwood, Context, 10));
-  ADD_LATENT_AUTOMATION_COMMAND(FListServers(Redwood, Context, 11));
-  ADD_LATENT_AUTOMATION_COMMAND(FStopServer(Redwood, Context, 12));
+  ADD_LATENT_AUTOMATION_COMMAND(FListProxies(Redwood, Context, 11));
+  ADD_LATENT_AUTOMATION_COMMAND(FStopProxy(Redwood, Context, 12));
   ADD_LATENT_AUTOMATION_COMMAND(FListNoServers(Redwood, Context, 13));
 
   ADD_LATENT_AUTOMATION_COMMAND(FWaitForEnd(Redwood, Context, 14));

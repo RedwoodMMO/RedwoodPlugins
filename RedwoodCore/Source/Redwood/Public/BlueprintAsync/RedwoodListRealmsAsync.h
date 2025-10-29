@@ -33,5 +33,6 @@ public:
   UPROPERTY(BlueprintAssignable)
   FRedwoodListRealmsOutputDynamicDelegate OnOutput;
 
+  UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 };

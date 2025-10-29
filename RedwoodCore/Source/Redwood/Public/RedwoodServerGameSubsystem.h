@@ -88,12 +88,18 @@ public:
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString SidecarUri;
 
+  /**
+   * Travel the specified player to a new zone transform.
+   * @param bShouldStitch This is a WIP feature that you likely
+   * don't have access to; leave it set to false.
+   */
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void TravelPlayerToZoneTransform(
     APlayerController *PlayerController,
     const FString &InZoneName,
     const FTransform &InTransform,
-    const FString &OptionalProxyId = TEXT("")
+    const FString &OptionalProxyId = TEXT(""),
+    bool bShouldStitch = false
   );
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
@@ -106,7 +112,12 @@ public:
 
   void FlushSync();
   void FlushPersistence();
-  void FlushPlayerCharacterData();
+  void FlushPlayerCharacterData(
+    TArray<APlayerState *> PlayerArray, bool bForce
+  );
+  TSharedPtr<FJsonObject> CreatePlayerCharacterDataObject(
+    APlayerState *PlayerState, bool bForce
+  );
   void FlushZoneData();
 
   void InitialDataLoad(FRedwoodDelegate OnComplete);
@@ -133,10 +144,14 @@ public:
   void RequestEngineExit(bool bForce);
 
 private:
+  UPROPERTY()
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FString, FPrimaryAssetId> Maps;
+  UPROPERTY()
   TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByTypeId;
+  UPROPERTY()
   TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByPrimaryAssetId;
+  UPROPERTY()
   TMap<FString, URedwoodSyncComponent *> SyncItemComponentsById;
 
   void InitializeSidecar();
@@ -153,6 +168,7 @@ private:
   FGameplayMessageListenerHandle ListenerHandle;
   void OnShutdownMessage(FGameplayTag InChannel, const FRedwoodReason &Message);
 
+  UPROPERTY()
   TSet<URedwoodSyncComponent *> DelayedNewSyncItems;
   bool bInitialDataLoaded = false;
   FRedwoodDelegate InitialDataLoadCompleteDelegate;

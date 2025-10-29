@@ -34,7 +34,7 @@ public:
   TObjectPtr<UTexture2D> DisplayIcon;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GameMode)
-  ERedwoodGameModeType GameModeType;
+  ERedwoodGameModeType GameModeType = ERedwoodGameModeType::GameModeBase;
 
   UPROPERTY(
     BlueprintReadWrite,

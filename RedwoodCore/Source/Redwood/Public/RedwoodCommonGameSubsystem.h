@@ -22,10 +22,12 @@ public:
   virtual void Deinitialize() override;
   // End USubsystem
 
+  static void SaveCharacterJsonToDisk(TSharedPtr<FJsonObject> JsonObject);
   static void SaveCharacterToDisk(FRedwoodCharacterBackend &Character);
 
   static TArray<FRedwoodCharacterBackend> LoadAllCharactersFromDisk();
 
+  static TSharedPtr<FJsonObject> LoadCharacterJsonFromDisk(FString CharacterId);
   static FRedwoodCharacterBackend LoadCharacterFromDisk(FString CharacterId);
 
   static uint8 GetCharactersOnDiskCount();
@@ -66,6 +68,36 @@ public:
   static bool ShouldUseBackend(UWorld *World);
 
   static ERedwoodFriendListType ParseFriendListType(FString StringValue);
+
+  static ERedwoodGuildInviteType ParseGuildInviteType(FString StringValue);
+  static FString SerializeGuildInviteType(ERedwoodGuildInviteType InviteType);
+
+  static ERedwoodGuildAndAllianceMemberState ParseGuildAndAllianceMemberState(
+    FString StringValue
+  );
+  static FString SerializeGuildAndAllianceMemberState(
+    ERedwoodGuildAndAllianceMemberState State
+  );
+
+  static FRedwoodGuild ParseGuild(TSharedPtr<FJsonObject> GuildObject);
+  static FRedwoodGuildInfo ParseGuildInfo(
+    TSharedPtr<FJsonObject> GuildInfoObject
+  );
+
+  static FRedwoodAlliance ParseAlliance(TSharedPtr<FJsonObject> AllianceObj);
+
+  static FRedwoodPlayerData ParsePlayerData(
+    TSharedPtr<FJsonObject> PlayerDataObj
+  );
+
+  static FRedwoodPartyInvite ParsePartyInvite(
+    const TSharedPtr<FJsonObject> &InviteObject
+  );
+  static TArray<FRedwoodPartyInvite> ParsePartyInvites(
+    const TArray<TSharedPtr<FJsonValue>> &InvitesArray
+  );
+
+  static FRedwoodParty ParseParty(const TSharedPtr<FJsonObject> &PartyObj);
 
 private:
 };
