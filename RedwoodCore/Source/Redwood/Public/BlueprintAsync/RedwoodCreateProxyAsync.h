@@ -41,5 +41,6 @@ public:
 
   bool bJoinSession;
 
+  UPROPERTY()
   FRedwoodCreateProxyInput Parameters;
 };

@@ -144,10 +144,14 @@ public:
   void RequestEngineExit(bool bForce);
 
 private:
+  UPROPERTY()
   TMap<FString, TSubclassOf<AGameModeBase>> GameModeClasses;
   TMap<FString, FPrimaryAssetId> Maps;
+  UPROPERTY()
   TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByTypeId;
+  UPROPERTY()
   TMap<FString, URedwoodSyncItemAsset *> SyncItemTypesByPrimaryAssetId;
+  UPROPERTY()
   TMap<FString, URedwoodSyncComponent *> SyncItemComponentsById;
 
   void InitializeSidecar();
@@ -164,6 +168,7 @@ private:
   FGameplayMessageListenerHandle ListenerHandle;
   void OnShutdownMessage(FGameplayTag InChannel, const FRedwoodReason &Message);
 
+  UPROPERTY()
   TSet<URedwoodSyncComponent *> DelayedNewSyncItems;
   bool bInitialDataLoaded = false;
   FRedwoodDelegate InitialDataLoadCompleteDelegate;

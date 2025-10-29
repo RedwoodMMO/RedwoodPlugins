@@ -24,8 +24,10 @@ public:
   );
 
   // NOT AVAILABLE ON CLIENTS
+  UPROPERTY()
   FRedwoodPlayerData RedwoodPlayer;
   // NOT AVAILABLE ON CLIENTS
+  UPROPERTY()
   FRedwoodCharacterBackend RedwoodCharacter;
 
   //~ Begin AActor interface
