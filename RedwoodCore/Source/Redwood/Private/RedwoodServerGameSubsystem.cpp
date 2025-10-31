@@ -353,15 +353,22 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         TSharedPtr<FJsonObject> ActualObject = *Object;
         FString ItemId = ActualObject->GetStringField(TEXT("id"));
 
-        URedwoodSyncComponent *SyncItemComponent;
+        bool bCleanupEntry = true;
+        if (TWeakObjectPtr<URedwoodSyncComponent>* WeakPtr = SyncItemComponentsById.Find(ItemId))
+        {
+          if (URedwoodSyncComponent *SyncItemComponent = WeakPtr->Get()) {
+            bCleanupEntry = false;
 
-        SyncItemComponent = SyncItemComponentsById.FindRef(ItemId);
+            FRedwoodSyncItemState SyncItemState =
+              URedwoodCommonGameSubsystem::ParseSyncItemState(ActualObject);
 
-        if (IsValid(SyncItemComponent)) {
-          FRedwoodSyncItemState SyncItemState =
-            URedwoodCommonGameSubsystem::ParseSyncItemState(ActualObject);
+            UpdateSyncItemState(SyncItemComponent, SyncItemState);
+          }
+        }
 
-          UpdateSyncItemState(SyncItemComponent, SyncItemState);
+        if (bCleanupEntry) {
+          // Clean up dead entry
+          SyncItemComponentsById.Remove(ItemId);
         }
       }
     }
@@ -376,17 +383,24 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         TSharedPtr<FJsonObject> ActualObject = *Object;
         FString ItemId = ActualObject->GetStringField(TEXT("id"));
 
-        URedwoodSyncComponent *SyncItemComponent;
+        bool bCleanupEntry = true;
+        if (TWeakObjectPtr<URedwoodSyncComponent>* WeakPtr = SyncItemComponentsById.Find(ItemId))
+        {
+          if (URedwoodSyncComponent *SyncItemComponent = WeakPtr->Get()) {
+            bCleanupEntry = false;
 
-        SyncItemComponent = SyncItemComponentsById.FindRef(ItemId);
+            TSharedPtr<FJsonObject> MovementObj =
+              ActualObject->GetObjectField(TEXT("movement"));
+            FRedwoodSyncItemMovement SyncItemMovement =
+              URedwoodCommonGameSubsystem::ParseSyncItemMovement(MovementObj);
 
-        if (IsValid(SyncItemComponent)) {
-          TSharedPtr<FJsonObject> MovementObj =
-            ActualObject->GetObjectField(TEXT("movement"));
-          FRedwoodSyncItemMovement SyncItemMovement =
-            URedwoodCommonGameSubsystem::ParseSyncItemMovement(MovementObj);
+            UpdateSyncItemMovement(SyncItemComponent, SyncItemMovement);
+          }
+        }
 
-          UpdateSyncItemMovement(SyncItemComponent, SyncItemMovement);
+        if (bCleanupEntry) {
+          // Clean up dead entry
+          SyncItemComponentsById.Remove(ItemId);
         }
       }
     }
@@ -401,17 +415,24 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         TSharedPtr<FJsonObject> ActualObject = *Object;
         FString ItemId = ActualObject->GetStringField(TEXT("id"));
 
-        URedwoodSyncComponent *SyncItemComponent;
+        bool bCleanupEntry = true;
+        if (TWeakObjectPtr<URedwoodSyncComponent>* WeakPtr = SyncItemComponentsById.Find(ItemId))
+        {
+          if (URedwoodSyncComponent *SyncItemComponent = WeakPtr->Get()) {
+            bCleanupEntry = false;
 
-        SyncItemComponent = SyncItemComponentsById.FindRef(ItemId);
+            TSharedPtr<FJsonObject> DataObj =
+              ActualObject->GetObjectField(TEXT("data"));
+            USIOJsonObject *SyncItemData =
+              URedwoodCommonGameSubsystem::ParseSyncItemData(DataObj);
 
-        if (IsValid(SyncItemComponent)) {
-          TSharedPtr<FJsonObject> DataObj =
-            ActualObject->GetObjectField(TEXT("data"));
-          USIOJsonObject *SyncItemData =
-            URedwoodCommonGameSubsystem::ParseSyncItemData(DataObj);
+            UpdateSyncItemData(SyncItemComponent, SyncItemData);
+          }
+        }
 
-          UpdateSyncItemData(SyncItemComponent, SyncItemData);
+        if (bCleanupEntry) {
+          // Clean up dead entry
+          SyncItemComponentsById.Remove(ItemId);
         }
       }
     }
@@ -827,23 +848,26 @@ void URedwoodServerGameSubsystem::FlushSync() {
   double CurrentTime = FPlatformTime::Seconds();
 
   TArray<TSharedPtr<FJsonValue>> ItemsArray;
-  for (auto &Pair : SyncItemComponentsById) {
-    URedwoodSyncComponent *SyncItemComponent = Pair.Value;
+  for (auto It = SyncItemComponentsById.CreateIterator(); It; ++It) {
+    TWeakObjectPtr<URedwoodSyncComponent> &WeakComp = It.Value();
 
-    if (SyncItemComponent->ZoneName != ZoneName && SyncItemComponent->RedwoodId != TEXT("proxy")) {
-      // don't flush items that this server isn't responsible for controlling at all
-      continue;
-    }
+    bool bCleanupEntry = false;
+    URedwoodSyncComponent *SyncItemComponent = WeakComp.Get();
 
-    if (!IsValid(SyncItemComponent) || !IsValid(SyncItemComponent->GetOwner())) {
+    if (SyncItemComponent == nullptr) {
       // item was destroyed
       TSharedPtr<FJsonObject> ItemObject = MakeShareable(new FJsonObject);
-      ItemObject->SetStringField(TEXT("id"), SyncItemComponent->RedwoodId);
+      ItemObject->SetStringField(TEXT("id"), It.Key());
       ItemObject->SetBoolField(TEXT("destroyed"), true);
       ItemsArray.Add(MakeShareable(new FJsonValueObject(ItemObject)));
 
-      SyncItemComponentsById.Remove(Pair.Key);
+      It.RemoveCurrent(); // remove the current pair safely
 
+      continue;
+    }
+
+    if (SyncItemComponent->ZoneName != ZoneName && SyncItemComponent->RedwoodId != TEXT("proxy")) {
+      // don't flush items that this server isn't responsible for controlling at all
       continue;
     }
 
@@ -1355,17 +1379,32 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
     return;
   }
 
-  URedwoodSyncComponent *SyncItemComponent;
+  URedwoodSyncComponent *SyncItemComponent = nullptr;
 
-  SyncItemComponent = SyncItemComponentsById.FindRef(Item.State.Id);
+  bool bCleanupEntry = true;
+  if (TWeakObjectPtr<URedwoodSyncComponent> *WeakPtr = SyncItemComponentsById.Find(Item.State.Id)) {
+    SyncItemComponent = WeakPtr->Get();
+    if (SyncItemComponent != nullptr) {
+      bCleanupEntry = false;
+    }
+  }
 
-  URedwoodSyncItemAsset *ItemType = nullptr;
-  AActor *Actor = nullptr;
+  if (bCleanupEntry) {
+    // Clean up dead entry
+    SyncItemComponentsById.Remove(Item.State.Id);
+    return;
+  }
+
   if (SyncItemComponent == nullptr) {
     // spawn it
-    ItemType = SyncItemTypesByTypeId.FindRef(Item.State.TypeId);
+    URedwoodSyncItemAsset *ItemType = nullptr;
+    AActor *Actor = nullptr;
+    if (TWeakObjectPtr<URedwoodSyncItemAsset> *WeakItemType =
+      SyncItemTypesByTypeId.Find(Item.State.TypeId)) {
+      ItemType = WeakItemType->Get();
+    }
 
-    if (ItemType == nullptr) {
+    if (!IsValid(ItemType)) {
       UE_LOG(
         LogRedwood,
         Error,
@@ -1529,8 +1568,15 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
 
   // get data from SyncItemComponentsById
   TArray<TSharedPtr<FJsonValue>> PersistentItemsArray;
-  for (auto &Pair : SyncItemComponentsById) {
-    URedwoodSyncComponent *SyncItemComponent = Pair.Value;
+  for (auto It = SyncItemComponentsById.CreateIterator(); It; ++It) {
+    TWeakObjectPtr<URedwoodSyncComponent> &WeakComp = It.Value();
+
+    URedwoodSyncComponent *SyncItemComponent = WeakComp.Get();
+
+    if (SyncItemComponent == nullptr) {
+      It.RemoveCurrent(); // remove dead entry safely
+      continue;
+    }
 
     if (SyncItemComponent->RedwoodId == TEXT("proxy")) {
       // don't save the proxy/world data here
@@ -1689,11 +1735,16 @@ void URedwoodServerGameSubsystem::RegisterSyncComponent(
   SyncItemComponentsById.Add(InComponent->RedwoodId, InComponent);
 
   UClass *ActorClass = InComponent->GetOwner()->GetClass();
-  for (auto &Pair : SyncItemTypesByTypeId) {
-    URedwoodSyncItemAsset *SyncItemType = Pair.Value;
-    if (SyncItemType->ActorClass.Get() == ActorClass) {
-      InComponent->RedwoodTypeId = Pair.Key;
-      break;
+  for (auto It = SyncItemTypesByTypeId.CreateIterator(); It; ++It) {
+    TWeakObjectPtr<URedwoodSyncItemAsset> WeakSyncItemType = It.Value();
+
+    if (URedwoodSyncItemAsset *SyncItemType = WeakSyncItemType.Get()) {
+      if (SyncItemType->ActorClass.Get() == ActorClass) {
+        InComponent->RedwoodTypeId = It.Key();
+        break;
+      }
+    } else {
+      It.RemoveCurrent(); // remove dead entry safely
     }
   }
 
@@ -1779,8 +1830,14 @@ void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
 }
 
 void URedwoodServerGameSubsystem::SendNewSyncForPersistentItemsToSidecar() {
-  for (URedwoodSyncComponent *SyncItemComponent : DelayedNewSyncItems) {
-    SendNewSyncItemToSidecar(SyncItemComponent);
+  for (auto It = DelayedNewSyncItems.CreateIterator(); It; ++It) {
+    TWeakObjectPtr<URedwoodSyncComponent> WeakSyncItemComponent = *It;
+
+    if (URedwoodSyncComponent *SyncItemComponent = WeakSyncItemComponent.Get()) {
+      SendNewSyncItemToSidecar(SyncItemComponent);
+    } else {
+      It.RemoveCurrent(); // remove dead entry safely
+    }
   }
 }
 
