@@ -2,23 +2,19 @@
 
 #pragma once
 
+#include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
-#include "GameFramework/PlayerState.h"
 
-#include "RedwoodPlayerStateComponent.h"
-#include "Types/RedwoodTypesCharacters.h"
-#include "Types/RedwoodTypesPlayersGuilds.h"
+#include "RedwoodPlayerStateComponent.generated.h"
 
-#include "RedwoodPlayerState.generated.h"
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodPlayerStateUpdated);
 
 UCLASS(BlueprintType, Blueprintable)
-class REDWOOD_API ARedwoodPlayerState : public APlayerState {
+class REDWOOD_API URedwoodPlayerStateComponent : public UActorComponent {
   GENERATED_BODY()
 
 public:
-  ARedwoodPlayerState(
-    const FObjectInitializer &ObjectInitializer = FObjectInitializer::Get()
-  );
+  URedwoodPlayerStateComponent(const FObjectInitializer &ObjectInitializer);
 
   // NOT AVAILABLE ON CLIENTS
   UPROPERTY()
@@ -27,9 +23,13 @@ public:
   UPROPERTY()
   FRedwoodCharacterBackend RedwoodCharacter;
 
-  //~ Begin AActor interface
-  virtual void Tick(float DeltaSeconds) override;
-  //~ End AActor interface
+  //~ Begin UActorComponent Interface
+  virtual void TickComponent(
+    float DeltaTime,
+    enum ELevelTick TickType,
+    FActorComponentTickFunction *ThisTickFunction
+  ) override;
+  //~ End UActorComponent Interface
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   bool bFollowPawn = false;
@@ -65,12 +65,5 @@ public:
   FOnRedwoodPlayerStateUpdated OnRedwoodPlayerUpdated;
 
 private:
-  UPROPERTY()
-  URedwoodPlayerStateComponent *PlayerStateComponent;
-
-  UFUNCTION()
-  void HandleCharacterUpdated();
-
-  UFUNCTION()
-  void HandlePlayerUpdated();
+  TWeakObjectPtr<APlayerState> OwnerPlayerState = nullptr;
 };

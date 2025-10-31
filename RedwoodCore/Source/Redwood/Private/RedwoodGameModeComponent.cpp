@@ -118,15 +118,18 @@ void URedwoodGameModeComponent::OnGameModeLogout(
     return;
   }
 
-  ARedwoodPlayerState *RedwoodPlayerState =
-    Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
-  if (IsValid(RedwoodPlayerState)) {
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    IsValid(PlayerController->PlayerState)
+    ? PlayerController->PlayerState
+        ->FindComponentByClass<URedwoodPlayerStateComponent>()
+    : nullptr;
+  if (IsValid(PlayerStateComponent)) {
     URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
       GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>(
       );
 
     TArray<APlayerState *> PlayerFlushArray;
-    PlayerFlushArray.Add(RedwoodPlayerState);
+    PlayerFlushArray.Add(PlayerController->PlayerState);
     RedwoodServerGameSubsystem->FlushPlayerCharacterData(
       PlayerFlushArray, true
     );
@@ -135,10 +138,10 @@ void URedwoodGameModeComponent::OnGameModeLogout(
       if (Sidecar.IsValid() && Sidecar->bIsConnected) {
         TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
         JsonObject->SetStringField(
-          TEXT("playerId"), RedwoodPlayerState->RedwoodCharacter.PlayerId
+          TEXT("playerId"), PlayerStateComponent->RedwoodCharacter.PlayerId
         );
         JsonObject->SetStringField(
-          TEXT("characterId"), RedwoodPlayerState->RedwoodCharacter.Id
+          TEXT("characterId"), PlayerStateComponent->RedwoodCharacter.Id
         );
         Sidecar->Emit(
           TEXT("realm:servers:player-left:game-server-to-sidecar"), JsonObject
@@ -235,9 +238,10 @@ APlayerController *URedwoodGameModeComponent::Login(
               MessageStruct->GetObjectField(TEXT("player"));
             FString TempPlayerId = Player->GetStringField(TEXT("id"));
 
-            ARedwoodPlayerState *RedwoodPlayerState =
-              Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
-            if (IsValid(RedwoodPlayerState)) {
+            URedwoodPlayerStateComponent *PlayerStateComponent =
+              PlayerController->PlayerState
+                ->FindComponentByClass<URedwoodPlayerStateComponent>();
+            if (IsValid(PlayerStateComponent)) {
               UE_LOG(
                 LogRedwood,
                 Log,
@@ -246,16 +250,16 @@ APlayerController *URedwoodGameModeComponent::Login(
               );
 
               // This notifies subscribers to the OnRedwoodPlayerUpdated delegate (e.g. URedwoodCharacterComponent)
-              RedwoodPlayerState->SetRedwoodPlayer(
+              PlayerStateComponent->SetRedwoodPlayer(
                 URedwoodCommonGameSubsystem::ParsePlayerData(Player)
               );
 
               // This notifies subscribers to the OnRedwoodCharacterUpdated delegate (e.g. URedwoodCharacterComponent)
-              RedwoodPlayerState->SetRedwoodCharacter(
+              PlayerStateComponent->SetRedwoodCharacter(
                 URedwoodCommonGameSubsystem::ParseCharacter(Character)
               );
 
-              RedwoodPlayerState->SetServerReady();
+              PlayerStateComponent->SetServerReady();
 
               GameMode->HandleStartingNewPlayer(PlayerController);
             } else {
@@ -296,13 +300,14 @@ APlayerController *URedwoodGameModeComponent::Login(
       URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
 
     if (PlayerIndex < Characters.Num()) {
-      ARedwoodPlayerState *RedwoodPlayerState =
-        Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
-      if (IsValid(RedwoodPlayerState)) {
+      URedwoodPlayerStateComponent *PlayerStateComponent =
+        PlayerController->PlayerState
+          ->FindComponentByClass<URedwoodPlayerStateComponent>();
+      if (IsValid(PlayerStateComponent)) {
         FRedwoodCharacterBackend &Character = Characters[PlayerIndex];
-        RedwoodPlayerState->SetRedwoodCharacter(Character);
+        PlayerStateComponent->SetRedwoodCharacter(Character);
 
-        RedwoodPlayerState->SetServerReady();
+        PlayerStateComponent->SetServerReady();
 
         GameMode->HandleStartingNewPlayer(PlayerController);
       } else {
@@ -354,10 +359,10 @@ bool URedwoodGameModeComponent::PlayerCanRestart_Implementation(
   APlayerController *Player,
   std::function<bool(APlayerController *)> SuperDelegate
 ) {
-  ARedwoodPlayerState *RedwoodPlayerState =
-    Cast<ARedwoodPlayerState>(Player->PlayerState);
-  if (IsValid(RedwoodPlayerState)) {
-    if (!RedwoodPlayerState->bServerReady) {
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    Player->PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
+  if (IsValid(PlayerStateComponent)) {
+    if (!PlayerStateComponent->bServerReady) {
       return false;
     }
   }
@@ -376,17 +381,17 @@ void URedwoodGameModeComponent::FinishRestartPlayer(
   if (!IsValid(NewPlayer->GetPawn())) {
     FailedToRestartPlayerDelegate(NewPlayer);
   } else {
-    ARedwoodPlayerState *RedwoodPlayerState =
-      Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+    URedwoodPlayerStateComponent *PlayerStateComponent =
+      NewPlayer->PlayerState
+        ->FindComponentByClass<URedwoodPlayerStateComponent>();
 
     FRotator NewControlRotation = NewPlayer->GetPawn()->GetActorRotation();
 
-    if (IsValid(RedwoodPlayerState)) {
-      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData) {
+    if (IsValid(PlayerStateComponent)) {
+      if (PlayerStateComponent->RedwoodCharacter.RedwoodData) {
         USIOJsonObject *LastLocation;
-        if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
-              TEXT("lastLocation"), LastLocation
-            )) {
+        if (PlayerStateComponent->RedwoodCharacter.RedwoodData
+              ->TryGetObjectField(TEXT("lastLocation"), LastLocation)) {
           USIOJsonObject *LastTransform;
 
           if (LastLocation->TryGetObjectField(
@@ -445,14 +450,15 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
     }
   }
 
-  ARedwoodPlayerState *RedwoodPlayerState =
-    Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    NewPlayer->PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>(
+    );
 
-  if (IsValid(RedwoodPlayerState)) {
-    if (IsValid(RedwoodPlayerState->RedwoodCharacter.RedwoodData)) {
+  if (IsValid(PlayerStateComponent)) {
+    if (IsValid(PlayerStateComponent->RedwoodCharacter.RedwoodData)) {
 
       USIOJsonObject *LastLocation;
-      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
+      if (PlayerStateComponent->RedwoodCharacter.RedwoodData->TryGetObjectField(
             TEXT("lastLocation"), LastLocation
           )) {
         FString LastZoneName = LastLocation->GetStringField(TEXT("zoneName"));

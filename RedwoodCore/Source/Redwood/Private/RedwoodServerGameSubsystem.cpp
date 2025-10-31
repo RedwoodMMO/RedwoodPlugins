@@ -430,17 +430,17 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         UWorld *World = GetWorld();
         if (IsValid(World)) {
           for (APlayerState *PlayerState : World->GetGameState()->PlayerArray) {
-            ARedwoodPlayerState *RedwoodPlayerState =
-              Cast<ARedwoodPlayerState>(PlayerState);
-            if (!IsValid(RedwoodPlayerState)) {
+            URedwoodPlayerStateComponent *PlayerStateComponent =
+              PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
+            if (!IsValid(PlayerStateComponent)) {
               continue;
             }
 
-            if (RedwoodPlayerState->RedwoodPlayer.Id == PlayerId) {
+            if (PlayerStateComponent->RedwoodPlayer.Id == PlayerId) {
               // Found the player state
               TSharedPtr<FJsonObject> PlayerData =
                 ActualObject->GetObjectField(TEXT("data"));
-              RedwoodPlayerState->SetRedwoodPlayer(
+              PlayerStateComponent->SetRedwoodPlayer(
                 URedwoodCommonGameSubsystem::ParsePlayerData(PlayerData)
               );
               break;
@@ -1017,14 +1017,12 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
 
   bool bUseBackend = URedwoodCommonGameSubsystem::ShouldUseBackend(World);
 
-  ARedwoodPlayerState *RedwoodPlayerState =
-    Cast<ARedwoodPlayerState>(PlayerState);
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
 
-  if (RedwoodPlayerState) {
+  if (IsValid(PlayerStateComponent)) {
     TArray<URedwoodCharacterComponent *> CharacterComponents;
-    RedwoodPlayerState->GetComponents<URedwoodCharacterComponent>(
-      CharacterComponents
-    );
+    PlayerState->GetComponents<URedwoodCharacterComponent>(CharacterComponents);
 
     APawn *Pawn = PlayerState->GetPawn();
     if (Pawn) {
@@ -1037,7 +1035,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
       PersistenceComponents;
 
     TArray<UActorComponent *> AllComponents;
-    RedwoodPlayerState->GetComponents<UActorComponent>(AllComponents);
+    PlayerState->GetComponents<UActorComponent>(AllComponents);
     if (Pawn) {
       TArray<UActorComponent *> PawnComponents;
       Pawn->GetComponents<UActorComponent>(PawnComponents);
@@ -1056,15 +1054,15 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
       LogRedwood,
       VeryVerbose,
       TEXT("Flushing character %s"),
-      *RedwoodPlayerState->RedwoodCharacter.Name
+      *PlayerStateComponent->RedwoodCharacter.Name
     );
 
     TSharedPtr<FJsonObject> CharacterObject = MakeShareable(new FJsonObject);
     CharacterObject->SetStringField(
-      TEXT("playerId"), *RedwoodPlayerState->RedwoodCharacter.PlayerId
+      TEXT("playerId"), *PlayerStateComponent->RedwoodCharacter.PlayerId
     );
     CharacterObject->SetStringField(
-      TEXT("characterId"), *RedwoodPlayerState->RedwoodCharacter.Id
+      TEXT("characterId"), *PlayerStateComponent->RedwoodCharacter.Id
     );
 
     for (URedwoodCharacterComponent *CharacterComponent : CharacterComponents) {
@@ -1090,7 +1088,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
             CharacterComponent->CharacterCreatorDataVariableName
           );
         if (CharacterCreatorData) {
-          RedwoodPlayerState->RedwoodCharacter.CharacterCreatorData =
+          PlayerStateComponent->RedwoodCharacter.CharacterCreatorData =
             CharacterCreatorData;
           CharacterObject->SetObjectField(
             TEXT("characterCreatorData"), CharacterCreatorData->GetRootObject()
@@ -1108,7 +1106,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
             CharacterComponent->MetadataVariableName
           );
         if (Metadata) {
-          RedwoodPlayerState->RedwoodCharacter.Metadata = Metadata;
+          PlayerStateComponent->RedwoodCharacter.Metadata = Metadata;
           CharacterObject->SetObjectField(
             TEXT("metadata"), Metadata->GetRootObject()
           );
@@ -1125,7 +1123,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
             CharacterComponent->EquippedInventoryVariableName
           );
         if (EquippedInventory) {
-          RedwoodPlayerState->RedwoodCharacter.EquippedInventory =
+          PlayerStateComponent->RedwoodCharacter.EquippedInventory =
             EquippedInventory;
           CharacterObject->SetObjectField(
             TEXT("equippedInventory"), EquippedInventory->GetRootObject()
@@ -1143,7 +1141,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
             CharacterComponent->NonequippedInventoryVariableName
           );
         if (NonequippedInventory) {
-          RedwoodPlayerState->RedwoodCharacter.NonequippedInventory =
+          PlayerStateComponent->RedwoodCharacter.NonequippedInventory =
             NonequippedInventory;
           CharacterObject->SetObjectField(
             TEXT("nonequippedInventory"), NonequippedInventory->GetRootObject()
@@ -1161,7 +1159,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
             CharacterComponent->ProgressVariableName
           );
         if (Progress) {
-          RedwoodPlayerState->RedwoodCharacter.Progress = Progress;
+          PlayerStateComponent->RedwoodCharacter.Progress = Progress;
           CharacterObject->SetObjectField(
             TEXT("progress"), Progress->GetRootObject()
           );
@@ -1177,7 +1175,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
             CharacterComponent->DataVariableName
           );
         if (CharData) {
-          RedwoodPlayerState->RedwoodCharacter.Data = CharData;
+          PlayerStateComponent->RedwoodCharacter.Data = CharData;
           CharacterObject->SetObjectField(
             TEXT("data"), CharData->GetRootObject()
           );
@@ -1194,7 +1192,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
             CharacterComponent->AbilitySystemVariableName
           );
         if (AbilitySystem) {
-          RedwoodPlayerState->RedwoodCharacter.AbilitySystem = AbilitySystem;
+          PlayerStateComponent->RedwoodCharacter.AbilitySystem = AbilitySystem;
           CharacterObject->SetObjectField(
             TEXT("abilitySystem"), AbilitySystem->GetRootObject()
           );
@@ -1215,7 +1213,11 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
 
     return CharacterObject;
   } else {
-    UE_LOG(LogRedwood, Error, TEXT("PlayerState is not a RedwoodPlayerState"));
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("PlayerState does not have a URedwoodPlayerStateComponent")
+    );
     return TSharedPtr<FJsonObject>();
   }
 }

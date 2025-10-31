@@ -4,9 +4,10 @@
 #include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGASModule.h"
 #include "RedwoodKeepRemainingTimeGameplayEffectComponent.h"
-#include "RedwoodPlayerState.h"
+#include "RedwoodPlayerStateComponent.h"
 #include "RedwoodSkipOfflinePeriodsGameplayEffectComponent.h"
 
+#include "GameFramework/PlayerState.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
 
@@ -79,21 +80,33 @@ void URedwoodAbilitySystemComponent::BeginPlay() {
         OnControllerChanged(Pawn, nullptr, Controller);
       }
     } else {
-      ARedwoodPlayerState *RedwoodPlayerState =
-        Cast<ARedwoodPlayerState>(Owner);
+      APlayerState *PlayerState = Cast<APlayerState>(Owner);
 
-      if (IsValid(RedwoodPlayerState)) {
-        RedwoodPlayerState->OnRedwoodCharacterUpdated.AddUniqueDynamic(
-          this,
-          &URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdated
-        );
-        RedwoodPlayerStateCharacterUpdated();
+      if (IsValid(PlayerState)) {
+        URedwoodPlayerStateComponent *PlayerStateComponent =
+          PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
+
+        if (IsValid(PlayerStateComponent)) {
+          PlayerStateComponent->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+            this,
+            &URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdated
+          );
+          RedwoodPlayerStateCharacterUpdated();
+        } else {
+          UE_LOG(
+            LogRedwoodGAS,
+            Error,
+            TEXT(
+              "URedwoodAbilitySystemComponent requires the owning APlayerState to have an attached URedwoodPlayerStateComponent"
+            )
+          );
+        }
       } else {
         UE_LOG(
           LogRedwoodGAS,
           Error,
           TEXT(
-            "URedwoodAbilitySystemComponent must be used with APawn or ARedwoodPlayerState"
+            "URedwoodAbilitySystemComponent must be used with APawn or APlayerState"
           )
         );
       }
@@ -128,10 +141,11 @@ void URedwoodAbilitySystemComponent::OnControllerChanged(
   APawn *Pawn, AController *OldController, AController *NewController
 ) {
   if (IsValid(NewController)) {
-    TObjectPtr<ARedwoodPlayerState> RedwoodPlayerState =
-      Cast<ARedwoodPlayerState>(NewController->PlayerState);
-    if (RedwoodPlayerState) {
-      RedwoodPlayerState->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+    URedwoodPlayerStateComponent *PlayerStateComponent =
+      NewController->PlayerState
+        ->FindComponentByClass<URedwoodPlayerStateComponent>();
+    if (IsValid(PlayerStateComponent)) {
+      PlayerStateComponent->OnRedwoodCharacterUpdated.AddUniqueDynamic(
         this,
         &URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdated
       );
@@ -143,12 +157,17 @@ void URedwoodAbilitySystemComponent::OnControllerChanged(
 void URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdated() {
   APawn *Pawn = Cast<APawn>(GetOwner());
   AController *Controller = IsValid(Pawn) ? Pawn->GetController() : nullptr;
-  ARedwoodPlayerState *RedwoodPlayerState = IsValid(Controller)
-    ? Cast<ARedwoodPlayerState>(Controller->PlayerState)
-    : Cast<ARedwoodPlayerState>(GetOwner());
-  if (IsValid(RedwoodPlayerState)) {
+  APlayerState *PlayerState = IsValid(Controller)
+    ? Cast<APlayerState>(Controller->PlayerState)
+    : Cast<APlayerState>(GetOwner());
+
+  URedwoodPlayerStateComponent *PlayerStateComponent = IsValid(PlayerState)
+    ? PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>()
+    : nullptr;
+
+  if (IsValid(PlayerStateComponent)) {
     FRedwoodCharacterBackend RedwoodCharacterBackend =
-      RedwoodPlayerState->RedwoodCharacter;
+      PlayerStateComponent->RedwoodCharacter;
 
     if (IsValid(RedwoodCharacterBackend.AbilitySystem)) {
       DeserializeASC(RedwoodCharacterBackend.AbilitySystem->GetRootObject());

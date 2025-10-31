@@ -3,8 +3,9 @@
 #include "RedwoodCharacterComponent.h"
 #include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodModule.h"
-#include "RedwoodPlayerState.h"
+#include "RedwoodPlayerStateComponent.h"
 
+#include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "SIOJConvert.h"
 #include "SIOJsonObject.h"
@@ -48,25 +49,37 @@ void URedwoodCharacterComponent::BeginPlay() {
       OnControllerChanged(Pawn, nullptr, Controller);
     }
   } else {
-    ARedwoodPlayerState *RedwoodPlayerState =
-      Cast<ARedwoodPlayerState>(GetOwner());
+    APlayerState *PlayerState = Cast<APlayerState>(GetOwner());
 
-    if (IsValid(RedwoodPlayerState)) {
-      RedwoodPlayerState->OnRedwoodPlayerUpdated.AddUniqueDynamic(
-        this, &URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated
-      );
-      RedwoodPlayerStatePlayerUpdated();
+    if (IsValid(PlayerState)) {
+      URedwoodPlayerStateComponent *PlayerStateComponent =
+        PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
 
-      RedwoodPlayerState->OnRedwoodCharacterUpdated.AddUniqueDynamic(
-        this, &URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated
-      );
-      RedwoodPlayerStateCharacterUpdated();
+      if (IsValid(PlayerStateComponent)) {
+        PlayerStateComponent->OnRedwoodPlayerUpdated.AddUniqueDynamic(
+          this, &URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated
+        );
+        RedwoodPlayerStatePlayerUpdated();
+
+        PlayerStateComponent->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+          this, &URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated
+        );
+        RedwoodPlayerStateCharacterUpdated();
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT(
+            "URedwoodCharacterComponent requires the owning APlayerState to have an attached URedwoodPlayerStateComponent"
+          )
+        );
+      }
     } else {
       UE_LOG(
         LogRedwood,
         Error,
         TEXT(
-          "URedwoodCharacterComponent must be used with APawn or ARedwoodPlayerState"
+          "URedwoodCharacterComponent must be used with APawn or APlayerState"
         )
       );
     }
@@ -77,15 +90,16 @@ void URedwoodCharacterComponent::OnControllerChanged(
   APawn *Pawn, AController *OldController, AController *NewController
 ) {
   if (IsValid(NewController)) {
-    TObjectPtr<ARedwoodPlayerState> RedwoodPlayerState =
-      Cast<ARedwoodPlayerState>(NewController->PlayerState);
-    if (RedwoodPlayerState) {
-      RedwoodPlayerState->OnRedwoodPlayerUpdated.AddUniqueDynamic(
+    URedwoodPlayerStateComponent *PlayerStateComponent =
+      NewController->PlayerState
+        ->FindComponentByClass<URedwoodPlayerStateComponent>();
+    if (IsValid(PlayerStateComponent)) {
+      PlayerStateComponent->OnRedwoodPlayerUpdated.AddUniqueDynamic(
         this, &URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated
       );
       RedwoodPlayerStatePlayerUpdated();
 
-      RedwoodPlayerState->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+      PlayerStateComponent->OnRedwoodCharacterUpdated.AddUniqueDynamic(
         this, &URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated
       );
       RedwoodPlayerStateCharacterUpdated();
@@ -96,11 +110,16 @@ void URedwoodCharacterComponent::OnControllerChanged(
 void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
   APawn *Pawn = Cast<APawn>(GetOwner());
   AController *Controller = IsValid(Pawn) ? Pawn->GetController() : nullptr;
-  ARedwoodPlayerState *RedwoodPlayerState = IsValid(Controller)
-    ? Cast<ARedwoodPlayerState>(Controller->PlayerState)
-    : Cast<ARedwoodPlayerState>(GetOwner());
-  if (IsValid(RedwoodPlayerState)) {
-    FRedwoodPlayerData PlayerData = RedwoodPlayerState->RedwoodPlayer;
+  APlayerState *PlayerState = IsValid(Controller)
+    ? Cast<APlayerState>(Controller->PlayerState)
+    : Cast<APlayerState>(GetOwner());
+
+  URedwoodPlayerStateComponent *PlayerStateComponent = IsValid(PlayerState)
+    ? PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>()
+    : nullptr;
+
+  if (IsValid(PlayerStateComponent)) {
+    FRedwoodPlayerData PlayerData = PlayerStateComponent->RedwoodPlayer;
 
     RedwoodPlayerNickname = PlayerData.Nickname;
     RedwoodNameTag = PlayerData.bSelectedGuildValid
@@ -172,7 +191,7 @@ void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
       ? PlayerData.Nickname
       : FString::Printf(TEXT("[%s] %s"), *RedwoodNameTag, *PlayerData.Nickname);
 
-    RedwoodPlayerState->SetPlayerName(
+    PlayerState->SetPlayerName(
       CustomPlayerName == nullptr ? DefaultPlayerName : *CustomPlayerName
     );
 
@@ -188,12 +207,17 @@ void URedwoodCharacterComponent::MC_RedwoodPlayerUpdated_Implementation() {
 void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
   APawn *Pawn = Cast<APawn>(GetOwner());
   AController *Controller = IsValid(Pawn) ? Pawn->GetController() : nullptr;
-  ARedwoodPlayerState *RedwoodPlayerState = IsValid(Controller)
-    ? Cast<ARedwoodPlayerState>(Controller->PlayerState)
-    : Cast<ARedwoodPlayerState>(GetOwner());
-  if (IsValid(RedwoodPlayerState)) {
+  APlayerState *PlayerState = IsValid(Controller)
+    ? Cast<APlayerState>(Controller->PlayerState)
+    : Cast<APlayerState>(GetOwner());
+
+  URedwoodPlayerStateComponent *PlayerStateComponent = IsValid(PlayerState)
+    ? PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>()
+    : nullptr;
+
+  if (IsValid(PlayerStateComponent)) {
     FRedwoodCharacterBackend RedwoodCharacterBackend =
-      RedwoodPlayerState->RedwoodCharacter;
+      PlayerStateComponent->RedwoodCharacter;
 
     RedwoodPlayerId = RedwoodCharacterBackend.PlayerId;
     RedwoodCharacterId = RedwoodCharacterBackend.Id;
