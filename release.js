@@ -6,7 +6,9 @@ const version = process.argv[2];
 const baseDir = __dirname;
 
 const plugins = [
+  "RedwoodChat",
   "RedwoodCore",
+  "RedwoodGAS",
   "RedwoodSteam",
 ];
 
@@ -36,7 +38,14 @@ const args = [
   "a",
   "-tzip",
   `RedwoodPlugins-${version}.zip`,
-  ".",
+  ...plugins,
+  "ThirdParty",
+  ".clang-format",
+  ".gitattributes",
+  ".gitignore",
+  ".gitmodules",
+  "LICENSE.md",
+  "README.md",
   "-xr!.git",
   "-xr!.github",
   "-xr!Binaries",
