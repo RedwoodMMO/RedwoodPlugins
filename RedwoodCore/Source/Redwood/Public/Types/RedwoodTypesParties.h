@@ -85,7 +85,7 @@ USTRUCT(BlueprintType) struct FRedwoodParty {
   FString LootType;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  USIOJsonObject *Data;
+  USIOJsonObject *Data = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString LeaderId;
