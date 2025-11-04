@@ -43,27 +43,25 @@ void URedwoodGameModeComponent::BeginPlay() {
 }
 
 void URedwoodGameModeComponent::PostBeginPlay() {
-  URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
+  ServerSubsystem =
     GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
 
-  if (RedwoodServerGameSubsystem) {
-    RedwoodServerGameSubsystem->InitialDataLoad(
-      FRedwoodDelegate::CreateLambda([this]() {
-        bPostBeganPlay = true;
+  if (ServerSubsystem) {
+    ServerSubsystem->InitialDataLoad(FRedwoodDelegate::CreateLambda([this]() {
+      bPostBeganPlay = true;
 
-        // create a looping timer to flush persistent data
-        if (DatabasePersistenceInterval > 0) {
-          FTimerManager &TimerManager = GetWorld()->GetTimerManager();
-          TimerManager.SetTimer(
-            FlushPersistentDataTimerHandle,
-            this,
-            &URedwoodGameModeComponent::FlushPersistence,
-            DatabasePersistenceInterval,
-            true
-          );
-        }
-      })
-    );
+      // create a looping timer to flush persistent data
+      if (DatabasePersistenceInterval > 0) {
+        FTimerManager &TimerManager = GetWorld()->GetTimerManager();
+        TimerManager.SetTimer(
+          FlushPersistentDataTimerHandle,
+          this,
+          &URedwoodGameModeComponent::FlushPersistence,
+          DatabasePersistenceInterval,
+          true
+        );
+      }
+    }));
   }
 }
 
@@ -87,10 +85,7 @@ void URedwoodGameModeComponent::TickComponent(
 }
 
 void URedwoodGameModeComponent::FlushPersistence() {
-  URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
-    GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
-
-  RedwoodServerGameSubsystem->FlushPersistence();
+  ServerSubsystem->FlushPersistence();
 }
 
 void URedwoodGameModeComponent::InitGame(
@@ -99,10 +94,21 @@ void URedwoodGameModeComponent::InitGame(
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     Sidecar = ISocketIOClientModule::Get().NewValidNativePointer();
 
-    URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
-      GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>(
+    if (!ServerSubsystem) {
+      ServerSubsystem = GetWorld()
+                          ->GetGameInstance()
+                          ->GetSubsystem<URedwoodServerGameSubsystem>();
+    }
+
+    if (ServerSubsystem) {
+      Sidecar->Connect(ServerSubsystem->SidecarUri);
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Invalid RedwoodServerGameSubsystem; cannot connect to sidecar")
       );
-    Sidecar->Connect(RedwoodServerGameSubsystem->SidecarUri);
+    }
   }
 
   FGameModeEvents::GameModeLogoutEvent.AddUObject(
@@ -121,15 +127,11 @@ void URedwoodGameModeComponent::OnGameModeLogout(
   ARedwoodPlayerState *RedwoodPlayerState =
     Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
   if (IsValid(RedwoodPlayerState)) {
-    URedwoodServerGameSubsystem *RedwoodServerGameSubsystem =
-      GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>(
-      );
-
-    TArray<APlayerState *> PlayerFlushArray;
-    PlayerFlushArray.Add(RedwoodPlayerState);
-    RedwoodServerGameSubsystem->FlushPlayerCharacterData(
-      PlayerFlushArray, true
-    );
+    if (ServerSubsystem) {
+      TArray<APlayerState *> PlayerFlushArray;
+      PlayerFlushArray.Add(RedwoodPlayerState);
+      ServerSubsystem->FlushPlayerCharacterData(PlayerFlushArray, true);
+    }
 
     if (URedwoodCommonGameSubsystem::ShouldUseBackend(GameMode->GetWorld())) {
       if (Sidecar.IsValid() && Sidecar->bIsConnected) {
