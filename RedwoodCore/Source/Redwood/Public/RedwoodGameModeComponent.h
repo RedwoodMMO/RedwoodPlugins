@@ -9,6 +9,8 @@
 
 #include "RedwoodGameModeComponent.generated.h"
 
+class URedwoodServerGameSubsystem;
+
 UCLASS()
 class REDWOOD_API URedwoodGameModeComponent : public UActorComponent {
   GENERATED_BODY()
@@ -91,4 +93,7 @@ private:
   FTimerHandle PostBeginPlayTimerHandle;
 
   bool bPostBeganPlay = false;
+
+  UPROPERTY()
+  URedwoodServerGameSubsystem *ServerSubsystem = nullptr;
 };

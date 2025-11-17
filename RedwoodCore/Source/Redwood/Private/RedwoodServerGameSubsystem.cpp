@@ -955,7 +955,7 @@ void URedwoodServerGameSubsystem::FlushPersistence() {
     UE_LOG(
       LogRedwood,
       Error,
-      TEXT("Can't FlushPlayerCharacterData: World is not valid")
+      TEXT("Can't FlushPersistence: World is not valid")
     );
     return;
   }
@@ -1012,6 +1012,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData(
 
       if (!bUseBackend) {
         // save to disk
+        CharacterObject->SetStringField(TEXT("id"), CharacterObject->GetStringField(TEXT("characterId")));
         URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
       }
     }
@@ -1090,7 +1091,8 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
     );
 
     for (URedwoodCharacterComponent *CharacterComponent : CharacterComponents) {
-      if (!CharacterComponent->IsCharacterCreatorDataDirty() &&
+      if (bUseBackend && // always fill out if not using the backend
+            !CharacterComponent->IsCharacterCreatorDataDirty() &&
             !CharacterComponent->IsMetadataDirty() &&
             !CharacterComponent->IsEquippedInventoryDirty() &&
             !CharacterComponent->IsNonequippedInventoryDirty() &&
@@ -1300,24 +1302,23 @@ void URedwoodServerGameSubsystem::InitialDataLoad(FRedwoodDelegate OnComplete) {
 
     FString MapSavePath = SavePath / MapName + TEXT(".json");
 
-    if (!FPaths::FileExists(MapSavePath)) {
-      UE_LOG(LogRedwood, Log, TEXT("No saved data for map %s"), *MapName);
-      return;
-    }
-
-    FString JsonString;
-    FFileHelper::LoadFileToString(JsonString, *MapSavePath);
-
     TSharedPtr<FJsonObject> ZoneJsonObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-    if (!FJsonSerializer::Deserialize(Reader, ZoneJsonObject)) {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT("Failed to deserialize JSON for map %s"),
-        *MapName
-      );
-      return;
+    if (FPaths::FileExists(MapSavePath)) {
+      FString JsonString;
+      FFileHelper::LoadFileToString(JsonString, *MapSavePath);
+
+      TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+      if (!FJsonSerializer::Deserialize(Reader, ZoneJsonObject)) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Failed to deserialize JSON for map %s"),
+          *MapName
+        );
+      }
+    } else {
+      UE_LOG(LogRedwood, Log, TEXT("URedwoodServerGameSubsystem::InitialDataLoad: No saved data for map %s"), *MapName);
+      ZoneJsonObject = MakeShareable(new FJsonObject);
     }
 
     PostInitialDataLoad(ZoneJsonObject);

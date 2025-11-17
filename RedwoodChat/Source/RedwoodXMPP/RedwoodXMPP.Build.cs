@@ -31,6 +31,7 @@ public class RedwoodXMPP : ModuleRules
 		if (bTargetPlatformSupportsStrophe)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "libstrophe");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Expat");
 			PrivateDependencyModuleNames.Add("WebSockets");
 			PrivateDefinitions.Add("WITH_XMPP_STROPHE=1");
 		}
