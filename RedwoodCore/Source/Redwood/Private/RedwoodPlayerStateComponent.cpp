@@ -16,14 +16,24 @@ URedwoodPlayerStateComponent::URedwoodPlayerStateComponent(
 
   OwnerPlayerState = Cast<APlayerState>(GetOwner());
   if (!OwnerPlayerState.IsValid()) {
-    UE_LOG(
-      LogRedwood,
-      Error,
-      TEXT(
-        "RedwoodPlayerStateComponent requires a PlayerState owner, but attached to %s."
-      ),
-      *GetOwner()->GetName()
-    );
+    if (IsValid(GetOwner())) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT(
+          "RedwoodPlayerStateComponent requires a PlayerState owner, but attached to %s."
+        ),
+        *GetOwner()->GetName()
+      );
+    } else {
+      UE_LOG(
+        LogRedwood,
+        Warning,
+        TEXT(
+          "RedwoodPlayerStateComponent requires a PlayerState owner, but this one has no owner (perhaps CDO)."
+        )
+      );
+    }
 
     return;
   }
