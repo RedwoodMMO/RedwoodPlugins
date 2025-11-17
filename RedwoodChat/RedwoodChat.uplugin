@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
   "Version": 0,
-  "VersionName": "4.0.1",
+  "VersionName": "4.0.2",
   "FriendlyName": "Redwood Multiplayer Backend - Chat Support",
   "Description": "Text chat support for Redwood",
   "Category": "Code Plugins",
