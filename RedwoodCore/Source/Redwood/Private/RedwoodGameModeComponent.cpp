@@ -32,13 +32,15 @@ URedwoodGameModeComponent::URedwoodGameModeComponent(
 void URedwoodGameModeComponent::BeginPlay() {
   Super::BeginPlay();
 
+  UE_LOG(LogRedwood, Log, TEXT("RedwoodGameModeComponent BeginPlay, will attempt to run PostBeginPlay every %f seconds until initialized"), PostBeginPlayDelay);
+
   FTimerManager &TimerManager = GetWorld()->GetTimerManager();
   TimerManager.SetTimer(
     PostBeginPlayTimerHandle,
     this,
     &URedwoodGameModeComponent::PostBeginPlay,
     PostBeginPlayDelay,
-    false
+    true
   );
 }
 
@@ -47,7 +49,18 @@ void URedwoodGameModeComponent::PostBeginPlay() {
     GetWorld()->GetGameInstance()->GetSubsystem<URedwoodServerGameSubsystem>();
 
   if (ServerSubsystem) {
+    UE_LOG(
+      LogRedwood,
+      Log,
+      TEXT("URedwoodGameModeComponent::PostBeginPlay: Valid RedwoodServerGameSubsystem found, finishing initialization")
+    );
+
+    FTimerManager &TimerManager = GetWorld()->GetTimerManager();
+    TimerManager.ClearTimer(PostBeginPlayTimerHandle);
+
     ServerSubsystem->InitialDataLoad(FRedwoodDelegate::CreateLambda([this]() {
+      UE_LOG(LogRedwood, Log, TEXT("URedwoodGameModeComponent::PostBeginPlay: Initial data load complete"));
+
       bPostBeganPlay = true;
 
       // create a looping timer to flush persistent data
@@ -62,6 +75,12 @@ void URedwoodGameModeComponent::PostBeginPlay() {
         );
       }
     }));
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT("URedwoodGameModeComponent::PostBeginPlay: Invalid RedwoodServerGameSubsystem (likely during world initialization); will retry shortly")
+    );
   }
 }
 

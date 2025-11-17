@@ -24,15 +24,27 @@ void URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(
 ) {
   FString CharacterId = JsonObject->GetStringField(TEXT("id"));
 
-  FString OutputString;
-  TSharedRef<TJsonWriter<TCHAR>> JsonWriter =
-    TJsonWriterFactory<TCHAR>::Create(&OutputString);
-  FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
-
   FString SavePath =
     FPaths::ProjectSavedDir() / TEXT("Persistence") / TEXT("Characters");
   FPaths::NormalizeFilename(SavePath);
   FString FileName = SavePath / (CharacterId + TEXT(".json"));
+
+  if (FPaths::FileExists(FileName)) {
+    TSharedPtr<FJsonObject> ExistingObject =
+      LoadCharacterJsonFromDisk(CharacterId);
+    if (ExistingObject.IsValid()) {
+      JsonObject->SetStringField(TEXT("updatedAt"), FDateTime::UtcNow().ToIso8601());
+      JsonObject->SetStringField(TEXT("createdAt"), ExistingObject->GetStringField(TEXT("createdAt")));
+      JsonObject->SetStringField(TEXT("name"), ExistingObject->GetStringField(TEXT("name")));
+      TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+      JsonObject->SetField(TEXT("archivedAt"), NullValue);
+    }
+  }
+
+  FString OutputString;
+  TSharedRef<TJsonWriter<TCHAR>> JsonWriter =
+    TJsonWriterFactory<TCHAR>::Create(&OutputString);
+  FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 
   FFileHelper::SaveStringToFile(OutputString, *FileName);
 }
