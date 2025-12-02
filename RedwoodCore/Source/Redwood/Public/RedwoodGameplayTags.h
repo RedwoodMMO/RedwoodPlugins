@@ -31,6 +31,15 @@ struct REDWOOD_API FRedwoodPlayerLeft {
   APlayerController *PlayerController = nullptr;
 };
 
+REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Player_InventoryChanged);
+USTRUCT(BlueprintType)
+struct REDWOOD_API FRedwoodPlayerInventoryChanged {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  ARedwoodPlayerState *PlayerState = nullptr;
+};
+
 REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Player_Interaction);
 USTRUCT(BlueprintType)
 struct REDWOOD_API FRedwoodPlayerInteraction {

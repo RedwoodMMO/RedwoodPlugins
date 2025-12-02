@@ -48,7 +48,7 @@ void URedwoodCharacterComponent::BeginPlay() {
       this, &URedwoodCharacterComponent::OnControllerChanged
     );
     AController *Controller = Pawn->GetController();
-    if (IsValid(Controller)) {
+    if (IsValid(Controller) && IsValid(Controller->PlayerState)) {
       OnControllerChanged(Pawn, nullptr, Controller);
     }
   } else {
