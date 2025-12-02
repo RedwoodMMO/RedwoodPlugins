@@ -507,9 +507,11 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
   UObject *TargetObject,
   USIOJsonObject *SIOJsonObject,
   FString VariableName,
-  int32 LatestSchemaVersion
+  int32 LatestSchemaVersion,
+  bool &bErrored
 ) {
   bool bDirty = false;
+  bErrored = false;
 
   if (SIOJsonObject) {
     FProperty *Prop =
@@ -546,8 +548,30 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
               *JsonString
             );
 
+            bErrored = true;
+
             return false;
           }
+        }
+
+        if (SchemaVersion > LatestSchemaVersion) {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "schemaVersion from the database (%d) is greater than the LatestSchemaVersion for variable '%s' (%d). "
+              "We cannot apply the data because it's from a future schema that this server doesn't have awareness of. "
+              "If you're seeing this error in development, you likely set the default value of SchemaVersion in one of "
+              "your structs greater than what is set in the RedwoodCharacterComponent or RedwoodSyncComponent."
+            ),
+            SchemaVersion,
+            *VariableName,
+            LatestSchemaVersion
+          );
+
+          bErrored = true;
+
+          return false;
         }
 
         void *StructPtr = FMemory::Malloc(StructDefinition->GetStructureSize());
@@ -683,6 +707,8 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
               *TargetObject->GetName(),
               SchemaVersion
             );
+
+            bErrored = true;
           }
         }
       } else {
@@ -693,6 +719,8 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
           *VariableName,
           *TargetObject->GetName()
         );
+
+        bErrored = true;
       }
     } else {
       bool bIsActor = TargetObject->IsA<AActor>();
@@ -728,6 +756,8 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
           *TargetObject->GetName()
         );
       }
+
+      bErrored = true;
     }
   }
 

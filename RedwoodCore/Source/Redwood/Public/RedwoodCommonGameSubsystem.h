@@ -61,7 +61,8 @@ public:
     UObject *TargetObject,
     USIOJsonObject *SIOJsonObject,
     FString VariableName,
-    int32 LatestSchemaVersion
+    int32 LatestSchemaVersion,
+    bool &bErrored
   );
 
   UFUNCTION(BlueprintPure, Category = "Redwood")

@@ -1353,12 +1353,14 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
     GameState->GetComponentByClass<URedwoodSyncComponent>();
 
   if (InitialLoad.Data && GameStateSync) {
+    bool bErrored = false;
     bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
       GameStateSync->bStoreDataInActor ? (UObject *)GameState
                                        : (UObject *)GameStateSync,
       InitialLoad.Data,
       GameStateSync->DataVariableName,
-      GameStateSync->LatestDataSchemaVersion
+      GameStateSync->LatestDataSchemaVersion,
+      bErrored
     );
 
     if (bDirty) {
@@ -1506,12 +1508,14 @@ void URedwoodServerGameSubsystem::UpdateSyncItemData(
 ) {
   if (IsValid(SyncItemComponent) && IsValid(Data)) {
     AActor *Actor = SyncItemComponent->GetOwner();
+    bool bErrored = false;
     bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
       SyncItemComponent->bStoreDataInActor ? (UObject *)Actor
                                            : (UObject *)SyncItemComponent,
       InData,
       SyncItemComponent->DataVariableName,
-      SyncItemComponent->LatestDataSchemaVersion
+      SyncItemComponent->LatestDataSchemaVersion,
+      bErrored
     );
 
     if (bDirty) {

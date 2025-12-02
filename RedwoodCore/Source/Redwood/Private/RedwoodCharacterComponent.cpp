@@ -5,7 +5,10 @@
 #include "RedwoodModule.h"
 #include "RedwoodPlayerStateComponent.h"
 
+#include "GameFramework/GameModeBase.h"
+#include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "SIOJConvert.h"
 #include "SIOJsonObject.h"
@@ -130,12 +133,30 @@ void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
     SelectedGuild = PlayerData.SelectedGuild;
 
     if (bUsePlayerData) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         PlayerData.Data,
         *PlayerDataVariableName,
-        LatestMetadataSchemaVersion
+        LatestMetadataSchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkPlayerDataDirty();
@@ -221,14 +242,33 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
 
     RedwoodPlayerId = RedwoodCharacterBackend.PlayerId;
     RedwoodCharacterId = RedwoodCharacterBackend.Id;
+    RedwoodCharacterName = RedwoodCharacterBackend.Name;
 
     if (bUseCharacterCreatorData) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.CharacterCreatorData,
         *CharacterCreatorDataVariableName,
-        LatestMetadataSchemaVersion
+        LatestMetadataSchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkCharacterCreatorDataDirty();
@@ -236,12 +276,30 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     }
 
     if (bUseMetadata) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.Metadata,
         *MetadataVariableName,
-        LatestMetadataSchemaVersion
+        LatestMetadataSchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkMetadataDirty();
@@ -249,12 +307,30 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     }
 
     if (bUseEquippedInventory) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.EquippedInventory,
         *EquippedInventoryVariableName,
-        LatestEquippedInventorySchemaVersion
+        LatestEquippedInventorySchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkEquippedInventoryDirty();
@@ -262,12 +338,30 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     }
 
     if (bUseNonequippedInventory) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.NonequippedInventory,
         *NonequippedInventoryVariableName,
-        LatestNonequippedInventorySchemaVersion
+        LatestNonequippedInventorySchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkNonequippedInventoryDirty();
@@ -275,12 +369,30 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     }
 
     if (bUseProgress) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.Progress,
         *ProgressVariableName,
-        LatestProgressSchemaVersion
+        LatestProgressSchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkProgressDirty();
@@ -288,12 +400,30 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     }
 
     if (bUseData) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.Data,
         *DataVariableName,
-        LatestDataSchemaVersion
+        LatestDataSchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkDataDirty();
@@ -301,12 +431,30 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     }
 
     if (bUseAbilitySystem) {
+      bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.AbilitySystem,
         *AbilitySystemVariableName,
-        LatestAbilitySystemSchemaVersion
+        LatestAbilitySystemSchemaVersion,
+        bErrored
       );
+
+      if (bErrored) {
+        // kick the player as they're not compatible with the server
+        APlayerController *PlayerController =
+          PlayerState->GetPlayerController();
+
+        if (IsValid(PlayerController)) {
+          AGameModeBase *GameMode = UGameplayStatics::GetGameMode(PlayerState);
+          if (IsValid(GameMode) && GameMode->GameSession) {
+            GameMode->GameSession->KickPlayer(
+              PlayerController,
+              FText::FromString(TEXT("Could not load player character data"))
+            );
+          }
+        }
+      }
 
       if (bDirty) {
         MarkAbilitySystemDirty();
