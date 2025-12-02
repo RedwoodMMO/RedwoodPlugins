@@ -17,10 +17,10 @@ public:
   URedwoodPlayerStateComponent(const FObjectInitializer &ObjectInitializer);
 
   // NOT AVAILABLE ON CLIENTS
-  UPROPERTY()
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FRedwoodPlayerData RedwoodPlayer;
   // NOT AVAILABLE ON CLIENTS
-  UPROPERTY()
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FRedwoodCharacterBackend RedwoodCharacter;
 
   //~ Begin UActorComponent Interface
