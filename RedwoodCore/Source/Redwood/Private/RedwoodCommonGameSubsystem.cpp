@@ -33,9 +33,15 @@ void URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(
     TSharedPtr<FJsonObject> ExistingObject =
       LoadCharacterJsonFromDisk(CharacterId);
     if (ExistingObject.IsValid()) {
-      JsonObject->SetStringField(TEXT("updatedAt"), FDateTime::UtcNow().ToIso8601());
-      JsonObject->SetStringField(TEXT("createdAt"), ExistingObject->GetStringField(TEXT("createdAt")));
-      JsonObject->SetStringField(TEXT("name"), ExistingObject->GetStringField(TEXT("name")));
+      JsonObject->SetStringField(
+        TEXT("updatedAt"), FDateTime::UtcNow().ToIso8601()
+      );
+      JsonObject->SetStringField(
+        TEXT("createdAt"), ExistingObject->GetStringField(TEXT("createdAt"))
+      );
+      JsonObject->SetStringField(
+        TEXT("name"), ExistingObject->GetStringField(TEXT("name"))
+      );
       TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
       JsonObject->SetField(TEXT("archivedAt"), NullValue);
     }
@@ -385,29 +391,35 @@ FRedwoodGameServerInstance URedwoodCommonGameSubsystem::ParseServerInstance(
   return Instance;
 }
 
-FRedwoodZoneData URedwoodCommonGameSubsystem::ParseZoneData(
-  TSharedPtr<FJsonObject> ZoneData
+FRedwoodInitialLoadData URedwoodCommonGameSubsystem::ParseInitialLoadData(
+  TSharedPtr<FJsonObject> InitialLoadJsonObject
 ) {
-  FRedwoodZoneData Data;
+  FRedwoodInitialLoadData InitialLoad;
 
   const TSharedPtr<FJsonObject> *DataObj;
-  if (ZoneData->TryGetObjectField(TEXT("data"), DataObj)) {
-    Data.Data = NewObject<USIOJsonObject>();
-    Data.Data->SetRootObject(*DataObj);
+  if (InitialLoadJsonObject->TryGetObjectField(TEXT("data"), DataObj)) {
+    InitialLoad.Data = NewObject<USIOJsonObject>();
+    InitialLoad.Data->SetRootObject(*DataObj);
+  }
+
+  const TSharedPtr<FJsonObject> *ZoneDataObj;
+  if (InitialLoadJsonObject->TryGetObjectField(TEXT("zoneData"), ZoneDataObj)) {
+    InitialLoad.ZoneData = NewObject<USIOJsonObject>();
+    InitialLoad.ZoneData->SetRootObject(*ZoneDataObj);
   }
 
   const TArray<TSharedPtr<FJsonValue>> *PersistentItems;
-  if (ZoneData->TryGetArrayField(TEXT("items"), PersistentItems)) {
+  if (InitialLoadJsonObject->TryGetArrayField(TEXT("items"), PersistentItems)) {
     for (const TSharedPtr<FJsonValue> &Item : *PersistentItems) {
       if (Item->Type == EJson::Object) {
         TSharedPtr<FJsonObject> ItemObj = Item->AsObject();
         FRedwoodSyncItem SyncItem = ParseSyncItem(ItemObj);
-        Data.Items.Add(SyncItem);
+        InitialLoad.Items.Add(SyncItem);
       }
     }
   }
 
-  return Data;
+  return InitialLoad;
 }
 
 FRedwoodSyncItem URedwoodCommonGameSubsystem::ParseSyncItem(

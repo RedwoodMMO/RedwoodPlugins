@@ -46,11 +46,14 @@ struct FRedwoodSyncItem {
 };
 
 USTRUCT(BlueprintType)
-struct FRedwoodZoneData {
+struct FRedwoodInitialLoadData {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  USIOJsonObject *ZoneData = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   TArray<FRedwoodSyncItem> Items;

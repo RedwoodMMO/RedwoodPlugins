@@ -41,7 +41,9 @@ public:
   static FRedwoodGameServerInstance ParseServerInstance(
     TSharedPtr<FJsonObject> ServerInstance
   );
-  static FRedwoodZoneData ParseZoneData(TSharedPtr<FJsonObject> ZoneData);
+  static FRedwoodInitialLoadData ParseInitialLoadData(
+    TSharedPtr<FJsonObject> InitialLoadData
+  );
 
   static FRedwoodSyncItem ParseSyncItem(TSharedPtr<FJsonObject> SyncItem);
   static FRedwoodSyncItemState ParseSyncItemState(

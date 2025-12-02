@@ -953,9 +953,7 @@ void URedwoodServerGameSubsystem::FlushPersistence() {
   UWorld *World = GetWorld();
   if (!IsValid(World)) {
     UE_LOG(
-      LogRedwood,
-      Error,
-      TEXT("Can't FlushPersistence: World is not valid")
+      LogRedwood, Error, TEXT("Can't FlushPersistence: World is not valid")
     );
     return;
   }
@@ -1012,7 +1010,9 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData(
 
       if (!bUseBackend) {
         // save to disk
-        CharacterObject->SetStringField(TEXT("id"), CharacterObject->GetStringField(TEXT("characterId")));
+        CharacterObject->SetStringField(
+          TEXT("id"), CharacterObject->GetStringField(TEXT("characterId"))
+        );
         URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(CharacterObject);
       }
     }
@@ -1302,13 +1302,14 @@ void URedwoodServerGameSubsystem::InitialDataLoad(FRedwoodDelegate OnComplete) {
 
     FString MapSavePath = SavePath / MapName + TEXT(".json");
 
-    TSharedPtr<FJsonObject> ZoneJsonObject;
+    TSharedPtr<FJsonObject> MapJsonObject;
     if (FPaths::FileExists(MapSavePath)) {
       FString JsonString;
       FFileHelper::LoadFileToString(JsonString, *MapSavePath);
 
-      TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-      if (!FJsonSerializer::Deserialize(Reader, ZoneJsonObject)) {
+      TSharedRef<TJsonReader<>> Reader =
+        TJsonReaderFactory<>::Create(JsonString);
+      if (!FJsonSerializer::Deserialize(Reader, MapJsonObject)) {
         UE_LOG(
           LogRedwood,
           Error,
@@ -1317,19 +1318,26 @@ void URedwoodServerGameSubsystem::InitialDataLoad(FRedwoodDelegate OnComplete) {
         );
       }
     } else {
-      UE_LOG(LogRedwood, Log, TEXT("URedwoodServerGameSubsystem::InitialDataLoad: No saved data for map %s"), *MapName);
-      ZoneJsonObject = MakeShareable(new FJsonObject);
+      UE_LOG(
+        LogRedwood,
+        Log,
+        TEXT(
+          "URedwoodServerGameSubsystem::InitialDataLoad: No saved data for map %s"
+        ),
+        *MapName
+      );
+      MapJsonObject = MakeShareable(new FJsonObject);
     }
 
-    PostInitialDataLoad(ZoneJsonObject);
+    PostInitialDataLoad(MapJsonObject);
   }
 }
 
 void URedwoodServerGameSubsystem::PostInitialDataLoad(
-  TSharedPtr<FJsonObject> ZoneJsonObject
+  TSharedPtr<FJsonObject> InitialLoadJsonObject
 ) {
-  FRedwoodZoneData InitialLoad =
-    URedwoodCommonGameSubsystem::ParseZoneData(ZoneJsonObject);
+  FRedwoodInitialLoadData InitialLoad =
+    URedwoodCommonGameSubsystem::ParseInitialLoadData(InitialLoadJsonObject);
 
   UWorld *World = GetWorld();
   if (!IsValid(World)) {
