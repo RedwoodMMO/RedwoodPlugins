@@ -238,13 +238,6 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         ActualObject->TryGetStringField(TEXT("password"), Password);
         ActualObject->TryGetStringField(TEXT("shortCode"), ShortCode);
         MaxPlayers = ActualObject->GetIntegerField(TEXT("maxPlayers"));
-        const TSharedPtr<FJsonObject> *DataObj;
-        Data = NewObject<USIOJsonObject>();
-        if (ActualObject->TryGetObjectField(TEXT("data"), DataObj)) {
-          Data->SetRootObject(*DataObj);
-        } else {
-          Data->SetRootObject(MakeShareable(new FJsonObject));
-        }
         ActualObject->TryGetStringField(TEXT("ownerPlayerId"), OwnerPlayerId);
         Channel = ActualObject->GetStringField(TEXT("channel"));
         ActualObject->TryGetStringField(TEXT("parentProxyId"), ParentProxyId);
@@ -308,12 +301,15 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
         Url.AddOption(*FString("ownerPlayerId=" + OwnerPlayerId));
         Url.AddOption(*FString("game=" + (*GameModeToLoad)->GetPathName()));
 
-        TArray<FString> Keys;
-        Data->GetRootObject()->Values.GetKeys(Keys);
-        for (FString Key : Keys) {
-          FString Value;
-          if (Data->GetRootObject()->TryGetStringField(Key, Value)) {
-            Url.AddOption(*FString(Key + "=" + Value));
+        const TSharedPtr<FJsonObject> *DataObj;
+        if (ActualObject->TryGetObjectField(TEXT("data"), DataObj)) {
+          TArray<FString> Keys;
+          (*DataObj)->Values.GetKeys(Keys);
+          for (FString Key : Keys) {
+            FString Value;
+            if ((*DataObj)->TryGetStringField(Key, Value)) {
+              Url.AddOption(*FString(Key + "=" + Value));
+            }
           }
         }
 
@@ -1357,22 +1353,41 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
     return;
   }
 
-  URedwoodSyncComponent *GameStateSync =
-    GameState->GetComponentByClass<URedwoodSyncComponent>();
+  TArray<URedwoodSyncComponent *> GameStateSyncComponents;
+  GameState->GetComponents<URedwoodSyncComponent>(GameStateSyncComponents);
+  for (URedwoodSyncComponent *GameStateSync : GameStateSyncComponents) {
+    if (GameStateSync->RedwoodId == TEXT("proxy") || (GameStateSyncComponents.Num() == 1 && GameStateSync->RedwoodId.IsEmpty())) {
+      if (InitialLoad.Data && GameStateSync) {
+        bool bErrored = false;
+        bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
+          GameStateSync->bStoreDataInActor ? (UObject *)GameState
+                                           : (UObject *)GameStateSync,
+          InitialLoad.Data,
+          GameStateSync->DataVariableName,
+          GameStateSync->LatestDataSchemaVersion,
+          bErrored
+        );
 
-  if (InitialLoad.Data && GameStateSync) {
-    bool bErrored = false;
-    bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
-      GameStateSync->bStoreDataInActor ? (UObject *)GameState
-                                       : (UObject *)GameStateSync,
-      InitialLoad.Data,
-      GameStateSync->DataVariableName,
-      GameStateSync->LatestDataSchemaVersion,
-      bErrored
-    );
+        if (bDirty) {
+          GameStateSync->MarkDataDirty();
+        }
+      }
+    } else if (GameStateSync->RedwoodId == TEXT("zone")) {
+      if (InitialLoad.ZoneData && GameStateSync) {
+        bool bErrored = false;
+        bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
+          GameStateSync->bStoreDataInActor ? (UObject *)GameState
+                                           : (UObject *)GameStateSync,
+          InitialLoad.ZoneData,
+          GameStateSync->DataVariableName,
+          GameStateSync->LatestDataSchemaVersion,
+          bErrored
+        );
 
-    if (bDirty) {
-      GameStateSync->MarkDataDirty();
+        if (bDirty) {
+          GameStateSync->MarkDataDirty();
+        }
+      }
     }
   }
 
@@ -1393,90 +1408,129 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
   }
 
   URedwoodSyncComponent *SyncItemComponent = nullptr;
+  bool bGameStateComponent =
+    Item.State.Id == TEXT("proxy") || Item.State.Id == TEXT("zone");
 
-  bool bCleanupEntry = true;
-  if (TWeakObjectPtr<URedwoodSyncComponent> *WeakPtr = SyncItemComponentsById.Find(Item.State.Id)) {
-    SyncItemComponent = WeakPtr->Get();
-    if (SyncItemComponent != nullptr) {
-      bCleanupEntry = false;
-    }
-  }
-
-  if (bCleanupEntry) {
-    // Clean up dead entry
-    SyncItemComponentsById.Remove(Item.State.Id);
-    return;
-  }
-
-  if (SyncItemComponent == nullptr) {
-    // spawn it
-    URedwoodSyncItemAsset *ItemType = nullptr;
-    AActor *Actor = nullptr;
-    if (TWeakObjectPtr<URedwoodSyncItemAsset> *WeakItemType =
-      SyncItemTypesByTypeId.Find(Item.State.TypeId)) {
-      ItemType = WeakItemType->Get();
-    }
-
-    if (!IsValid(ItemType)) {
+  if (bGameStateComponent) {
+    AGameStateBase *GameState = World->GetGameState();
+    if (!IsValid(GameState)) {
       UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT(
-          "Can't spawn SyncItemComponent of type %s because it's not registered"
-        ),
-        *Item.State.TypeId
+        LogRedwood, Error, TEXT("Can't UpdateSyncItem: GameState is not valid")
       );
       return;
     }
 
-    TSoftClassPtr<AActor> ActorClass = ItemType->ActorClass;
-    if (ActorClass.IsNull()) {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT(
-          "Can't spawn SyncItemComponent of type %s because it has no ActorClass"
-        ),
-        *Item.State.TypeId
-      );
-      return;
+    TArray<URedwoodSyncComponent *> GameStateSyncComponents;
+    GameState->GetComponents<URedwoodSyncComponent>(GameStateSyncComponents);
+    for (URedwoodSyncComponent *GameStateSync : GameStateSyncComponents) {
+      if (GameStateSync->RedwoodId == Item.State.Id) {
+        SyncItemComponent = GameStateSync;
+        break;
+      }
     }
-
-    Actor = World->SpawnActor<AActor>(ActorClass.Get());
-
-    if (Actor == nullptr) {
-      UE_LOG(
-        LogRedwood,
-        Error,
-        TEXT("Failed to spawn SyncItemComponent of type %s"),
-        *Item.State.TypeId
-      );
-      return;
-    }
-
-    SyncItemComponent = Actor->GetComponentByClass<URedwoodSyncComponent>();
 
     if (SyncItemComponent == nullptr) {
       UE_LOG(
         LogRedwood,
         Error,
         TEXT(
-          "Spawned actor for SyncItemComponent of type %s, but the actor has no RedwoodSyncComponent"
+          "Can't UpdateSyncItem: GameState has no RedwoodSyncComponent with id %s"
         ),
-        *Item.State.TypeId
+        *Item.State.Id
       );
       return;
     }
+  } else {
+    bool bCleanupEntry = true;
+    if (TWeakObjectPtr<URedwoodSyncComponent> *WeakPtr = SyncItemComponentsById.Find(Item.State.Id)) {
+      SyncItemComponent = WeakPtr->Get();
+      if (SyncItemComponent != nullptr) {
+        bCleanupEntry = false;
+      }
+    }
 
-    SyncItemComponent->RedwoodId = Item.State.Id;
-    SyncItemComponent->SkipInitialSave();
+    if (bCleanupEntry) {
+      // Clean up dead entry
+      SyncItemComponentsById.Remove(Item.State.Id);
+      return;
+    }
 
-    SyncItemComponentsById.Add(Item.State.Id, SyncItemComponent);
+    if (SyncItemComponent == nullptr) {
+      // spawn it
+      URedwoodSyncItemAsset *ItemType = nullptr;
+      AActor *Actor = nullptr;
+      if (TWeakObjectPtr<URedwoodSyncItemAsset> *WeakItemType =
+      SyncItemTypesByTypeId.Find(Item.State.TypeId)) {
+        ItemType = WeakItemType->Get();
+      }
+
+      if (!IsValid(ItemType)) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT(
+            "Can't spawn SyncItemComponent of type %s because it's not registered"
+          ),
+          *Item.State.TypeId
+        );
+        return;
+      }
+
+      TSoftClassPtr<AActor> ActorClass = ItemType->ActorClass;
+      if (ActorClass.IsNull()) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT(
+            "Can't spawn SyncItemComponent of type %s because it has no ActorClass"
+          ),
+          *Item.State.TypeId
+        );
+        return;
+      }
+
+      Actor = World->SpawnActor<AActor>(ActorClass.Get());
+
+      if (Actor == nullptr) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Failed to spawn SyncItemComponent of type %s"),
+          *Item.State.TypeId
+        );
+        return;
+      }
+
+      SyncItemComponent = Actor->GetComponentByClass<URedwoodSyncComponent>();
+
+      if (SyncItemComponent == nullptr) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT(
+            "Spawned actor for SyncItemComponent of type %s, but the actor has no RedwoodSyncComponent"
+          ),
+          *Item.State.TypeId
+        );
+        return;
+      }
+
+      SyncItemComponent->RedwoodId = Item.State.Id;
+      SyncItemComponent->SkipInitialSave();
+
+      SyncItemComponentsById.Add(Item.State.Id, SyncItemComponent);
+    }
   }
 
-  UpdateSyncItemState(SyncItemComponent, Item.State);
+  if (!bGameStateComponent) {
+    UpdateSyncItemState(SyncItemComponent, Item.State);
+  }
+
   UpdateSyncItemData(SyncItemComponent, Item.Data);
-  UpdateSyncItemMovement(SyncItemComponent, Item.Movement);
+
+  if (!bGameStateComponent) {
+    UpdateSyncItemMovement(SyncItemComponent, Item.Movement);
+  }
 }
 
 void URedwoodServerGameSubsystem::UpdateSyncItemState(
@@ -1514,7 +1568,7 @@ void URedwoodServerGameSubsystem::UpdateSyncItemMovement(
 void URedwoodServerGameSubsystem::UpdateSyncItemData(
   URedwoodSyncComponent *SyncItemComponent, USIOJsonObject *InData
 ) {
-  if (IsValid(SyncItemComponent) && IsValid(Data)) {
+  if (IsValid(SyncItemComponent) && IsValid(InData)) {
     AActor *Actor = SyncItemComponent->GetOwner();
     bool bErrored = false;
     bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(

@@ -67,9 +67,6 @@ public:
   int32 MaxPlayers = 0;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
-  USIOJsonObject *Data = nullptr;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString OwnerPlayerId;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
