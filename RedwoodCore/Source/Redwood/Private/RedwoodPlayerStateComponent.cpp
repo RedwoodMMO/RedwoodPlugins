@@ -25,14 +25,6 @@ URedwoodPlayerStateComponent::URedwoodPlayerStateComponent(
         ),
         *GetOwner()->GetName()
       );
-    } else {
-      UE_LOG(
-        LogRedwood,
-        Warning,
-        TEXT(
-          "RedwoodPlayerStateComponent requires a PlayerState owner, but this one has no owner (perhaps CDO)."
-        )
-      );
     }
 
     return;

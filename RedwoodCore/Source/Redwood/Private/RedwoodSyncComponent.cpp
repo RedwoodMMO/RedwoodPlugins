@@ -1,13 +1,28 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodSyncComponent.h"
+#include "RedwoodModule.h"
 #include "RedwoodServerGameSubsystem.h"
+
+#include "GameFramework/GameStateBase.h"
 #include "TimerManager.h"
 
 void URedwoodSyncComponent::BeginPlay() {
   Super::BeginPlay();
 
   if (GetWorld()->GetNetMode() == NM_DedicatedServer) {
+    if (Cast<AGameStateBase>(GetOwner()) && !bPersistChanges) {
+      UE_LOG(
+        LogRedwood,
+        Warning,
+        TEXT(
+          "URedwoodSyncComponent '%s' is attached to a class that inherits from AGameStateBase ('%s') but bPersistChanges is false. Usually sync components in the GameState are meant to persist (e.g. proxy and zone data)."
+        ),
+        *GetName(),
+        *GetOwner()->GetName()
+      );
+    }
+
     GetWorld()->GetTimerManager().SetTimerForNextTick(
       this, &URedwoodSyncComponent::InitSyncComponent
     );

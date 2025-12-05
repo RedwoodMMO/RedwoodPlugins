@@ -8,6 +8,10 @@
 #include "RedwoodSyncComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE(
+  FOnRedwoodSyncComponentDataUpdated, URedwoodSyncComponent, DataUpdated
+);
+
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE(
   FOnRedwoodSyncComponentInitiallySpawned,
   URedwoodSyncComponent,
   InitiallySpawned
@@ -65,6 +69,11 @@ public:
   // If this is set to 0 then it will sync every frame.
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   float MovementSyncIntervalSeconds = -1;
+
+  // This is fired when the data associated with this component
+  // is updated.
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FOnRedwoodSyncComponentDataUpdated DataUpdated;
 
   // This is fired shortly after Begin Play on the server that initially
   // spawned this sync component via spawning the owning actor.

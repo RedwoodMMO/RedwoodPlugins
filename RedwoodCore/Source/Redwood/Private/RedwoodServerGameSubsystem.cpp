@@ -1357,37 +1357,9 @@ void URedwoodServerGameSubsystem::PostInitialDataLoad(
   GameState->GetComponents<URedwoodSyncComponent>(GameStateSyncComponents);
   for (URedwoodSyncComponent *GameStateSync : GameStateSyncComponents) {
     if (GameStateSync->RedwoodId == TEXT("proxy") || (GameStateSyncComponents.Num() == 1 && GameStateSync->RedwoodId.IsEmpty())) {
-      if (InitialLoad.Data && GameStateSync) {
-        bool bErrored = false;
-        bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
-          GameStateSync->bStoreDataInActor ? (UObject *)GameState
-                                           : (UObject *)GameStateSync,
-          InitialLoad.Data,
-          GameStateSync->DataVariableName,
-          GameStateSync->LatestDataSchemaVersion,
-          bErrored
-        );
-
-        if (bDirty) {
-          GameStateSync->MarkDataDirty();
-        }
-      }
+      UpdateSyncItemData(GameStateSync, InitialLoad.Data);
     } else if (GameStateSync->RedwoodId == TEXT("zone")) {
-      if (InitialLoad.ZoneData && GameStateSync) {
-        bool bErrored = false;
-        bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
-          GameStateSync->bStoreDataInActor ? (UObject *)GameState
-                                           : (UObject *)GameStateSync,
-          InitialLoad.ZoneData,
-          GameStateSync->DataVariableName,
-          GameStateSync->LatestDataSchemaVersion,
-          bErrored
-        );
-
-        if (bDirty) {
-          GameStateSync->MarkDataDirty();
-        }
-      }
+      UpdateSyncItemData(GameStateSync, InitialLoad.ZoneData);
     }
   }
 
@@ -1583,6 +1555,8 @@ void URedwoodServerGameSubsystem::UpdateSyncItemData(
     if (bDirty) {
       SyncItemComponent->MarkDataDirty();
     }
+
+    SyncItemComponent->DataUpdated.Broadcast();
   }
 }
 
@@ -1605,33 +1579,36 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
     return;
   }
 
-  URedwoodSyncComponent *GameStatePersistence =
-    GameState->GetComponentByClass<URedwoodSyncComponent>();
-
-  if (GameStatePersistence) {
+  TArray<URedwoodSyncComponent *> GameStateSyncComponents;
+  GameState->GetComponents<URedwoodSyncComponent>(GameStateSyncComponents);
+  for (URedwoodSyncComponent *GameStateSync : GameStateSyncComponents) {
     if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
-        GameStatePersistence->IsDataDirty(true) ||
-        GameStatePersistence->ShouldDoInitialSave()) {
+        GameStateSync->IsDataDirty(true) ||
+        GameStateSync->ShouldDoInitialSave()) {
       // always add the data if we're not using the backend
 
-      if (GameStatePersistence->IsDataDirty(true)) {
+      if (GameStateSync->IsDataDirty(true)) {
         bZoneDataDirty = true;
-        GameStatePersistence->ClearDirtyFlags(true);
+        GameStateSync->ClearDirtyFlags(true);
       }
 
-      if (GameStatePersistence->ShouldDoInitialSave()) {
+      if (GameStateSync->ShouldDoInitialSave() && GameStateSync->bPersistChanges) {
         bZoneDataDirty = true;
-        GameStatePersistence->SkipInitialSave();
+        GameStateSync->SkipInitialSave();
       }
 
       USIOJsonObject *DataObject =
         URedwoodCommonGameSubsystem::SerializeBackendData(
-          GameStatePersistence->bStoreDataInActor
-            ? (UObject *)GameState
-            : (UObject *)GameStatePersistence,
-          GameStatePersistence->DataVariableName
+          GameStateSync->bStoreDataInActor ? (UObject *)GameState
+                                           : (UObject *)GameStateSync,
+          GameStateSync->DataVariableName
         );
-      ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+
+      if (GameStateSync->RedwoodId == TEXT("proxy") || (GameStateSyncComponents.Num() == 1 && GameStateSync->RedwoodId.IsEmpty())) {
+        ZoneData->SetObjectField(TEXT("data"), DataObject->GetRootObject());
+      } else if (GameStateSync->RedwoodId == TEXT("zone")) {
+        ZoneData->SetObjectField(TEXT("zoneData"), DataObject->GetRootObject());
+      }
     }
   }
 
@@ -1647,7 +1624,7 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
       continue;
     }
 
-    if (SyncItemComponent->RedwoodId == TEXT("proxy")) {
+    if (SyncItemComponent->RedwoodId == TEXT("proxy") || SyncItemComponent->RedwoodId == TEXT("zone")) {
       // don't save the proxy/world data here
       continue;
     }
@@ -1788,6 +1765,10 @@ void URedwoodServerGameSubsystem::RegisterSyncComponent(
     return;
   }
 
+  if (InComponent->RedwoodId == TEXT("proxy") || InComponent->RedwoodId == TEXT("zone")) {
+    return;
+  }
+
   if (SyncItemComponentsById.FindRef(InComponent->RedwoodId) != nullptr) {
     return;
   }
@@ -1841,6 +1822,10 @@ void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) &&
       Sidecar.IsValid() && Sidecar->bIsConnected) {
+    if (InComponent->RedwoodId == TEXT("proxy") || InComponent->RedwoodId == TEXT("zone")) {
+      return;
+    }
+
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
     TSharedPtr<FJsonObject> StateObject = MakeShareable(new FJsonObject);
