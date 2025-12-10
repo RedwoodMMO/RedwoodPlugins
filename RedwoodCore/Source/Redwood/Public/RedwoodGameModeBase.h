@@ -10,9 +10,13 @@
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup = (Redwood))
 class REDWOOD_API ARedwoodGameModeBase : public AGameModeBase {
-  GENERATED_UCLASS_BODY()
+  GENERATED_BODY()
 
 public:
+  ARedwoodGameModeBase(
+    const FObjectInitializer &ObjectInitializer = FObjectInitializer::Get()
+  );
+
   //~AGameModeBase interface
   virtual void InitGame(
     const FString &MapName, const FString &Options, FString &ErrorMessage

@@ -4,9 +4,9 @@
 
 #define REDWOOD_GAME_MODE_TYPE ARedwoodGameMode
 
-REDWOOD_GAME_MODE_TYPE::
-  REDWOOD_GAME_MODE_TYPE(const FObjectInitializer
-                           &ObjectInitializer /*= FObjectInitializer::Get()*/) :
+REDWOOD_GAME_MODE_TYPE::REDWOOD_GAME_MODE_TYPE(
+  const FObjectInitializer &ObjectInitializer
+) :
   Super(ObjectInitializer) {
 
   GameModeComponent =

@@ -3,9 +3,9 @@
 #include "RedwoodPlayerState.h"
 #include "RedwoodPlayerStateComponent.h"
 
-ARedwoodPlayerState::
-  ARedwoodPlayerState(const FObjectInitializer
-                        &ObjectInitializer /*= FObjectInitializer::Get()*/) :
+ARedwoodPlayerState::ARedwoodPlayerState(
+  const FObjectInitializer &ObjectInitializer
+) :
   Super(ObjectInitializer) {
 #if WITH_EDITORONLY_DATA
   bIsSpatiallyLoaded = true;

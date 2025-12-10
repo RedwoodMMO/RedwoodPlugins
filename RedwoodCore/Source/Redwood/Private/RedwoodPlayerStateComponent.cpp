@@ -10,7 +10,7 @@
 #include "Net/OnlineEngineInterface.h"
 
 URedwoodPlayerStateComponent::URedwoodPlayerStateComponent(
-  const FObjectInitializer &ObjectInitializer /*= FObjectInitializer::Get()*/
+  const FObjectInitializer &ObjectInitializer
 ) :
   Super(ObjectInitializer) {
 
