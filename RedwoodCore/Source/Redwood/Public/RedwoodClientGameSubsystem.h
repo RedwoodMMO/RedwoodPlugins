@@ -271,6 +271,7 @@ public:
   );
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsRealmConnected(FRedwoodRealm &OutRealm);
   bool IsRealmConnected();
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")

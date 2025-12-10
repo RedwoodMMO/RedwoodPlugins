@@ -259,6 +259,7 @@ public:
     FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
   );
 
+  bool IsRealmConnected(FRedwoodRealm &OutRealm);
   bool IsRealmConnected();
 
   TMap<FString, float> GetRegions();
@@ -405,6 +406,7 @@ private:
   FString SelectedCharacterId;
   FString Nickname;
   FString CurrentRealmId;
+  FRedwoodRealm CurrentRealm;
 
   FTimerManager TimerManager;
 

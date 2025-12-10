@@ -1791,6 +1791,8 @@ void URedwoodClientInterface::InitiateRealmHandshake(
     return;
   }
 
+  CurrentRealm = FRedwoodRealm();
+
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("realmId"), InRealm.Id);
@@ -1811,6 +1813,7 @@ void URedwoodClientInterface::InitiateRealmHandshake(
       }
 
       CurrentRealmId = InRealm.Id;
+      CurrentRealm = InRealm;
       Realm = ISocketIOClientModule::Get().NewValidNativePointer();
       bSentRealmConnected = false;
 
@@ -2070,6 +2073,14 @@ void URedwoodClientInterface::BindRealmEvents() {
     TEXT("/"),
     ESIOThreadOverrideOption::USE_GAME_THREAD
   );
+}
+
+bool URedwoodClientInterface::IsRealmConnected(FRedwoodRealm &OutRealm) {
+  bool bIsConnected = IsRealmConnected();
+  if (bIsConnected) {
+    OutRealm = CurrentRealm;
+  }
+  return bIsConnected;
 }
 
 bool URedwoodClientInterface::IsRealmConnected() {

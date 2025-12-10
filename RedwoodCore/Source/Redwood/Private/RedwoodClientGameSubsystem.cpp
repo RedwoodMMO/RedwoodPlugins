@@ -696,6 +696,21 @@ void URedwoodClientGameSubsystem::InitializeRealmConnection(
   }
 }
 
+bool URedwoodClientGameSubsystem::IsRealmConnected(FRedwoodRealm &CurrentRealm
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    return ClientInterface->IsRealmConnected(CurrentRealm);
+  } else {
+    CurrentRealm.Id = TEXT("dev-stub-realm-id");
+    CurrentRealm.CreatedAt = FDateTime::UtcNow();
+    CurrentRealm.UpdatedAt = FDateTime::UtcNow();
+    CurrentRealm.Name = TEXT("Dev Realm");
+    CurrentRealm.Uri = TEXT("");
+    CurrentRealm.bListed = true;
+    return true;
+  }
+}
+
 bool URedwoodClientGameSubsystem::IsRealmConnected() {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->IsRealmConnected();
