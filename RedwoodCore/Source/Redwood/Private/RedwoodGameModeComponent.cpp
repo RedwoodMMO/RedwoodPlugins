@@ -299,6 +299,9 @@ APlayerController *URedwoodGameModeComponent::Login(
 
               PlayerStateComponent->SetServerReady();
 
+              // This is called here because it was already called in ::PostLogin
+              // by the time we received a response from the backend and we
+              // need to call it again
               GameMode->HandleStartingNewPlayer(PlayerController);
             } else {
               UE_LOG(
@@ -347,7 +350,10 @@ APlayerController *URedwoodGameModeComponent::Login(
 
         PlayerStateComponent->SetServerReady();
 
-        GameMode->HandleStartingNewPlayer(PlayerController);
+        // NOTE: we do not call HandleStartingNewPlayer here because we
+        // don't need to. This all runs synchronously and PostLogin will
+        // call HandleStartingNewPlayer for us. We only call HandleStartingNewPlayer
+        // above because of the asynchronous nature of the backend call
       } else {
         UE_LOG(
           LogRedwood,
