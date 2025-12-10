@@ -613,6 +613,14 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
 ) {
   FString UniqueId = PlayerController->PlayerState->GetUniqueId().ToString();
 
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    PlayerController->PlayerState
+      ->FindComponentByClass<URedwoodPlayerStateComponent>();
+
+  if (PlayerStateComponent) {
+    PlayerStateComponent->bTransferring = true;
+  }
+
   FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));
   FString CharacterId = UniqueId.RightChop(UniqueId.Find(TEXT(":")) + 1);
 
@@ -747,6 +755,14 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
   }
 
   FString UniqueId = PlayerController->PlayerState->GetUniqueId().ToString();
+
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    PlayerController->PlayerState
+      ->FindComponentByClass<URedwoodPlayerStateComponent>();
+
+  if (PlayerStateComponent) {
+    PlayerStateComponent->bTransferring = true;
+  }
 
   FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));
   FString CharacterId = UniqueId.RightChop(UniqueId.Find(TEXT(":")) + 1);
@@ -1017,7 +1033,7 @@ void URedwoodServerGameSubsystem::FlushPlayerCharacterData(
   Payload->SetArrayField(TEXT("characters"), CharactersArray);
   Payload->SetStringField(TEXT("id"), TEXT("game-server"));
 
-  if (bUseBackend) {
+  if (bUseBackend && CharactersArray.Num() > 0) {
     Sidecar->Emit(TEXT("realm:characters:set:server"), Payload);
   }
 }
@@ -1078,6 +1094,7 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
       *PlayerStateComponent->RedwoodCharacter.Name
     );
 
+    bool bIsDirty = false;
     TSharedPtr<FJsonObject> CharacterObject = MakeShareable(new FJsonObject);
     CharacterObject->SetStringField(
       TEXT("playerId"), *PlayerStateComponent->RedwoodCharacter.PlayerId
@@ -1086,142 +1103,277 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
       TEXT("characterId"), *PlayerStateComponent->RedwoodCharacter.Id
     );
 
-    for (URedwoodCharacterComponent *CharacterComponent : CharacterComponents) {
-      if (bUseBackend && // always fill out if not using the backend
-            !CharacterComponent->IsCharacterCreatorDataDirty() &&
-            !CharacterComponent->IsMetadataDirty() &&
-            !CharacterComponent->IsEquippedInventoryDirty() &&
-            !CharacterComponent->IsNonequippedInventoryDirty() &&
-            !CharacterComponent->IsProgressDirty() &&
-            !CharacterComponent->IsDataDirty() &&
-            !CharacterComponent->IsAbilitySystemDirty()) {
-        continue;
+    if (!PlayerStateComponent->bTransferring && Pawn) {
+      APlayerController *PlayerController =
+        Pawn->GetController<APlayerController>();
+
+      if (PlayerController) {
+        TSharedPtr<FJsonObject> LastLocationObject =
+          MakeShareable(new FJsonObject);
+
+        LastLocationObject->SetStringField(TEXT("proxyId"), ProxyId);
+        LastLocationObject->SetStringField(TEXT("zoneName"), ZoneName);
+
+        TSharedPtr<FJsonObject> TransformObject =
+          MakeShareable(new FJsonObject);
+        TSharedPtr<FJsonObject> LocationObject = MakeShareable(new FJsonObject);
+        FVector ActorLocation = Pawn->GetActorLocation();
+        LocationObject->SetNumberField(TEXT("x"), ActorLocation.X);
+        LocationObject->SetNumberField(TEXT("y"), ActorLocation.Y);
+        LocationObject->SetNumberField(TEXT("z"), ActorLocation.Z);
+        TransformObject->SetObjectField(TEXT("location"), LocationObject);
+
+        TSharedPtr<FJsonObject> RotationObject = MakeShareable(new FJsonObject);
+        FVector ActorRotation = Pawn->GetActorRotation().Euler();
+        RotationObject->SetNumberField(TEXT("x"), ActorRotation.X);
+        RotationObject->SetNumberField(TEXT("y"), ActorRotation.Y);
+        RotationObject->SetNumberField(TEXT("z"), ActorRotation.Z);
+        TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
+
+        TSharedPtr<FJsonObject> ControlRotationObject =
+          MakeShareable(new FJsonObject);
+        FRotator ControlRotation = PlayerController->GetControlRotation();
+        ControlRotationObject->SetNumberField(TEXT("x"), ControlRotation.Roll);
+        ControlRotationObject->SetNumberField(TEXT("y"), ControlRotation.Pitch);
+        ControlRotationObject->SetNumberField(TEXT("z"), ControlRotation.Yaw);
+        TransformObject->SetObjectField(
+          TEXT("controlRotation"), ControlRotationObject
+        );
+
+        LastLocationObject->SetObjectField(TEXT("transform"), TransformObject);
+
+        CharacterObject->SetObjectField(
+          TEXT("lastLocation"), LastLocationObject
+        );
+
+        bIsDirty = true;
+      }
+    }
+
+    // If the PlayerStateComponent's dirty flag is set, use that data
+    // instead of the character component and broadcast the data changed
+    // so character components will sync with the new data
+    if (PlayerStateComponent->IsCharacterDataDirty()) {
+      if (
+        PlayerStateComponent->RedwoodCharacter.CharacterCreatorData != nullptr &&
+        PlayerStateComponent->RedwoodCharacter.CharacterCreatorData->IsValid()
+      ) {
+        CharacterObject->SetObjectField(
+          TEXT("characterCreatorData"),
+          PlayerStateComponent->RedwoodCharacter.CharacterCreatorData
+            ->GetRootObject()
+        );
       }
 
-      AActor *ComponentOwner = CharacterComponent->GetOwner();
+      if (
+        PlayerStateComponent->RedwoodCharacter.Metadata != nullptr &&
+        PlayerStateComponent->RedwoodCharacter.Metadata->IsValid()
+      ) {
+        CharacterObject->SetObjectField(
+          TEXT("metadata"),
+          PlayerStateComponent->RedwoodCharacter.Metadata->GetRootObject()
+        );
+      }
 
-      if (bForce || bUseBackend ? CharacterComponent->IsCharacterCreatorDataDirty()
-                        : CharacterComponent->bUseCharacterCreatorData) {
-        USIOJsonObject *CharacterCreatorData =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            CharacterComponent->bStoreDataInActor
-              ? (UObject *)ComponentOwner
-              : (UObject *)CharacterComponent,
-            CharacterComponent->CharacterCreatorDataVariableName
-          );
-        if (CharacterCreatorData) {
-          PlayerStateComponent->RedwoodCharacter.CharacterCreatorData =
-            CharacterCreatorData;
-          CharacterObject->SetObjectField(
-            TEXT("characterCreatorData"), CharacterCreatorData->GetRootObject()
-          );
+      if (
+        PlayerStateComponent->RedwoodCharacter.EquippedInventory != nullptr &&
+        PlayerStateComponent->RedwoodCharacter.EquippedInventory->IsValid()
+      ) {
+        CharacterObject->SetObjectField(
+          TEXT("equippedInventory"),
+          PlayerStateComponent->RedwoodCharacter.EquippedInventory
+            ->GetRootObject()
+        );
+      }
+
+      if (
+        PlayerStateComponent->RedwoodCharacter.NonequippedInventory != nullptr &&
+        PlayerStateComponent->RedwoodCharacter.NonequippedInventory->IsValid()
+      ) {
+        CharacterObject->SetObjectField(
+          TEXT("nonequippedInventory"),
+          PlayerStateComponent->RedwoodCharacter.NonequippedInventory
+            ->GetRootObject()
+        );
+      }
+
+      if (
+        PlayerStateComponent->RedwoodCharacter.Progress != nullptr &&
+        PlayerStateComponent->RedwoodCharacter.Progress->IsValid()
+      ) {
+        CharacterObject->SetObjectField(
+          TEXT("progress"),
+          PlayerStateComponent->RedwoodCharacter.Progress->GetRootObject()
+        );
+      }
+
+      if (
+        PlayerStateComponent->RedwoodCharacter.Data != nullptr &&
+        PlayerStateComponent->RedwoodCharacter.Data->IsValid()
+      ) {
+        CharacterObject->SetObjectField(
+          TEXT("data"),
+          PlayerStateComponent->RedwoodCharacter.Data->GetRootObject()
+        );
+      }
+
+      if (
+        PlayerStateComponent->RedwoodCharacter.AbilitySystem != nullptr &&
+        PlayerStateComponent->RedwoodCharacter.AbilitySystem->IsValid()
+      ) {
+        CharacterObject->SetObjectField(
+          TEXT("abilitySystem"),
+          PlayerStateComponent->RedwoodCharacter.AbilitySystem->GetRootObject()
+        );
+      }
+
+      PlayerStateComponent->OnRedwoodCharacterUpdated.Broadcast();
+
+      bIsDirty = true;
+    } else {
+      for (URedwoodCharacterComponent *CharacterComponent :
+           CharacterComponents) {
+        if (bUseBackend && // always fill out if not using the backend
+              !CharacterComponent->IsCharacterCreatorDataDirty() &&
+              !CharacterComponent->IsMetadataDirty() &&
+              !CharacterComponent->IsEquippedInventoryDirty() &&
+              !CharacterComponent->IsNonequippedInventoryDirty() &&
+              !CharacterComponent->IsProgressDirty() &&
+              !CharacterComponent->IsDataDirty() &&
+              !CharacterComponent->IsAbilitySystemDirty()) {
+          continue;
         }
-      }
 
-      if (bForce || bUseBackend ? CharacterComponent->IsMetadataDirty()
-                        : CharacterComponent->bUseMetadata) {
-        USIOJsonObject *Metadata =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            CharacterComponent->bStoreDataInActor
-              ? (UObject *)ComponentOwner
-              : (UObject *)CharacterComponent,
-            CharacterComponent->MetadataVariableName
-          );
-        if (Metadata) {
-          PlayerStateComponent->RedwoodCharacter.Metadata = Metadata;
-          CharacterObject->SetObjectField(
-            TEXT("metadata"), Metadata->GetRootObject()
-          );
+        bIsDirty = true;
+
+        AActor *ComponentOwner = CharacterComponent->GetOwner();
+
+        if (bForce || bUseBackend ? CharacterComponent->IsCharacterCreatorDataDirty()
+                          : CharacterComponent->bUseCharacterCreatorData) {
+          USIOJsonObject *CharacterCreatorData =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->CharacterCreatorDataVariableName
+            );
+          if (CharacterCreatorData) {
+            PlayerStateComponent->RedwoodCharacter.CharacterCreatorData =
+              CharacterCreatorData;
+            CharacterObject->SetObjectField(
+              TEXT("characterCreatorData"),
+              CharacterCreatorData->GetRootObject()
+            );
+          }
         }
-      }
 
-      if (bForce || bUseBackend ? CharacterComponent->IsEquippedInventoryDirty()
-                        : CharacterComponent->bUseEquippedInventory) {
-        USIOJsonObject *EquippedInventory =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            CharacterComponent->bStoreDataInActor
-              ? (UObject *)ComponentOwner
-              : (UObject *)CharacterComponent,
-            CharacterComponent->EquippedInventoryVariableName
-          );
-        if (EquippedInventory) {
-          PlayerStateComponent->RedwoodCharacter.EquippedInventory =
-            EquippedInventory;
-          CharacterObject->SetObjectField(
-            TEXT("equippedInventory"), EquippedInventory->GetRootObject()
-          );
+        if (bForce || bUseBackend ? CharacterComponent->IsMetadataDirty()
+                          : CharacterComponent->bUseMetadata) {
+          USIOJsonObject *Metadata =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->MetadataVariableName
+            );
+          if (Metadata) {
+            PlayerStateComponent->RedwoodCharacter.Metadata = Metadata;
+            CharacterObject->SetObjectField(
+              TEXT("metadata"), Metadata->GetRootObject()
+            );
+          }
         }
-      }
 
-      if (bForce || bUseBackend ? CharacterComponent->IsNonequippedInventoryDirty()
-                        : CharacterComponent->bUseNonequippedInventory) {
-        USIOJsonObject *NonequippedInventory =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            CharacterComponent->bStoreDataInActor
-              ? (UObject *)ComponentOwner
-              : (UObject *)CharacterComponent,
-            CharacterComponent->NonequippedInventoryVariableName
-          );
-        if (NonequippedInventory) {
-          PlayerStateComponent->RedwoodCharacter.NonequippedInventory =
-            NonequippedInventory;
-          CharacterObject->SetObjectField(
-            TEXT("nonequippedInventory"), NonequippedInventory->GetRootObject()
-          );
+        if (bForce || bUseBackend ? CharacterComponent->IsEquippedInventoryDirty()
+                          : CharacterComponent->bUseEquippedInventory) {
+          USIOJsonObject *EquippedInventory =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->EquippedInventoryVariableName
+            );
+          if (EquippedInventory) {
+            PlayerStateComponent->RedwoodCharacter.EquippedInventory =
+              EquippedInventory;
+            CharacterObject->SetObjectField(
+              TEXT("equippedInventory"), EquippedInventory->GetRootObject()
+            );
+          }
         }
-      }
 
-      if (bForce || bUseBackend ? CharacterComponent->IsProgressDirty()
-                        : CharacterComponent->bUseProgress) {
-        USIOJsonObject *Progress =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            CharacterComponent->bStoreDataInActor
-              ? (UObject *)ComponentOwner
-              : (UObject *)CharacterComponent,
-            CharacterComponent->ProgressVariableName
-          );
-        if (Progress) {
-          PlayerStateComponent->RedwoodCharacter.Progress = Progress;
-          CharacterObject->SetObjectField(
-            TEXT("progress"), Progress->GetRootObject()
-          );
+        if (bForce || bUseBackend ? CharacterComponent->IsNonequippedInventoryDirty()
+                          : CharacterComponent->bUseNonequippedInventory) {
+          USIOJsonObject *NonequippedInventory =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->NonequippedInventoryVariableName
+            );
+          if (NonequippedInventory) {
+            PlayerStateComponent->RedwoodCharacter.NonequippedInventory =
+              NonequippedInventory;
+            CharacterObject->SetObjectField(
+              TEXT("nonequippedInventory"),
+              NonequippedInventory->GetRootObject()
+            );
+          }
         }
-      }
 
-      if (bForce || bUseBackend ? CharacterComponent->IsDataDirty() : CharacterComponent->bUseData) {
-        USIOJsonObject *CharData =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            CharacterComponent->bStoreDataInActor
-              ? (UObject *)ComponentOwner
-              : (UObject *)CharacterComponent,
-            CharacterComponent->DataVariableName
-          );
-        if (CharData) {
-          PlayerStateComponent->RedwoodCharacter.Data = CharData;
-          CharacterObject->SetObjectField(
-            TEXT("data"), CharData->GetRootObject()
-          );
+        if (bForce || bUseBackend ? CharacterComponent->IsProgressDirty()
+                          : CharacterComponent->bUseProgress) {
+          USIOJsonObject *Progress =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->ProgressVariableName
+            );
+          if (Progress) {
+            PlayerStateComponent->RedwoodCharacter.Progress = Progress;
+            CharacterObject->SetObjectField(
+              TEXT("progress"), Progress->GetRootObject()
+            );
+          }
         }
-      }
 
-      if (bForce || bUseBackend ? CharacterComponent->IsAbilitySystemDirty()
-                        : CharacterComponent->bUseAbilitySystem) {
-        USIOJsonObject *AbilitySystem =
-          URedwoodCommonGameSubsystem::SerializeBackendData(
-            CharacterComponent->bStoreDataInActor
-              ? (UObject *)ComponentOwner
-              : (UObject *)CharacterComponent,
-            CharacterComponent->AbilitySystemVariableName
-          );
-        if (AbilitySystem) {
-          PlayerStateComponent->RedwoodCharacter.AbilitySystem = AbilitySystem;
-          CharacterObject->SetObjectField(
-            TEXT("abilitySystem"), AbilitySystem->GetRootObject()
-          );
+        if (bForce || bUseBackend ? CharacterComponent->IsDataDirty() : CharacterComponent->bUseData) {
+          USIOJsonObject *CharData =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->DataVariableName
+            );
+          if (CharData) {
+            PlayerStateComponent->RedwoodCharacter.Data = CharData;
+            CharacterObject->SetObjectField(
+              TEXT("data"), CharData->GetRootObject()
+            );
+          }
         }
-      }
 
-      CharacterComponent->ClearDirtyFlags();
+        if (bForce || bUseBackend ? CharacterComponent->IsAbilitySystemDirty()
+                          : CharacterComponent->bUseAbilitySystem) {
+          USIOJsonObject *AbilitySystem =
+            URedwoodCommonGameSubsystem::SerializeBackendData(
+              CharacterComponent->bStoreDataInActor
+                ? (UObject *)ComponentOwner
+                : (UObject *)CharacterComponent,
+              CharacterComponent->AbilitySystemVariableName
+            );
+          if (AbilitySystem) {
+            PlayerStateComponent->RedwoodCharacter.AbilitySystem =
+              AbilitySystem;
+            CharacterObject->SetObjectField(
+              TEXT("abilitySystem"), AbilitySystem->GetRootObject()
+            );
+          }
+        }
+
+        CharacterComponent->ClearDirtyFlags();
+      }
     }
 
     for (TScriptInterface<IRedwoodPersistenceComponentInterface>
@@ -1229,8 +1381,14 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
       IRedwoodPersistenceComponentInterface *PersistenceComponent =
         ComponentInterface.GetInterface();
       if (PersistenceComponent) {
-        PersistenceComponent->AddPersistedData(CharacterObject, bForce);
+        if (PersistenceComponent->AddPersistedData(CharacterObject, bForce)) {
+          bIsDirty = true;
+        }
       }
+    }
+
+    if (!bIsDirty) {
+      return TSharedPtr<FJsonObject>();
     }
 
     return CharacterObject;

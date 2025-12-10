@@ -17,11 +17,21 @@ public:
   URedwoodPlayerStateComponent(const FObjectInitializer &ObjectInitializer);
 
   // NOT AVAILABLE ON CLIENTS
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FRedwoodPlayerData RedwoodPlayer;
   // NOT AVAILABLE ON CLIENTS
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FRedwoodCharacterBackend RedwoodCharacter;
+
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
+  void MarkCharacterDataDirty() {
+    bCharacterDataDirty = true;
+  }
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  bool IsCharacterDataDirty() const {
+    return bCharacterDataDirty;
+  }
 
   //~ Begin UActorComponent Interface
   virtual void TickComponent(
@@ -58,12 +68,23 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetRedwoodCharacter(FRedwoodCharacterBackend InRedwoodCharacter);
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  bool GetSpawnData(FTransform &Transform, FRotator &ControlRotation);
+
   UPROPERTY(BlueprintAssignable, Category = "Events")
   FOnRedwoodPlayerStateUpdated OnRedwoodCharacterUpdated;
 
   UPROPERTY(BlueprintAssignable, Category = "Events")
   FOnRedwoodPlayerStateUpdated OnRedwoodPlayerUpdated;
 
+  bool bTransferring = false;
+
+  void ClearDirtyFlags() {
+    bCharacterDataDirty = false;
+  }
+
 private:
   TWeakObjectPtr<APlayerState> OwnerPlayerState = nullptr;
+
+  bool bCharacterDataDirty = false;
 };

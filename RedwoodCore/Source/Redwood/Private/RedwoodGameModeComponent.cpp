@@ -426,32 +426,12 @@ void URedwoodGameModeComponent::FinishRestartPlayer(
     FRotator NewControlRotation = NewPlayer->GetPawn()->GetActorRotation();
 
     if (IsValid(PlayerStateComponent)) {
-      if (PlayerStateComponent->RedwoodCharacter.RedwoodData) {
-        USIOJsonObject *LastLocation;
-        if (PlayerStateComponent->RedwoodCharacter.RedwoodData
-              ->TryGetObjectField(TEXT("lastLocation"), LastLocation)) {
-          USIOJsonObject *LastTransform;
-
-          if (LastLocation->TryGetObjectField(
-                TEXT("transform"), LastTransform
-              )) {
-            USIOJsonObject *ControlRotation =
-              LastTransform->GetObjectField(TEXT("controlRotation"));
-            if (ControlRotation) {
-              float Roll = ControlRotation->GetNumberField(TEXT("x"));
-              float Pitch = ControlRotation->GetNumberField(TEXT("y"));
-              float Yaw = ControlRotation->GetNumberField(TEXT("z"));
-
-              NewControlRotation = FRotator(Pitch, Yaw, Roll);
-            } else {
-              UE_LOG(
-                LogRedwood,
-                Error,
-                TEXT("Invalid lastTransform (no controlRotation object field)")
-              );
-            }
-          }
-        }
+      FTransform OutTransform;
+      FRotator OutControlRotation;
+      if (PlayerStateComponent->GetSpawnData(
+            OutTransform, OutControlRotation
+          )) {
+        NewControlRotation = OutControlRotation;
       }
     }
 
@@ -493,60 +473,10 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
     );
 
   if (IsValid(PlayerStateComponent)) {
-    if (IsValid(PlayerStateComponent->RedwoodCharacter.RedwoodData)) {
-
-      USIOJsonObject *LastLocation;
-      if (PlayerStateComponent->RedwoodCharacter.RedwoodData->TryGetObjectField(
-            TEXT("lastLocation"), LastLocation
-          )) {
-        FString LastZoneName = LastLocation->GetStringField(TEXT("zoneName"));
-
-        if (LastZoneName == RedwoodServerGameSubsystem->ZoneName) {
-
-          FString LastSpawnName;
-          USIOJsonObject *LastTransform;
-
-          if (LastLocation->TryGetStringField(
-                TEXT("spawnName"), LastSpawnName
-              )) {
-            for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
-              if (ZoneSpawn->SpawnName == LastSpawnName) {
-                return ZoneSpawn->GetSpawnTransform();
-              }
-            }
-          } else if (LastLocation->TryGetObjectField(
-                       TEXT("transform"), LastTransform
-                     )) {
-            USIOJsonObject *Location =
-              LastTransform->GetObjectField(TEXT("location"));
-            USIOJsonObject *Rotation =
-              LastTransform->GetObjectField(TEXT("rotation"));
-            if (IsValid(Location) && IsValid(Rotation)) {
-              float LocX = Location->GetNumberField(TEXT("x"));
-              float LocY = Location->GetNumberField(TEXT("y"));
-              float LocZ = Location->GetNumberField(TEXT("z"));
-
-              float RotX = Rotation->GetNumberField(TEXT("x"));
-              float RotY = Rotation->GetNumberField(TEXT("y"));
-              float RotZ = Rotation->GetNumberField(TEXT("z"));
-
-              FTransform Transform = FTransform(
-                FRotator(RotY, RotZ, RotX), FVector(LocX, LocY, LocZ)
-              );
-
-              return Transform;
-            } else {
-              UE_LOG(
-                LogRedwood,
-                Error,
-                TEXT(
-                  "Invalid lastTransform (no location and/or rotation object fields)"
-                )
-              );
-            }
-          }
-        }
-      }
+    FTransform OutTransform;
+    FRotator OutControlRotation;
+    if (PlayerStateComponent->GetSpawnData(OutTransform, OutControlRotation)) {
+      return OutTransform;
     }
 
     UE_LOG(

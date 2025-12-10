@@ -109,6 +109,7 @@ public:
 
   void FlushSync();
   void FlushPersistence();
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void FlushPlayerCharacterData(
     TArray<APlayerState *> PlayerArray, bool bForce
   );
