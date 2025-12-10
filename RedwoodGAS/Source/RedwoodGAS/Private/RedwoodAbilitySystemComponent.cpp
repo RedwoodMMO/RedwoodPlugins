@@ -141,6 +141,8 @@ bool URedwoodAbilitySystemComponent::AddPersistedData(
 
     return false;
   }
+
+  return false;
 }
 
 void URedwoodAbilitySystemComponent::OnControllerChanged(
