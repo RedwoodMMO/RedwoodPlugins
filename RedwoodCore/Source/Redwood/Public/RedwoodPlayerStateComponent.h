@@ -9,7 +9,12 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodPlayerStateUpdated);
 
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(
+  BlueprintType,
+  Blueprintable,
+  ClassGroup = (Redwood),
+  meta = (BlueprintSpawnableComponent)
+)
 class REDWOOD_API URedwoodPlayerStateComponent : public UActorComponent {
   GENERATED_BODY()
 
