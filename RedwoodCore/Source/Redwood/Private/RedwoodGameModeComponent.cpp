@@ -299,10 +299,13 @@ APlayerController *URedwoodGameModeComponent::Login(
 
               PlayerStateComponent->SetServerReady();
 
-              // This is called here because it was already called in ::PostLogin
-              // by the time we received a response from the backend and we
-              // need to call it again
-              GameMode->HandleStartingNewPlayer(PlayerController);
+              // if we haven't ran PostLogin yet, HandleStartingNewPlayer will be called there
+              if (PlayerStateComponent->bRanPostLogin) {
+                // This is called here because it was already called in ::PostLogin
+                // by the time we received a response from the backend and we
+                // need to call it again
+                GameMode->HandleStartingNewPlayer(PlayerController);
+              }
             } else {
               UE_LOG(
                 LogRedwood,
@@ -370,6 +373,15 @@ APlayerController *URedwoodGameModeComponent::Login(
   }
 
   return PlayerController;
+}
+
+void URedwoodGameModeComponent::PostLogin(APlayerController *NewPlayer) {
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    NewPlayer->PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>(
+    );
+  if (IsValid(PlayerStateComponent)) {
+    PlayerStateComponent->bRanPostLogin = true;
+  }
 }
 
 TArray<FString> URedwoodGameModeComponent::GetExpectedCharacterIds() const {

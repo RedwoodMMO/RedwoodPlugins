@@ -48,6 +48,8 @@ public:
                       FString &)> SuperDelegate
   );
 
+  void PostLogin(APlayerController *NewPlayer);
+
   bool PlayerCanRestart_Implementation(
     APlayerController *Player,
     std::function<bool(APlayerController *)> SuperDelegate

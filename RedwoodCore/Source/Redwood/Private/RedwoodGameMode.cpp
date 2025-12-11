@@ -86,6 +86,12 @@ APlayerController *REDWOOD_GAME_MODE_TYPE::Login(
   }
 }
 
+void REDWOOD_GAME_MODE_TYPE::PostLogin(APlayerController *NewPlayer) {
+  Super::PostLogin(NewPlayer);
+
+  GameModeComponent->PostLogin(NewPlayer);
+}
+
 bool REDWOOD_GAME_MODE_TYPE::PlayerCanRestart_Implementation(
   APlayerController *Player
 ) {

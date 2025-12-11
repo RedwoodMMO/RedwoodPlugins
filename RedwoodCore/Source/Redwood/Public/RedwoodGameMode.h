@@ -31,6 +31,8 @@ public:
     FString &ErrorMessage
   ) override;
 
+  virtual void PostLogin(APlayerController *NewPlayer) override;
+
   virtual bool PlayerCanRestart_Implementation(APlayerController *Player
   ) override;
 

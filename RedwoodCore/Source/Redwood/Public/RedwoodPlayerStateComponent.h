@@ -83,6 +83,8 @@ public:
     bCharacterDataDirty = false;
   }
 
+  bool bRanPostLogin = false;
+
 private:
   TWeakObjectPtr<APlayerState> OwnerPlayerState = nullptr;
 
