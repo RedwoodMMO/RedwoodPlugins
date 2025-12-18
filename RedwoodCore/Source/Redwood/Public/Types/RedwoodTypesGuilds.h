@@ -125,7 +125,7 @@ struct FRedwoodGuildPlayer {
   FString Id;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  FString Nickname;
+  FString Name;
 };
 
 USTRUCT(BlueprintType)

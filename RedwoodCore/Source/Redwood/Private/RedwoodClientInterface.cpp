@@ -1099,7 +1099,7 @@ void URedwoodClientInterface::ListGuildMembers(
           continue; // skip members without player info
         }
         OutMember.Player.Id = PlayerObj->GetStringField(TEXT("id"));
-        OutMember.Player.Nickname = PlayerObj->GetStringField(TEXT("nickname"));
+        OutMember.Player.Name = PlayerObj->GetStringField(TEXT("name"));
         OutMember.PlayerState =
           URedwoodCommonGameSubsystem::ParseGuildAndAllianceMemberState(
             MemberObj->GetStringField(TEXT("playerState"))
