@@ -5,12 +5,12 @@
 URedwoodGetCharacterDataAsync *URedwoodGetCharacterDataAsync::GetCharacterData(
   URedwoodClientGameSubsystem *Target,
   UObject *WorldContextObject,
-  FString CharacterId
+  FString CharacterIdOrName
 ) {
   URedwoodGetCharacterDataAsync *Action =
     NewObject<URedwoodGetCharacterDataAsync>();
   Action->Target = Target;
-  Action->CharacterId = CharacterId;
+  Action->CharacterIdOrName = CharacterIdOrName;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
@@ -18,7 +18,7 @@ URedwoodGetCharacterDataAsync *URedwoodGetCharacterDataAsync::GetCharacterData(
 
 void URedwoodGetCharacterDataAsync::Activate() {
   Target->GetCharacterData(
-    CharacterId,
+    CharacterIdOrName,
     FRedwoodGetCharacterOutputDelegate::CreateLambda(
       [this](FRedwoodGetCharacterOutput Output) {
         OnOutput.Broadcast(Output);

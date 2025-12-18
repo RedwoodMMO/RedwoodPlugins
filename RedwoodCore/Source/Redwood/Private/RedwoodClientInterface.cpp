@@ -2248,7 +2248,7 @@ void URedwoodClientInterface::SetCharacterArchived(
 }
 
 void URedwoodClientInterface::GetCharacterData(
-  FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
+  FString CharacterIdOrName, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (!Realm.IsValid() || !Realm->bIsConnected) {
     FRedwoodGetCharacterOutput Output;
@@ -2259,7 +2259,7 @@ void URedwoodClientInterface::GetCharacterData(
 
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("id"), PlayerId);
-  Payload->SetStringField(TEXT("characterId"), CharacterId);
+  Payload->SetStringField(TEXT("characterIdOrName"), CharacterIdOrName);
 
   Realm->Emit(
     TEXT("realm:characters:get"),

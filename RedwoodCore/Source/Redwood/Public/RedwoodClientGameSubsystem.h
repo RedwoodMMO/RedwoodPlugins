@@ -291,7 +291,7 @@ public:
   );
 
   void GetCharacterData(
-    FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
+    FString CharacterIdOrName, FRedwoodGetCharacterOutputDelegate OnOutput
   );
 
   void SetCharacterData(

@@ -821,14 +821,14 @@ void URedwoodClientGameSubsystem::SetCharacterArchived(
 }
 
 void URedwoodClientGameSubsystem::GetCharacterData(
-  FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
+  FString CharacterIdOrName, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->GetCharacterData(CharacterId, OnOutput);
+    ClientInterface->GetCharacterData(CharacterIdOrName, OnOutput);
   } else {
     FRedwoodGetCharacterOutput Output;
     Output.Character =
-      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterIdOrName);
     OnOutput.ExecuteIfBound(Output);
   }
 }
