@@ -807,8 +807,10 @@ void URedwoodClientInterface::ListGuilds(
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetBoolField(TEXT("onlyPlayersGuilds"), bOnlyPlayersGuilds);
 
-  Director
-    ->Emit(TEXT("realm:guilds:list"), Payload, [this, OnOutput](auto Response) {
+  Director->Emit(
+    TEXT("director:guilds:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
 
       FRedwoodListGuildsOutput Output;
@@ -829,7 +831,8 @@ void URedwoodClientInterface::ListGuilds(
       }
 
       OnOutput.ExecuteIfBound(Output);
-    });
+    }
+  );
 }
 
 void URedwoodClientInterface::SearchForGuilds(
@@ -850,7 +853,7 @@ void URedwoodClientInterface::SearchForGuilds(
   Payload->SetBoolField(TEXT("includePartial"), bIncludePartialMatches);
 
   Director->Emit(
-    TEXT("realm:guilds:search"),
+    TEXT("director:guilds:search"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -891,8 +894,10 @@ void URedwoodClientInterface::GetGuild(
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("guildId"), GuildId);
 
-  Director
-    ->Emit(TEXT("realm:guilds:get"), Payload, [this, OnOutput](auto Response) {
+  Director->Emit(
+    TEXT("director:guilds:get"),
+    Payload,
+    [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
 
       FRedwoodGetGuildOutput Output;
@@ -909,7 +914,8 @@ void URedwoodClientInterface::GetGuild(
       }
 
       OnOutput.ExecuteIfBound(Output);
-    });
+    }
+  );
 }
 
 void URedwoodClientInterface::GetSelectedGuild(
@@ -926,7 +932,7 @@ void URedwoodClientInterface::GetSelectedGuild(
   Payload->SetStringField(TEXT("playerId"), PlayerId);
 
   Director->Emit(
-    TEXT("realm:guilds:selected:get"),
+    TEXT("director:guilds:selected:get"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -963,7 +969,7 @@ void URedwoodClientInterface::SetSelectedGuild(
   Payload->SetStringField(TEXT("guildId"), GuildId);
 
   Director->Emit(
-    TEXT("realm:guilds:selected:set"),
+    TEXT("director:guilds:selected:set"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -989,7 +995,7 @@ void URedwoodClientInterface::JoinGuild(
   Payload->SetStringField(TEXT("guildId"), GuildId);
 
   Director->Emit(
-    TEXT("realm:guilds:membership:join"),
+    TEXT("director:guilds:membership:join"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1016,7 +1022,7 @@ void URedwoodClientInterface::InviteToGuild(
   Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
 
   Director->Emit(
-    TEXT("realm:guilds:membership:invite"),
+    TEXT("director:guilds:membership:invite"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1042,7 +1048,7 @@ void URedwoodClientInterface::LeaveGuild(
   Payload->SetStringField(TEXT("guildId"), GuildId);
 
   Director->Emit(
-    TEXT("realm:guilds:membership:leave"),
+    TEXT("director:guilds:membership:leave"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1075,7 +1081,7 @@ void URedwoodClientInterface::ListGuildMembers(
   );
 
   Director->Emit(
-    TEXT("realm:guilds:membership:list"),
+    TEXT("director:guilds:membership:list"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1140,7 +1146,7 @@ void URedwoodClientInterface::CreateGuild(
   Payload->SetBoolField(TEXT("membershipPublic"), bMembershipPublic);
 
   Director->Emit(
-    TEXT("realm:guilds:admin:create"),
+    TEXT("director:guilds:admin:create"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1183,7 +1189,7 @@ void URedwoodClientInterface::UpdateGuild(
   Payload->SetBoolField(TEXT("membershipPublic"), bMembershipPublic);
 
   Director->Emit(
-    TEXT("realm:guilds:admin:update"),
+    TEXT("director:guilds:admin:update"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1211,7 +1217,7 @@ void URedwoodClientInterface::KickPlayerFromGuild(
   Payload->SetBoolField(TEXT("ban"), false);
 
   Director->Emit(
-    TEXT("realm:guilds:admin:kick"),
+    TEXT("director:guilds:admin:kick"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1239,7 +1245,7 @@ void URedwoodClientInterface::BanPlayerFromGuild(
   Payload->SetBoolField(TEXT("ban"), true);
 
   Director->Emit(
-    TEXT("realm:guilds:admin:kick"),
+    TEXT("director:guilds:admin:kick"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1272,7 +1278,7 @@ void URedwoodClientInterface::PromotePlayerToGuildAdmin(
   Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
 
   Director->Emit(
-    TEXT("realm:guilds:admin:promote"),
+    TEXT("director:guilds:admin:promote"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1299,7 +1305,7 @@ void URedwoodClientInterface::DemotePlayerFromGuildAdmin(
   Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
 
   Director->Emit(
-    TEXT("realm:guilds:admin:demote"),
+    TEXT("director:guilds:admin:demote"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1326,7 +1332,7 @@ void URedwoodClientInterface::ListAlliances(
   Payload->SetStringField(TEXT("guildIdFilter"), GuildIdFilter);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:list"),
+    TEXT("director:guilds:alliances:list"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1381,7 +1387,7 @@ void URedwoodClientInterface::SearchForAlliances(
   Payload->SetBoolField(TEXT("includePartial"), bIncludePartialMatches);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:search"),
+    TEXT("director:guilds:alliances:search"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1419,7 +1425,7 @@ void URedwoodClientInterface::CanAdminAlliance(
   Payload->SetStringField(TEXT("allianceId"), AllianceId);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:admin:has-admin-privileges"),
+    TEXT("director:guilds:alliances:admin:has-admin-privileges"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1451,7 +1457,7 @@ void URedwoodClientInterface::CreateAlliance(
   Payload->SetBoolField(TEXT("inviteOnly"), bInviteOnly);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:admin:create"),
+    TEXT("director:guilds:alliances:admin:create"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1485,7 +1491,7 @@ void URedwoodClientInterface::UpdateAlliance(
   Payload->SetBoolField(TEXT("inviteOnly"), bInviteOnly);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:admin:update"),
+    TEXT("director:guilds:alliances:admin:update"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1513,7 +1519,7 @@ void URedwoodClientInterface::KickGuildFromAlliance(
   Payload->SetBoolField(TEXT("ban"), false);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:admin:kick"),
+    TEXT("director:guilds:alliances:admin:kick"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1541,7 +1547,7 @@ void URedwoodClientInterface::BanGuildFromAlliance(
   Payload->SetBoolField(TEXT("ban"), true);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:admin:kick"),
+    TEXT("director:guilds:alliances:admin:kick"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1580,7 +1586,7 @@ void URedwoodClientInterface::ListAllianceGuilds(
   );
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:membership:list"),
+    TEXT("director:guilds:alliances:membership:list"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1633,7 +1639,7 @@ void URedwoodClientInterface::JoinAlliance(
   Payload->SetStringField(TEXT("guildId"), GuildId);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:membership:join"),
+    TEXT("director:guilds:alliances:membership:join"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1660,7 +1666,7 @@ void URedwoodClientInterface::LeaveAlliance(
   Payload->SetStringField(TEXT("guildId"), GuildId);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:membership:leave"),
+    TEXT("director:guilds:alliances:membership:leave"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
@@ -1687,7 +1693,7 @@ void URedwoodClientInterface::InviteGuildToAlliance(
   Payload->SetStringField(TEXT("targetGuildId"), GuildId);
 
   Director->Emit(
-    TEXT("realm:guilds:alliances:membership:invite"),
+    TEXT("director:guilds:alliances:membership:invite"),
     Payload,
     [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
