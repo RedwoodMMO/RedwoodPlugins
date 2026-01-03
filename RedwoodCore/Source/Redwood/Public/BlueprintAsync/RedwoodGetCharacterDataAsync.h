@@ -39,5 +39,5 @@ public:
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
-  FString CharacterId;
+  FString CharacterIdOrName;
 };
