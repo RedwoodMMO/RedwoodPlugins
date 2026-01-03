@@ -7,13 +7,15 @@ URedwoodLoginAsync *URedwoodLoginAsync::Login(
   UObject *WorldContextObject,
   const FString &Username,
   const FString &Password,
-  bool bRememberMe
+  bool bRememberMe,
+  const FString &Provider
 ) {
   URedwoodLoginAsync *Action = NewObject<URedwoodLoginAsync>();
   Action->Target = Target;
   Action->Username = Username;
   Action->Password = Password;
   Action->bRememberMe = bRememberMe;
+  Action->Provider = Provider;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
@@ -23,7 +25,7 @@ void URedwoodLoginAsync::Activate() {
   Target->Login(
     Username,
     Password,
-    "local",
+    Provider,
     bRememberMe,
     FRedwoodAuthUpdateDelegate::CreateLambda([this](FRedwoodAuthUpdate Update) {
       OnUpdate.Broadcast(Update);
