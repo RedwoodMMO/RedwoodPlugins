@@ -72,6 +72,8 @@ public:
     bool bBypassProviderCheck = false
   );
 
+  void LoginWithDiscord(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
+
   FString GetNickname();
 
   void Logout();

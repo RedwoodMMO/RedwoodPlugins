@@ -463,6 +463,100 @@ void URedwoodClientInterface::Login(
   );
 }
 
+void URedwoodClientInterface::LoginWithDiscord(
+  bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodAuthUpdate Update;
+    Update.Type = ERedwoodAuthUpdateType::Error;
+    Update.Message = TEXT("Not connected to Director.");
+    OnUpdate.ExecuteIfBound(Update);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+  Director->Emit(
+    TEXT("player:login:discord:initialize"),
+    Payload,
+    [this, bRememberMe, OnUpdate](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      if (Error.IsEmpty()) {
+        FString ClientId = MessageObject->GetStringField(TEXT("clientId"));
+        FString State = MessageObject->GetStringField(TEXT("state"));
+        FString RedirectUri =
+          MessageObject->GetStringField(TEXT("redirectUri"));
+
+        FString AuthorizationUrl = FString::Printf(
+          TEXT(
+            "https://discord.com/oauth2/authorize?response_type=code&client_id=%s&scope=identify&state=%s&redirect_uri=%s&prompt=none&integration_type=1"
+          ),
+          *ClientId,
+          *State,
+          *RedirectUri
+        );
+
+        // open the browser
+        FPlatformProcess::LaunchURL(*AuthorizationUrl, nullptr, nullptr);
+
+        TSharedPtr<FJsonObject> FinalizePayload =
+          MakeShareable(new FJsonObject);
+        FinalizePayload->SetStringField(TEXT("state"), State);
+
+        Director->Emit(
+          TEXT("player:login:discord:finalize"),
+          FinalizePayload,
+          [this, bRememberMe, OnUpdate](auto FinalResponse) {
+            TSharedPtr<FJsonObject> FinalMessageObject =
+              FinalResponse[0]->AsObject();
+            FString FinalError =
+              FinalMessageObject->GetStringField(TEXT("error"));
+
+            FRedwoodAuthUpdate Update;
+
+            if (FinalError.IsEmpty()) {
+              Update.Type = ERedwoodAuthUpdateType::Success;
+              Update.Message = TEXT("");
+
+              bAuthenticated = true;
+              PlayerId = FinalMessageObject->GetStringField(TEXT("playerId"));
+              AuthToken = FinalMessageObject->GetStringField(TEXT("token"));
+              Nickname = FinalMessageObject->GetStringField(TEXT("nickname"));
+
+              URedwoodSaveGame *SaveGame =
+                Cast<URedwoodSaveGame>(UGameplayStatics::CreateSaveGameObject(
+                  URedwoodSaveGame::StaticClass()
+                ));
+
+              if (bRememberMe) {
+                SaveGame->Username =
+                  FinalMessageObject->GetStringField(TEXT("username"));
+                SaveGame->AuthToken = AuthToken;
+              }
+
+              UGameplayStatics::SaveGameToSlot(
+                SaveGame, TEXT("RedwoodSaveGame"), 0
+              );
+            } else {
+              Update.Type = ERedwoodAuthUpdateType::Error;
+              Update.Message = FinalError;
+            }
+
+            OnUpdate.ExecuteIfBound(Update);
+          }
+        );
+      } else {
+        FRedwoodAuthUpdate Update;
+        Update.Type = ERedwoodAuthUpdateType::Error;
+        Update.Message = Error;
+        OnUpdate.ExecuteIfBound(Update);
+      }
+    }
+  );
+}
+
 FString URedwoodClientInterface::GetNickname() {
   return Nickname;
 }

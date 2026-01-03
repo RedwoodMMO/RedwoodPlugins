@@ -75,6 +75,8 @@ public:
     FRedwoodAuthUpdateDelegate OnUpdate
   );
 
+  void LoginWithDiscord(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
+
   UFUNCTION(BlueprintPure, Category = "Redwood")
   FString GetNickname();
 
