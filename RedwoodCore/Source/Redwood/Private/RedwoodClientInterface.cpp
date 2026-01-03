@@ -2270,7 +2270,7 @@ void URedwoodClientInterface::GetCharacterData(
   Realm->Emit(
     TEXT("realm:characters:get"),
     Payload,
-    [this, OnOutput, CharacterId](auto Response) {
+    [this, OnOutput](auto Response) {
       TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
       FString Error = MessageObject->GetStringField(TEXT("error"));
 
