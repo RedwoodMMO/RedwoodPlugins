@@ -73,6 +73,7 @@ public:
   );
 
   void LoginWithDiscord(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
+  void LoginWithTwitch(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
 
   FString GetNickname();
 

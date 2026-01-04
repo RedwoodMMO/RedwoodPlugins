@@ -182,6 +182,18 @@ void URedwoodClientGameSubsystem::LoginWithDiscord(
   }
 }
 
+void URedwoodClientGameSubsystem::LoginWithTwitch(
+  bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LoginWithTwitch(bRememberMe, OnUpdate);
+  } else {
+    FRedwoodAuthUpdate Output;
+    Output.Type = ERedwoodAuthUpdateType::Success;
+    OnUpdate.ExecuteIfBound(Output);
+  }
+}
+
 FString URedwoodClientGameSubsystem::GetNickname() {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetNickname();
