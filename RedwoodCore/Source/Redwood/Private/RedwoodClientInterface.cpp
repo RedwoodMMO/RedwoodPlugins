@@ -364,6 +364,26 @@ FString URedwoodClientInterface::GetPlayerId() {
   return PlayerId;
 }
 
+FString URedwoodClientInterface::GetCharacterId() {
+  return SelectedCharacterId;
+}
+
+FString URedwoodClientInterface::GetCharacterName() {
+  if (!SelectedCharacterId.IsEmpty()) {
+    FString *CharacterName = CharacterNamesById.Find(SelectedCharacterId);
+
+    if (CharacterName != nullptr) {
+      return *CharacterName;
+    }
+  }
+
+  return FString();
+}
+
+FString URedwoodClientInterface::GetRealmId() {
+  return CurrentRealmId;
+}
+
 void URedwoodClientInterface::AttemptAutoLogin(
   FRedwoodAuthUpdateDelegate OnUpdate
 ) {
@@ -1196,7 +1216,7 @@ void URedwoodClientInterface::JoinGuild(
 }
 
 void URedwoodClientInterface::InviteToGuild(
-  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FString Error = TEXT("Not connected to Director.");
@@ -1207,7 +1227,7 @@ void URedwoodClientInterface::InviteToGuild(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("guildId"), GuildId);
-  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+  Payload->SetStringField(TEXT("targetId"), TargetId);
 
   Director->Emit(
     TEXT("director:guilds:membership:invite"),
@@ -1390,7 +1410,7 @@ void URedwoodClientInterface::UpdateGuild(
 }
 
 void URedwoodClientInterface::KickPlayerFromGuild(
-  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FString Error = TEXT("Not connected to Director.");
@@ -1401,7 +1421,7 @@ void URedwoodClientInterface::KickPlayerFromGuild(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("guildId"), GuildId);
-  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+  Payload->SetStringField(TEXT("targetId"), TargetId);
   Payload->SetBoolField(TEXT("ban"), false);
 
   Director->Emit(
@@ -1418,7 +1438,7 @@ void URedwoodClientInterface::KickPlayerFromGuild(
 }
 
 void URedwoodClientInterface::BanPlayerFromGuild(
-  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FString Error = TEXT("Not connected to Director.");
@@ -1429,7 +1449,7 @@ void URedwoodClientInterface::BanPlayerFromGuild(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("guildId"), GuildId);
-  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+  Payload->SetStringField(TEXT("targetId"), TargetId);
   Payload->SetBoolField(TEXT("ban"), true);
 
   Director->Emit(
@@ -1452,7 +1472,7 @@ void URedwoodClientInterface::UnbanPlayerFromGuild(
 }
 
 void URedwoodClientInterface::PromotePlayerToGuildAdmin(
-  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FString Error = TEXT("Not connected to Director.");
@@ -1463,7 +1483,7 @@ void URedwoodClientInterface::PromotePlayerToGuildAdmin(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("guildId"), GuildId);
-  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+  Payload->SetStringField(TEXT("targetId"), TargetId);
 
   Director->Emit(
     TEXT("director:guilds:admin:promote"),
@@ -1479,7 +1499,7 @@ void URedwoodClientInterface::PromotePlayerToGuildAdmin(
 }
 
 void URedwoodClientInterface::DemotePlayerFromGuildAdmin(
-  FString GuildId, FString TargetPlayerId, FRedwoodErrorOutputDelegate OnOutput
+  FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
 ) {
   if (!Director.IsValid() || !Director->bIsConnected) {
     FString Error = TEXT("Not connected to Director.");
@@ -1490,7 +1510,7 @@ void URedwoodClientInterface::DemotePlayerFromGuildAdmin(
   TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
   Payload->SetStringField(TEXT("playerId"), PlayerId);
   Payload->SetStringField(TEXT("guildId"), GuildId);
-  Payload->SetStringField(TEXT("targetPlayerId"), TargetPlayerId);
+  Payload->SetStringField(TEXT("targetId"), TargetId);
 
   Director->Emit(
     TEXT("director:guilds:admin:demote"),
@@ -2307,13 +2327,17 @@ void URedwoodClientInterface::ListCharacters(
       TArray<TSharedPtr<FJsonValue>> Characters =
         MessageObject->GetArrayField(TEXT("characters"));
 
+      CharacterNamesById.Reset();
       TArray<FRedwoodCharacterBackend> CharactersStruct;
       for (TSharedPtr<FJsonValue> Character : Characters) {
         TSharedPtr<FJsonObject> CharacterData = Character->AsObject();
 
-        CharactersStruct.Add(
-          URedwoodCommonGameSubsystem::ParseCharacter(CharacterData)
-        );
+        FRedwoodCharacterBackend CharacterStruct =
+          URedwoodCommonGameSubsystem::ParseCharacter(CharacterData);
+
+        CharactersStruct.Add(CharacterStruct);
+
+        CharacterNamesById.Add(CharacterStruct.Id, CharacterStruct.Name);
       }
 
       FRedwoodListCharactersOutput Output;

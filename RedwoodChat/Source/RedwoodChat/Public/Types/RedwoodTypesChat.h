@@ -10,10 +10,12 @@ UENUM(BlueprintType)
 enum class ERedwoodChatRoomType : uint8 {
   Guild,
   Party,
+  Realm,
   Proxy,
   Shard,
   Team,
   Nearby,
+  Custom,
   Direct,
   Unknown
 };

@@ -45,6 +45,10 @@ public:
     return Director;
   }
 
+  TSharedPtr<FSocketIONative> GetRealmConnection() const {
+    return Realm;
+  }
+
   FRedwoodDynamicDelegate OnPingsReceived;
 
   FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;
@@ -82,6 +86,9 @@ public:
   bool IsLoggedIn();
 
   FString GetPlayerId();
+  FString GetCharacterId();
+  FString GetCharacterName();
+  FString GetRealmId();
 
   void CancelWaitingForAccountVerification();
 
@@ -166,33 +173,23 @@ public:
   );
 
   void KickPlayerFromGuild(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void BanPlayerFromGuild(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void UnbanPlayerFromGuild(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void PromotePlayerToGuildAdmin(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void DemotePlayerFromGuildAdmin(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void ListAlliances(
@@ -410,6 +407,8 @@ private:
   FString Nickname;
   FString CurrentRealmId;
   FRedwoodRealm CurrentRealm;
+
+  TMap<FString, FString> CharacterNamesById;
 
   FTimerManager TimerManager;
 

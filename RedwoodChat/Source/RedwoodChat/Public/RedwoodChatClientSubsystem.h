@@ -34,6 +34,9 @@ public:
   void JoinRoom(ERedwoodChatRoomType Type, FString Id);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
+  void JoinCustomRoom(FString Id, FString Password, bool bJoinAsCharacter);
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
   void LeaveRoom(ERedwoodChatRoomType Type, FString Id);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
@@ -51,11 +54,19 @@ public:
     const FString &TargetPlayerId, const FString &Message
   );
 
+  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
+  void SendMessageToCharacter(
+    const FString &TargetCharacterId, const FString &Message
+  );
+
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodChatJoinPrivateRoomDynamicDelegate OnJoinPrivateRoom;
 
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
-  FRedwoodChatPrivateChatReceivedDynamicDelegate OnPrivateChatReceived;
+  FRedwoodChatPrivateChatReceivedDynamicDelegate OnPlayerPrivateChatReceived;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodChatPrivateChatReceivedDynamicDelegate OnCharacterPrivateChatReceived;
 
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodChatRoomChatReceivedDynamicDelegate OnRoomChatReceived;
@@ -64,6 +75,8 @@ public:
     switch (Type) {
       case ERedwoodChatRoomType::Guild:
         return TEXT("guild");
+      case ERedwoodChatRoomType::Realm:
+        return TEXT("realm");
       case ERedwoodChatRoomType::Party:
         return TEXT("party");
       case ERedwoodChatRoomType::Proxy:
@@ -74,6 +87,8 @@ public:
         return TEXT("team");
       case ERedwoodChatRoomType::Nearby:
         return TEXT("nearby");
+      case ERedwoodChatRoomType::Custom:
+        return TEXT("custom");
       case ERedwoodChatRoomType::Direct:
         return TEXT("direct");
       default:
@@ -86,6 +101,8 @@ public:
       return ERedwoodChatRoomType::Guild;
     } else if (RoomTypeString == TEXT("party")) {
       return ERedwoodChatRoomType::Party;
+    } else if (RoomTypeString == TEXT("realm")) {
+      return ERedwoodChatRoomType::Realm;
     } else if (RoomTypeString == TEXT("proxy")) {
       return ERedwoodChatRoomType::Proxy;
     } else if (RoomTypeString == TEXT("shard")) {
@@ -94,6 +111,8 @@ public:
       return ERedwoodChatRoomType::Team;
     } else if (RoomTypeString == TEXT("nearby")) {
       return ERedwoodChatRoomType::Nearby;
+    } else if (RoomTypeString == TEXT("custom")) {
+      return ERedwoodChatRoomType::Custom;
     } else if (RoomTypeString == TEXT("direct")) {
       return ERedwoodChatRoomType::Direct;
     }
@@ -105,7 +124,12 @@ private:
 
   void InitHandlers();
 
-  void HandlePrivateChatReceiveMessage(
+  void HandlePlayerPrivateChatReceiveMessage(
+    const TSharedRef<IXmppConnection> &Connection,
+    const FXmppUserJid &InUserJid,
+    const TSharedRef<FXmppChatMessage> &Message
+  );
+  void HandleCharacterPrivateChatReceiveMessage(
     const TSharedRef<IXmppConnection> &Connection,
     const FXmppUserJid &InUserJid,
     const TSharedRef<FXmppChatMessage> &Message
@@ -125,9 +149,15 @@ private:
 
   TSharedPtr<FSocketIONative> Director;
   FString PlayerId;
+  FString RealmId;
+  FString CharacterId;
   FString Nickname;
+  FString CharacterName;
   FString XmppPassword;
 
-  TSharedPtr<class IXmppConnection> XmppConnection;
-  FXmppUserJid UserJid;
+  TSharedPtr<class IXmppConnection> XmppPlayerConnection;
+  TSharedPtr<class IXmppConnection> XmppCharacterConnection;
+
+  bool bGuildsScopedToRealm = false;
+  TMap<FString, bool> CustomRoomUsesCharacter;
 };
