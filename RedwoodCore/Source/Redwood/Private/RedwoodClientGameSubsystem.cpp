@@ -908,7 +908,7 @@ void URedwoodClientGameSubsystem::JoinMatchmaking(
     FRedwoodTicketingUpdate Output;
     Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
     Output.Message =
-      "Cannot join matchmaking in PIE when connecting to the backend is disabled";
+      "Cannot join ticketing in PIE when connecting to the backend is disabled";
     OnUpdate.ExecuteIfBound(Output);
   }
 }
@@ -927,7 +927,23 @@ void URedwoodClientGameSubsystem::JoinQueue(
     FRedwoodTicketingUpdate Output;
     Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
     Output.Message =
-      "Cannot join matchmaking in PIE when connecting to the backend is disabled";
+      "Cannot join ticketing in PIE when connecting to the backend is disabled";
+    OnUpdate.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::JoinCustom(
+  bool bTransferWholeParty,
+  TArray<FString> InRegions,
+  FRedwoodTicketingUpdateDelegate OnUpdate
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->JoinCustom(bTransferWholeParty, InRegions, OnUpdate);
+  } else {
+    FRedwoodTicketingUpdate Output;
+    Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Output.Message =
+      "Cannot join ticketing in PIE when connecting to the backend is disabled";
     OnUpdate.ExecuteIfBound(Output);
   }
 }

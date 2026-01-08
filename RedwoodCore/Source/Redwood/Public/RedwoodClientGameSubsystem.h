@@ -320,6 +320,12 @@ public:
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
+  void JoinCustom(
+    bool bTransferWholeParty,
+    TArray<FString> InRegions,
+    FRedwoodTicketingUpdateDelegate OnUpdate
+  );
+
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
   void ListProxies(

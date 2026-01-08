@@ -2631,6 +2631,110 @@ void URedwoodClientInterface::JoinQueue(
     });
 }
 
+void URedwoodClientInterface::JoinCustom(
+  bool bTransferWholeParty,
+  TArray<FString> InRegions,
+  FRedwoodTicketingUpdateDelegate OnUpdate
+) {
+  if (SelectedCharacterId.IsEmpty()) {
+    FRedwoodTicketingUpdate Update;
+    Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Update.Message = TEXT("Please select a character before joining.");
+    OnUpdate.ExecuteIfBound(Update);
+    return;
+  }
+
+  TicketingRegions = InRegions;
+  OnTicketingUpdate = OnUpdate;
+  bTicketingTransferWholeParty = bTransferWholeParty;
+  AttemptJoinCustom();
+}
+
+void URedwoodClientInterface::AttemptJoinCustom() {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodTicketingUpdate Update;
+    Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Update.Message = TEXT("Not connected to Realm.");
+    OnTicketingUpdate.ExecuteIfBound(Update);
+    OnTicketingUpdate = FRedwoodTicketingUpdateDelegate();
+    return;
+  }
+
+  if (SelectedCharacterId.IsEmpty()) {
+    FRedwoodTicketingUpdate Update;
+    Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Update.Message = TEXT("Please select a character before joining.");
+    OnTicketingUpdate.ExecuteIfBound(Update);
+    return;
+  }
+
+  if (PingAverages.Num() != Regions.Num()) {
+    // we haven't finished getting a single set of ping averages yet
+    // let's delay sending our join request
+    UE_LOG(
+      LogRedwood,
+      Log,
+      TEXT(
+        "Not enough ping averages. Num averages: %d, num Regions: %d. Will attempt again."
+      ),
+      PingAverages.Num(),
+      Regions.Num()
+    );
+
+    TimerManager.SetTimer(
+      PingTimer, this, &URedwoodClientInterface::AttemptJoinCustom, 2.f, false
+    );
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+  Payload->SetBoolField(
+    TEXT("transferWholeParty"), bTicketingTransferWholeParty
+  );
+
+  TArray<TSharedPtr<FJsonValue>> DesiredRegions;
+  for (FString RegionName : TicketingRegions) {
+    float *Ping = PingAverages.Find(RegionName);
+
+    if (Ping == nullptr) {
+      UE_LOG(
+        LogRedwood,
+        Error,
+        TEXT("Could not find ping for region %s."),
+        *RegionName
+      );
+      continue;
+    }
+
+    TSharedPtr<FJsonObject> RegionObject = MakeShareable(new FJsonObject);
+    RegionObject->SetStringField(TEXT("name"), RegionName);
+    RegionObject->SetNumberField(TEXT("ping"), *Ping);
+
+    TSharedPtr<FJsonValueObject> Value =
+      MakeShareable(new FJsonValueObject(RegionObject));
+
+    DesiredRegions.Add(Value);
+  }
+  Payload->SetArrayField(TEXT("regions"), DesiredRegions);
+
+  Realm
+    ->Emit(TEXT("realm:ticketing:join:custom"), Payload, [this](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      FRedwoodTicketingUpdate Update;
+      Update.Type = ERedwoodTicketingUpdateType::JoinResponse;
+      Update.Message = Error;
+      OnTicketingUpdate.ExecuteIfBound(Update);
+
+      if (!Error.IsEmpty()) {
+        OnTicketingUpdate = FRedwoodTicketingUpdateDelegate();
+      }
+    });
+}
+
 void URedwoodClientInterface::LeaveTicketing(
   FRedwoodErrorOutputDelegate OnOutput
 ) {

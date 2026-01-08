@@ -304,6 +304,12 @@ public:
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
+  void JoinCustom(
+    bool bTransferWholeParty,
+    TArray<FString> InRegions,
+    FRedwoodTicketingUpdateDelegate OnUpdate
+  );
+
   void LeaveTicketing(FRedwoodErrorOutputDelegate OnOutput);
 
   void ListProxies(
@@ -392,9 +398,11 @@ private:
   int PingAttemptsLeft;
 
   void AttemptJoinMatchmaking();
+  void AttemptJoinCustom();
   FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
   FString TicketingProfileId;
   TArray<FString> TicketingRegions;
+  bool bTicketingTransferWholeParty = false;
 
   FString ServerConnection;
   FString ServerToken;
