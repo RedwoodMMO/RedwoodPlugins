@@ -531,3 +531,48 @@ void URedwoodClientChatSubsystem::SendMessageToCharacter(
 
   XmppCharacterConnection->PrivateChat()->SendChat(RecipientJid, JsonString);
 }
+
+void URedwoodClientChatSubsystem::CreateCustomRoom(
+  FString Id, FString Password, FRedwoodErrorOutputDelegate OnOutput
+) {
+  URedwoodClientGameSubsystem *GameSubsystem =
+    GetGameInstance()->GetSubsystem<URedwoodClientGameSubsystem>();
+
+  if (GameSubsystem) {
+    URedwoodClientInterface *ClientInterface =
+      GameSubsystem->GetClientInterface();
+
+    if (ClientInterface) {
+      if (!ClientInterface->IsDirectorConnected()) {
+        OnOutput.ExecuteIfBound(TEXT("Not connected to the Director."));
+        return;
+      }
+
+      TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+      Payload->SetStringField(TEXT("playerId"), ClientInterface->GetPlayerId());
+      Payload->SetStringField(TEXT("name"), Id);
+
+      if (Password.IsEmpty()) {
+        TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+        Payload->SetField(TEXT("password"), NullValue);
+      } else {
+        Payload->SetStringField(TEXT("password"), Password);
+      }
+
+      Director->Emit(
+        TEXT("director:text-chat:create-room"),
+        Payload,
+        [this, OnOutput](auto Response) {
+          TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+          FString Error = MessageObject->GetStringField(TEXT("error"));
+          OnOutput.ExecuteIfBound(Error);
+        }
+      );
+    } else {
+      OnOutput.ExecuteIfBound(TEXT("Redwood Client Interface not found."));
+    }
+  } else {
+    OnOutput.ExecuteIfBound(TEXT("Redwood Client Game Subsystem not found."));
+  }
+}

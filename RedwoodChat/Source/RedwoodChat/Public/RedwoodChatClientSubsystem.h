@@ -59,6 +59,10 @@ public:
     const FString &TargetCharacterId, const FString &Message
   );
 
+  void CreateCustomRoom(
+    FString Id, FString Password, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodChatJoinPrivateRoomDynamicDelegate OnJoinPrivateRoom;
 
