@@ -374,6 +374,9 @@ public:
   );
   void SendEmoteToParty(FString Emote);
 
+  void GetDirectorGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
+  void GetRealmGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
+
 private:
   bool bSentDirectorConnected;
   bool bDirectorDisconnected = true;

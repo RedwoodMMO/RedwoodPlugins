@@ -384,6 +384,9 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SendEmoteToParty(FString Emote);
 
+  void GetDirectorGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
+  void GetRealmGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
+
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionConsoleCommand();
 

@@ -1175,6 +1175,38 @@ void URedwoodClientGameSubsystem::SendEmoteToParty(FString Emote) {
   }
 }
 
+void URedwoodClientGameSubsystem::GetDirectorGlobalData(
+  FRedwoodGetGlobalDataOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetDirectorGlobalData(OnOutput);
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Cannot get Director global data in PIE when connecting to the backend is disabled"
+      )
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::GetRealmGlobalData(
+  FRedwoodGetGlobalDataOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetRealmGlobalData(OnOutput);
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Cannot get Director global data in PIE when connecting to the backend is disabled"
+      )
+    );
+  }
+}
+
 FString URedwoodClientGameSubsystem::GetConnectionConsoleCommand() {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetConnectionConsoleCommand();

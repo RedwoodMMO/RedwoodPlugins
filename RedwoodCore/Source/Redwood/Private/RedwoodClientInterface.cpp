@@ -3517,3 +3517,83 @@ FURL URedwoodClientInterface::GetConnectionURL() {
 
   return URL;
 }
+
+void URedwoodClientInterface::GetDirectorGlobalData(
+  FRedwoodGetGlobalDataOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    FRedwoodGetGlobalDataOutput Output;
+    Output.Error = TEXT("Not connected to Director.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  Director->Emit(
+    TEXT("director:global-data:get:latest"),
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      FRedwoodGetGlobalDataOutput Output;
+
+      if (!Error.IsEmpty()) {
+        Output.Error = Error;
+        OnOutput.ExecuteIfBound(Output);
+        return;
+      }
+
+      Output.Id = MessageObject->GetNumberField(TEXT("id"));
+
+      const TSharedPtr<FJsonObject> *DataObj;
+      if (MessageObject->TryGetObjectField(TEXT("data"), DataObj)) {
+        Output.Data = NewObject<USIOJsonObject>();
+        Output.Data->SetRootObject(*DataObj);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::GetRealmGlobalData(
+  FRedwoodGetGlobalDataOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodGetGlobalDataOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+
+  Realm->Emit(
+    TEXT("realm:global-data:get:latest"),
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      FRedwoodGetGlobalDataOutput Output;
+
+      if (!Error.IsEmpty()) {
+        Output.Error = Error;
+        OnOutput.ExecuteIfBound(Output);
+        return;
+      }
+
+      Output.Id = MessageObject->GetNumberField(TEXT("id"));
+
+      const TSharedPtr<FJsonObject> *DataObj;
+      if (MessageObject->TryGetObjectField(TEXT("data"), DataObj)) {
+        Output.Data = NewObject<USIOJsonObject>();
+        Output.Data->SetRootObject(*DataObj);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
