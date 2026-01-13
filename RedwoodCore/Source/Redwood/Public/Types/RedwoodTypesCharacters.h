@@ -95,3 +95,38 @@ UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodGetCharacterOutputDynamicDelegate, FRedwoodGetCharacterOutput, Data
 );
+
+USTRUCT(BlueprintType)
+struct FRedwoodRealmContact {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString CharacterId;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString CharacterName;
+};
+
+USTRUCT(BlueprintType)
+struct FRedwoodListRealmContactsOutput {
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Error;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  TArray<FRedwoodRealmContact> Contacts;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  TArray<FRedwoodRealmContact> BlockedContacts;
+};
+
+typedef TDelegate<void(const FRedwoodListRealmContactsOutput &)>
+  FRedwoodListRealmContactsOutputDelegate;
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodListRealmContactsOutputDynamicDelegate,
+  FRedwoodListRealmContactsOutput,
+  Data
+);

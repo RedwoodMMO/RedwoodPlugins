@@ -300,6 +300,42 @@ void URedwoodClientGameSubsystem::SetPlayerBlocked(
   }
 }
 
+void URedwoodClientGameSubsystem::ListRealmContacts(
+  FRedwoodListRealmContactsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListRealmContacts(OnOutput);
+  } else {
+    FRedwoodListRealmContactsOutput Output;
+    Output.Error = TEXT("Cannot list realm contacts without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::AddRealmContact(
+  FString OtherCharacterId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->AddRealmContact(OtherCharacterId, bBlocked, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot add realm contact without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::RemoveRealmContact(
+  FString OtherCharacterId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RemoveRealmContact(OtherCharacterId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot remove realm contact without using a backend")
+    );
+  }
+}
+
 void URedwoodClientGameSubsystem::ListGuilds(
   bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
 ) {

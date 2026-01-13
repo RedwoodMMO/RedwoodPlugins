@@ -1001,6 +1001,125 @@ void URedwoodClientInterface::SetPlayerBlocked(
   );
 }
 
+void URedwoodClientInterface::ListRealmContacts(
+  FRedwoodListRealmContactsOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FRedwoodListRealmContactsOutput Output;
+    Output.Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+
+  Realm->Emit(
+    TEXT("realm:contacts:list"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodListRealmContactsOutput Output;
+
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      if (Output.Error.IsEmpty()) {
+        const TArray<TSharedPtr<FJsonValue>> *ContactsArray;
+        if (MessageObject->TryGetArrayField(TEXT("contacts"), ContactsArray)) {
+          for (const TSharedPtr<FJsonValue> &ContactValue : *ContactsArray) {
+            TSharedPtr<FJsonObject> ContactInfoObject =
+              ContactValue->AsObject();
+
+            FRedwoodRealmContact Contact;
+            Contact.CharacterId =
+              ContactInfoObject->GetStringField(TEXT("characterId"));
+            Contact.CharacterName =
+              ContactInfoObject->GetStringField(TEXT("characterName"));
+
+            Output.Contacts.Add(Contact);
+          }
+        }
+
+        if (MessageObject->TryGetArrayField(
+              TEXT("blockedContacts"), ContactsArray
+            )) {
+          for (const TSharedPtr<FJsonValue> &ContactValue : *ContactsArray) {
+            TSharedPtr<FJsonObject> ContactInfoObject =
+              ContactValue->AsObject();
+
+            FRedwoodRealmContact Contact;
+            Contact.CharacterId =
+              ContactInfoObject->GetStringField(TEXT("characterId"));
+            Contact.CharacterName =
+              ContactInfoObject->GetStringField(TEXT("characterName"));
+
+            Output.BlockedContacts.Add(Contact);
+          }
+        }
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+void URedwoodClientInterface::AddRealmContact(
+  FString OtherCharacterId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FString Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+  Payload->SetStringField(TEXT("targetCharacterId"), OtherCharacterId);
+  Payload->SetBoolField(TEXT("blocked"), bBlocked);
+
+  Realm->Emit(
+    TEXT("realm:contacts:add"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
+void URedwoodClientInterface::RemoveRealmContact(
+  FString OtherCharacterId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    FString Error = TEXT("Not connected to Realm.");
+    OnOutput.ExecuteIfBound(Error);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+  Payload->SetStringField(TEXT("targetCharacterId"), OtherCharacterId);
+
+  Realm->Emit(
+    TEXT("realm:contacts:remove"),
+    Payload,
+    [this, OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FString Error = MessageObject->GetStringField(TEXT("error"));
+
+      OnOutput.ExecuteIfBound(Error);
+    }
+  );
+}
+
 void URedwoodClientInterface::ListGuilds(
   bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
 ) {

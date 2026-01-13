@@ -122,6 +122,18 @@ public:
     FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
   );
 
+  void ListRealmContacts(FRedwoodListRealmContactsOutputDelegate OnOutput);
+
+  void AddRealmContact(
+    FString OtherCharacterId,
+    bool bBlocked,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RemoveRealmContact(
+    FString OtherCharacterId, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   void ListGuilds(
     bool bOnlyPlayersGuilds, FRedwoodListGuildsOutputDelegate OnOutput
   );
