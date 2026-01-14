@@ -2683,6 +2683,10 @@ void URedwoodClientInterface::SetSelectedCharacter(FString CharacterId) {
   Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
 
   Realm->Emit(TEXT("realm:parties:select-character"), Payload);
+
+  Payload->SetStringField(TEXT("realmId"), CurrentRealmId);
+
+  Director->Emit(TEXT("director:players:online-state:set-character"), Payload);
 }
 
 void URedwoodClientInterface::JoinMatchmaking(
