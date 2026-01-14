@@ -105,6 +105,9 @@ struct FRedwoodRealmContact {
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString CharacterName;
+
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString Description;
 };
 
 USTRUCT(BlueprintType)

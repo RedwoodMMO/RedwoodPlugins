@@ -1037,6 +1037,8 @@ void URedwoodClientInterface::ListRealmContacts(
               ContactInfoObject->GetStringField(TEXT("characterId"));
             Contact.CharacterName =
               ContactInfoObject->GetStringField(TEXT("characterName"));
+            Contact.Description =
+              ContactInfoObject->GetStringField(TEXT("description"));
 
             Output.Contacts.Add(Contact);
           }
@@ -1054,6 +1056,8 @@ void URedwoodClientInterface::ListRealmContacts(
               ContactInfoObject->GetStringField(TEXT("characterId"));
             Contact.CharacterName =
               ContactInfoObject->GetStringField(TEXT("characterName"));
+            Contact.Description =
+              ContactInfoObject->GetStringField(TEXT("description"));
 
             Output.BlockedContacts.Add(Contact);
           }
