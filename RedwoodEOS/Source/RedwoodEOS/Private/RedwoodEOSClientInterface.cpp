@@ -45,7 +45,7 @@ bool URedwoodEOSClientInterface::LoginEOS_PromptAccountPortal() {
   }
 }
 
-bool URedwoodEOSClientInterface::LoginEOS_EpicGameStore() {
+bool URedwoodEOSClientInterface::LoginEOS_EpicGamesLauncher() {
   IOnlineSubsystem *OnlineSub = IOnlineSubsystem::Get(EOS_SUBSYSTEM);
   if (OnlineSub) {
     FOnlineAccountCredentials Credentials;

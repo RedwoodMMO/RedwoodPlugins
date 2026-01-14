@@ -22,7 +22,7 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood|EOS")
   static bool LoginEOS_PromptAccountPortal();
   UFUNCTION(BlueprintCallable, Category = "Redwood|EOS")
-  static bool LoginEOS_EpicGameStore();
+  static bool LoginEOS_EpicGamesLauncher();
 
   static void LoginWithEOS(
     URedwoodClientInterface *ClientInterface,
