@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
   "Version": 0,
-  "VersionName": "4.0.2",
+  "VersionName": "4.1.0",
   "FriendlyName": "Redwood Multiplayer Backend",
   "Description": "All of the necessary support for the Redwood Multiplayer Backend",
   "Category": "Code Plugins",

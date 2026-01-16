@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
   "Version": 0,
-  "VersionName": "4.0.2",
+  "VersionName": "4.1.0",
   "FriendlyName": "Redwood Multiplayer Backend - GAS Support",
   "Description": "GAS (Gameplay Ability System) support for Redwood",
   "Category": "Code Plugins",
