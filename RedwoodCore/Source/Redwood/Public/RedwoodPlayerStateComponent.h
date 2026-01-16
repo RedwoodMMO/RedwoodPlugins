@@ -5,6 +5,8 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 
+#include "Types/RedwoodTypes.h"
+
 #include "RedwoodPlayerStateComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodPlayerStateUpdated);
