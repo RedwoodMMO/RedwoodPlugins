@@ -29,7 +29,8 @@ public:
     UObject *WorldContextObject,
     const FString &Username,
     const FString &Password,
-    bool bRememberMe
+    bool bRememberMe,
+    const FString &Provider = TEXT("local")
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -43,4 +44,6 @@ public:
   FString Password;
 
   bool bRememberMe;
+
+  FString Provider;
 };

@@ -33,9 +33,15 @@ void URedwoodCommonGameSubsystem::SaveCharacterJsonToDisk(
     TSharedPtr<FJsonObject> ExistingObject =
       LoadCharacterJsonFromDisk(CharacterId);
     if (ExistingObject.IsValid()) {
-      JsonObject->SetStringField(TEXT("updatedAt"), FDateTime::UtcNow().ToIso8601());
-      JsonObject->SetStringField(TEXT("createdAt"), ExistingObject->GetStringField(TEXT("createdAt")));
-      JsonObject->SetStringField(TEXT("name"), ExistingObject->GetStringField(TEXT("name")));
+      JsonObject->SetStringField(
+        TEXT("updatedAt"), FDateTime::UtcNow().ToIso8601()
+      );
+      JsonObject->SetStringField(
+        TEXT("createdAt"), ExistingObject->GetStringField(TEXT("createdAt"))
+      );
+      JsonObject->SetStringField(
+        TEXT("name"), ExistingObject->GetStringField(TEXT("name"))
+      );
       TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
       JsonObject->SetField(TEXT("archivedAt"), NullValue);
     }
@@ -385,29 +391,35 @@ FRedwoodGameServerInstance URedwoodCommonGameSubsystem::ParseServerInstance(
   return Instance;
 }
 
-FRedwoodZoneData URedwoodCommonGameSubsystem::ParseZoneData(
-  TSharedPtr<FJsonObject> ZoneData
+FRedwoodInitialLoadData URedwoodCommonGameSubsystem::ParseInitialLoadData(
+  TSharedPtr<FJsonObject> InitialLoadJsonObject
 ) {
-  FRedwoodZoneData Data;
+  FRedwoodInitialLoadData InitialLoad;
 
   const TSharedPtr<FJsonObject> *DataObj;
-  if (ZoneData->TryGetObjectField(TEXT("data"), DataObj)) {
-    Data.Data = NewObject<USIOJsonObject>();
-    Data.Data->SetRootObject(*DataObj);
+  if (InitialLoadJsonObject->TryGetObjectField(TEXT("data"), DataObj)) {
+    InitialLoad.Data = NewObject<USIOJsonObject>();
+    InitialLoad.Data->SetRootObject(*DataObj);
+  }
+
+  const TSharedPtr<FJsonObject> *ZoneDataObj;
+  if (InitialLoadJsonObject->TryGetObjectField(TEXT("zoneData"), ZoneDataObj)) {
+    InitialLoad.ZoneData = NewObject<USIOJsonObject>();
+    InitialLoad.ZoneData->SetRootObject(*ZoneDataObj);
   }
 
   const TArray<TSharedPtr<FJsonValue>> *PersistentItems;
-  if (ZoneData->TryGetArrayField(TEXT("items"), PersistentItems)) {
+  if (InitialLoadJsonObject->TryGetArrayField(TEXT("items"), PersistentItems)) {
     for (const TSharedPtr<FJsonValue> &Item : *PersistentItems) {
       if (Item->Type == EJson::Object) {
         TSharedPtr<FJsonObject> ItemObj = Item->AsObject();
         FRedwoodSyncItem SyncItem = ParseSyncItem(ItemObj);
-        Data.Items.Add(SyncItem);
+        InitialLoad.Items.Add(SyncItem);
       }
     }
   }
 
-  return Data;
+  return InitialLoad;
 }
 
 FRedwoodSyncItem URedwoodCommonGameSubsystem::ParseSyncItem(
@@ -507,9 +519,11 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
   UObject *TargetObject,
   USIOJsonObject *SIOJsonObject,
   FString VariableName,
-  int32 LatestSchemaVersion
+  int32 LatestSchemaVersion,
+  bool &bErrored
 ) {
   bool bDirty = false;
+  bErrored = false;
 
   if (SIOJsonObject) {
     FProperty *Prop =
@@ -546,8 +560,30 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
               *JsonString
             );
 
+            bErrored = true;
+
             return false;
           }
+        }
+
+        if (SchemaVersion > LatestSchemaVersion) {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "schemaVersion from the database (%d) is greater than the LatestSchemaVersion for variable '%s' (%d). "
+              "We cannot apply the data because it's from a future schema that this server doesn't have awareness of. "
+              "If you're seeing this error in development, you likely set the default value of SchemaVersion in one of "
+              "your structs greater than what is set in the RedwoodCharacterComponent or RedwoodSyncComponent."
+            ),
+            SchemaVersion,
+            *VariableName,
+            LatestSchemaVersion
+          );
+
+          bErrored = true;
+
+          return false;
         }
 
         void *StructPtr = FMemory::Malloc(StructDefinition->GetStructureSize());
@@ -683,6 +719,8 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
               *TargetObject->GetName(),
               SchemaVersion
             );
+
+            bErrored = true;
           }
         }
       } else {
@@ -693,6 +731,8 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
           *VariableName,
           *TargetObject->GetName()
         );
+
+        bErrored = true;
       }
     } else {
       bool bIsActor = TargetObject->IsA<AActor>();
@@ -728,6 +768,8 @@ bool URedwoodCommonGameSubsystem::DeserializeBackendData(
           *TargetObject->GetName()
         );
       }
+
+      bErrored = true;
     }
   }
 

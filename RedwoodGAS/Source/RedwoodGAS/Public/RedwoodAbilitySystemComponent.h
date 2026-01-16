@@ -31,7 +31,7 @@ public:
   //~ End UActorComponent Interface
 
   //~ Begin IRedwoodPersistenceComponentInterface Interface
-  void AddPersistedData(TSharedPtr<FJsonObject> JsonObject, bool bForce)
+  bool AddPersistedData(TSharedPtr<FJsonObject> JsonObject, bool bForce)
     override;
   //~ End IRedwoodPersistenceComponentInterface Interface
 

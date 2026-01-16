@@ -75,6 +75,9 @@ public:
     FRedwoodAuthUpdateDelegate OnUpdate
   );
 
+  void LoginWithDiscord(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
+  void LoginWithTwitch(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
+
   UFUNCTION(BlueprintPure, Category = "Redwood")
   FString GetNickname();
 
@@ -117,6 +120,18 @@ public:
 
   void SetPlayerBlocked(
     FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void ListRealmContacts(FRedwoodListRealmContactsOutputDelegate OnOutput);
+
+  void AddRealmContact(
+    FString OtherCharacterId,
+    bool bBlocked,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RemoveRealmContact(
+    FString OtherCharacterId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void ListGuilds(
@@ -271,6 +286,7 @@ public:
   );
 
   UFUNCTION(BlueprintPure, Category = "Redwood")
+  bool IsRealmConnected(FRedwoodRealm &OutRealm);
   bool IsRealmConnected();
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
@@ -290,7 +306,7 @@ public:
   );
 
   void GetCharacterData(
-    FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
+    FString CharacterIdOrName, FRedwoodGetCharacterOutputDelegate OnOutput
   );
 
   void SetCharacterData(
@@ -313,6 +329,12 @@ public:
     FString ProxyId,
     FString ZoneName,
     bool bTransferWholeParty,
+    FRedwoodTicketingUpdateDelegate OnUpdate
+  );
+
+  void JoinCustom(
+    bool bTransferWholeParty,
+    TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
@@ -361,6 +383,9 @@ public:
   );
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SendEmoteToParty(FString Emote);
+
+  void GetDirectorGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
+  void GetRealmGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
 
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   FString GetConnectionConsoleCommand();

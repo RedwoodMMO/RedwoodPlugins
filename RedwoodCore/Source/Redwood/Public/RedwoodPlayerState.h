@@ -5,14 +5,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 
+#include "RedwoodPlayerStateComponent.h"
 #include "Types/RedwoodTypesCharacters.h"
 #include "Types/RedwoodTypesPlayersGuilds.h"
 
 #include "RedwoodPlayerState.generated.h"
-
-class USIOJsonObject;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodPlayerStateUpdated);
 
 UCLASS(BlueprintType, Blueprintable)
 class REDWOOD_API ARedwoodPlayerState : public APlayerState {
@@ -66,4 +63,14 @@ public:
 
   UPROPERTY(BlueprintAssignable, Category = "Events")
   FOnRedwoodPlayerStateUpdated OnRedwoodPlayerUpdated;
+
+private:
+  UPROPERTY()
+  URedwoodPlayerStateComponent *PlayerStateComponent;
+
+  UFUNCTION()
+  void HandleCharacterUpdated();
+
+  UFUNCTION()
+  void HandlePlayerUpdated();
 };

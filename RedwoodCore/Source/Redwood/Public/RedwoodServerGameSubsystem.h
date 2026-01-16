@@ -67,9 +67,6 @@ public:
   int32 MaxPlayers = 0;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
-  USIOJsonObject *Data = nullptr;
-
-  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
   FString OwnerPlayerId;
 
   UPROPERTY(BlueprintReadOnly, Category = "Redwood")
@@ -112,6 +109,7 @@ public:
 
   void FlushSync();
   void FlushPersistence();
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
   void FlushPlayerCharacterData(
     TArray<APlayerState *> PlayerArray, bool bForce
   );

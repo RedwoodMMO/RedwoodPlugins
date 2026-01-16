@@ -170,6 +170,30 @@ void URedwoodClientGameSubsystem::Login(
   }
 }
 
+void URedwoodClientGameSubsystem::LoginWithDiscord(
+  bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LoginWithDiscord(bRememberMe, OnUpdate);
+  } else {
+    FRedwoodAuthUpdate Output;
+    Output.Type = ERedwoodAuthUpdateType::Success;
+    OnUpdate.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::LoginWithTwitch(
+  bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->LoginWithTwitch(bRememberMe, OnUpdate);
+  } else {
+    FRedwoodAuthUpdate Output;
+    Output.Type = ERedwoodAuthUpdateType::Success;
+    OnUpdate.ExecuteIfBound(Output);
+  }
+}
+
 FString URedwoodClientGameSubsystem::GetNickname() {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->GetNickname();
@@ -272,6 +296,42 @@ void URedwoodClientGameSubsystem::SetPlayerBlocked(
     ClientInterface->SetPlayerBlocked(OtherPlayerId, bBlocked, OnOutput);
   } else {
     OnOutput.ExecuteIfBound(TEXT("Cannot block players without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::ListRealmContacts(
+  FRedwoodListRealmContactsOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->ListRealmContacts(OnOutput);
+  } else {
+    FRedwoodListRealmContactsOutput Output;
+    Output.Error = TEXT("Cannot list realm contacts without using a backend");
+    OnOutput.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::AddRealmContact(
+  FString OtherCharacterId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->AddRealmContact(OtherCharacterId, bBlocked, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot add realm contact without using a backend")
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::RemoveRealmContact(
+  FString OtherCharacterId, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->RemoveRealmContact(OtherCharacterId, OnOutput);
+  } else {
+    OnOutput.ExecuteIfBound(
+      TEXT("Cannot remove realm contact without using a backend")
     );
   }
 }
@@ -696,6 +756,21 @@ void URedwoodClientGameSubsystem::InitializeRealmConnection(
   }
 }
 
+bool URedwoodClientGameSubsystem::IsRealmConnected(FRedwoodRealm &CurrentRealm
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    return ClientInterface->IsRealmConnected(CurrentRealm);
+  } else {
+    CurrentRealm.Id = TEXT("dev-stub-realm-id");
+    CurrentRealm.CreatedAt = FDateTime::UtcNow();
+    CurrentRealm.UpdatedAt = FDateTime::UtcNow();
+    CurrentRealm.Name = TEXT("Dev Realm");
+    CurrentRealm.Uri = TEXT("");
+    CurrentRealm.bListed = true;
+    return true;
+  }
+}
+
 bool URedwoodClientGameSubsystem::IsRealmConnected() {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     return ClientInterface->IsRealmConnected();
@@ -806,14 +881,14 @@ void URedwoodClientGameSubsystem::SetCharacterArchived(
 }
 
 void URedwoodClientGameSubsystem::GetCharacterData(
-  FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
+  FString CharacterIdOrName, FRedwoodGetCharacterOutputDelegate OnOutput
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
-    ClientInterface->GetCharacterData(CharacterId, OnOutput);
+    ClientInterface->GetCharacterData(CharacterIdOrName, OnOutput);
   } else {
     FRedwoodGetCharacterOutput Output;
     Output.Character =
-      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterId);
+      URedwoodCommonGameSubsystem::LoadCharacterFromDisk(CharacterIdOrName);
     OnOutput.ExecuteIfBound(Output);
   }
 }
@@ -869,7 +944,7 @@ void URedwoodClientGameSubsystem::JoinMatchmaking(
     FRedwoodTicketingUpdate Output;
     Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
     Output.Message =
-      "Cannot join matchmaking in PIE when connecting to the backend is disabled";
+      "Cannot join ticketing in PIE when connecting to the backend is disabled";
     OnUpdate.ExecuteIfBound(Output);
   }
 }
@@ -888,7 +963,23 @@ void URedwoodClientGameSubsystem::JoinQueue(
     FRedwoodTicketingUpdate Output;
     Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
     Output.Message =
-      "Cannot join matchmaking in PIE when connecting to the backend is disabled";
+      "Cannot join ticketing in PIE when connecting to the backend is disabled";
+    OnUpdate.ExecuteIfBound(Output);
+  }
+}
+
+void URedwoodClientGameSubsystem::JoinCustom(
+  bool bTransferWholeParty,
+  TArray<FString> InRegions,
+  FRedwoodTicketingUpdateDelegate OnUpdate
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->JoinCustom(bTransferWholeParty, InRegions, OnUpdate);
+  } else {
+    FRedwoodTicketingUpdate Output;
+    Output.Type = ERedwoodTicketingUpdateType::JoinResponse;
+    Output.Message =
+      "Cannot join ticketing in PIE when connecting to the backend is disabled";
     OnUpdate.ExecuteIfBound(Output);
   }
 }
@@ -1079,6 +1170,38 @@ void URedwoodClientGameSubsystem::SendEmoteToParty(FString Emote) {
       Warning,
       TEXT(
         "Cannot send emote to party in PIE when connecting to the backend is disabled"
+      )
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::GetDirectorGlobalData(
+  FRedwoodGetGlobalDataOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetDirectorGlobalData(OnOutput);
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Cannot get Director global data in PIE when connecting to the backend is disabled"
+      )
+    );
+  }
+}
+
+void URedwoodClientGameSubsystem::GetRealmGlobalData(
+  FRedwoodGetGlobalDataOutputDelegate OnOutput
+) {
+  if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
+    ClientInterface->GetRealmGlobalData(OnOutput);
+  } else {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Cannot get Director global data in PIE when connecting to the backend is disabled"
       )
     );
   }

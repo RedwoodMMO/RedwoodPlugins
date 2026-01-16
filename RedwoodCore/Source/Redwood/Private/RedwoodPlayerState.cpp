@@ -1,47 +1,36 @@
 // Copyright Incanta LLC. All rights reserved.
 
 #include "RedwoodPlayerState.h"
+#include "RedwoodPlayerStateComponent.h"
 
-#include "Net/OnlineEngineInterface.h"
-
-ARedwoodPlayerState::
-  ARedwoodPlayerState(const FObjectInitializer
-                        &ObjectInitializer /*= FObjectInitializer::Get()*/) :
+ARedwoodPlayerState::ARedwoodPlayerState(
+  const FObjectInitializer &ObjectInitializer
+) :
   Super(ObjectInitializer) {
 #if WITH_EDITORONLY_DATA
   bIsSpatiallyLoaded = true;
 #endif // WITH_EDITORONLY_DATA
 
   PrimaryActorTick.bCanEverTick = true;
+
+  PlayerStateComponent = CreateDefaultSubobject<URedwoodPlayerStateComponent>(
+    TEXT("PlayerStateComponent")
+  );
+  PlayerStateComponent->bFollowPawn = bFollowPawn;
+  PlayerStateComponent->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+    this, &ARedwoodPlayerState::HandleCharacterUpdated
+  );
+  PlayerStateComponent->OnRedwoodPlayerUpdated.AddUniqueDynamic(
+    this, &ARedwoodPlayerState::HandlePlayerUpdated
+  );
 }
 
 void ARedwoodPlayerState::Tick(float DeltaSeconds) {
   Super::Tick(DeltaSeconds);
-
-  if (bFollowPawn) {
-    UWorld *World = GetWorld();
-
-    if (
-      IsValid(World) &&
-      (
-        World->GetNetMode() == ENetMode::NM_DedicatedServer ||
-        World->GetNetMode() == ENetMode::NM_ListenServer ||
-        World->GetNetMode() == ENetMode::NM_Standalone
-      )
-    ) {
-      APawn *Pawn = GetPawn();
-      if (IsValid(Pawn)) {
-        AActor::SetActorLocation(Pawn->GetActorLocation());
-        AActor::SetActorRotation(Pawn->GetActorRotation());
-      }
-    }
-  }
 }
 
 void ARedwoodPlayerState::SetClientReady_Implementation() {
-  if (GetLocalRole() == ROLE_Authority) {
-    bClientReady = true;
-  }
+  PlayerStateComponent->SetClientReady();
 }
 
 bool ARedwoodPlayerState::SetClientReady_Validate() {
@@ -49,29 +38,31 @@ bool ARedwoodPlayerState::SetClientReady_Validate() {
 }
 
 void ARedwoodPlayerState::SetServerReady() {
-  if (GetLocalRole() == ROLE_Authority) {
-    bServerReady = true;
-  }
+  PlayerStateComponent->SetServerReady();
 }
 
 void ARedwoodPlayerState::SetRedwoodPlayer(FRedwoodPlayerData InRedwoodPlayer) {
-  RedwoodPlayer = InRedwoodPlayer;
-
-  OnRedwoodPlayerUpdated.Broadcast();
+  PlayerStateComponent->SetRedwoodPlayer(InRedwoodPlayer);
 }
 
 void ARedwoodPlayerState::SetRedwoodCharacter(
   FRedwoodCharacterBackend InRedwoodCharacter
 ) {
-  RedwoodCharacter = InRedwoodCharacter;
+  PlayerStateComponent->SetRedwoodCharacter(InRedwoodCharacter);
+}
 
-  FUniqueNetIdWrapper UniqueNetIdWrapper =
-    UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(
-      RedwoodCharacter.PlayerId + TEXT(":") + RedwoodCharacter.Id,
-      FName(TEXT("RedwoodMMO"))
-    );
-  FUniqueNetIdRepl NetUniqueId(UniqueNetIdWrapper.GetUniqueNetId());
-
-  SetUniqueId(NetUniqueId);
+void ARedwoodPlayerState::HandleCharacterUpdated() {
+  if (!IsValid(PlayerStateComponent)) {
+    return;
+  }
+  RedwoodCharacter = PlayerStateComponent->RedwoodCharacter;
   OnRedwoodCharacterUpdated.Broadcast();
 }
+
+void ARedwoodPlayerState::HandlePlayerUpdated() {
+  if (!IsValid(PlayerStateComponent)) {
+    return;
+  }
+  RedwoodPlayer = PlayerStateComponent->RedwoodPlayer;
+  OnRedwoodPlayerUpdated.Broadcast();
+};

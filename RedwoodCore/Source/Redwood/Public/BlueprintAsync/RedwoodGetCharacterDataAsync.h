@@ -30,7 +30,7 @@ public:
   static URedwoodGetCharacterDataAsync *GetCharacterData(
     URedwoodClientGameSubsystem *Target,
     UObject *WorldContextObject,
-    FString CharacterId
+    FString CharacterIdOrName
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -39,5 +39,5 @@ public:
   UPROPERTY()
   URedwoodClientGameSubsystem *Target;
 
-  FString CharacterId;
+  FString CharacterIdOrName;
 };

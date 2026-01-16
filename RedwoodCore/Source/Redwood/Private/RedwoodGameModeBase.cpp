@@ -4,9 +4,9 @@
 
 #define REDWOOD_GAME_MODE_TYPE ARedwoodGameModeBase
 
-REDWOOD_GAME_MODE_TYPE::
-  REDWOOD_GAME_MODE_TYPE(const FObjectInitializer
-                           &ObjectInitializer /*= FObjectInitializer::Get()*/) :
+REDWOOD_GAME_MODE_TYPE::REDWOOD_GAME_MODE_TYPE(
+  const FObjectInitializer &ObjectInitializer
+) :
   Super(ObjectInitializer) {
 
   GameModeComponent =
@@ -84,6 +84,12 @@ APlayerController *REDWOOD_GAME_MODE_TYPE::Login(
       NewPlayer, InRemoteRole, Portal, Options, UniqueId, ErrorMessage
     );
   }
+}
+
+void REDWOOD_GAME_MODE_TYPE::PostLogin(APlayerController *NewPlayer) {
+  Super::PostLogin(NewPlayer);
+
+  GameModeComponent->PostLogin(NewPlayer);
 }
 
 bool REDWOOD_GAME_MODE_TYPE::PlayerCanRestart_Implementation(

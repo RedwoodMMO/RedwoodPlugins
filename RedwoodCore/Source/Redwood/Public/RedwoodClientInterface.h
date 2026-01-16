@@ -45,6 +45,10 @@ public:
     return Director;
   }
 
+  TSharedPtr<FSocketIONative> GetRealmConnection() const {
+    return Realm;
+  }
+
   FRedwoodDynamicDelegate OnPingsReceived;
 
   FRedwoodConnectToServerDynamicDelegate OnRequestToJoinServer;
@@ -72,6 +76,9 @@ public:
     bool bBypassProviderCheck = false
   );
 
+  void LoginWithDiscord(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
+  void LoginWithTwitch(bool bRememberMe, FRedwoodAuthUpdateDelegate OnUpdate);
+
   FString GetNickname();
 
   void Logout();
@@ -79,6 +86,9 @@ public:
   bool IsLoggedIn();
 
   FString GetPlayerId();
+  FString GetCharacterId();
+  FString GetCharacterName();
+  FString GetRealmId();
 
   void CancelWaitingForAccountVerification();
 
@@ -109,6 +119,18 @@ public:
 
   void SetPlayerBlocked(
     FString OtherPlayerId, bool bBlocked, FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void ListRealmContacts(FRedwoodListRealmContactsOutputDelegate OnOutput);
+
+  void AddRealmContact(
+    FString OtherCharacterId,
+    bool bBlocked,
+    FRedwoodErrorOutputDelegate OnOutput
+  );
+
+  void RemoveRealmContact(
+    FString OtherCharacterId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void ListGuilds(
@@ -163,33 +185,23 @@ public:
   );
 
   void KickPlayerFromGuild(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void BanPlayerFromGuild(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void UnbanPlayerFromGuild(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void PromotePlayerToGuildAdmin(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void DemotePlayerFromGuildAdmin(
-    FString GuildId,
-    FString TargetPlayerId,
-    FRedwoodErrorOutputDelegate OnOutput
+    FString GuildId, FString TargetId, FRedwoodErrorOutputDelegate OnOutput
   );
 
   void ListAlliances(
@@ -259,6 +271,7 @@ public:
     FRedwoodRealm InRealm, FRedwoodSocketConnectedDelegate OnRealmConnected
   );
 
+  bool IsRealmConnected(FRedwoodRealm &OutRealm);
   bool IsRealmConnected();
 
   TMap<FString, float> GetRegions();
@@ -278,7 +291,7 @@ public:
   );
 
   void GetCharacterData(
-    FString CharacterId, FRedwoodGetCharacterOutputDelegate OnOutput
+    FString CharacterIdOrName, FRedwoodGetCharacterOutputDelegate OnOutput
   );
 
   void SetCharacterData(
@@ -300,6 +313,12 @@ public:
     FString ProxyId,
     FString ZoneName,
     bool bTransferWholeParty,
+    FRedwoodTicketingUpdateDelegate OnUpdate
+  );
+
+  void JoinCustom(
+    bool bTransferWholeParty,
+    TArray<FString> InRegions,
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
 
@@ -355,6 +374,9 @@ public:
   );
   void SendEmoteToParty(FString Emote);
 
+  void GetDirectorGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
+  void GetRealmGlobalData(FRedwoodGetGlobalDataOutputDelegate OnOutput);
+
 private:
   bool bSentDirectorConnected;
   bool bDirectorDisconnected = true;
@@ -391,9 +413,11 @@ private:
   int PingAttemptsLeft;
 
   void AttemptJoinMatchmaking();
+  void AttemptJoinCustom();
   FRedwoodTicketingUpdateDelegate OnTicketingUpdate;
   FString TicketingProfileId;
   TArray<FString> TicketingRegions;
+  bool bTicketingTransferWholeParty = false;
 
   FString ServerConnection;
   FString ServerToken;
@@ -405,6 +429,9 @@ private:
   FString SelectedCharacterId;
   FString Nickname;
   FString CurrentRealmId;
+  FRedwoodRealm CurrentRealm;
+
+  TMap<FString, FString> CharacterNamesById;
 
   FTimerManager TimerManager;
 

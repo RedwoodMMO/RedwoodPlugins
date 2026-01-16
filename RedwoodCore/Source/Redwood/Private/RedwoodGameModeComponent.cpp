@@ -32,7 +32,14 @@ URedwoodGameModeComponent::URedwoodGameModeComponent(
 void URedwoodGameModeComponent::BeginPlay() {
   Super::BeginPlay();
 
-  UE_LOG(LogRedwood, Log, TEXT("RedwoodGameModeComponent BeginPlay, will attempt to run PostBeginPlay every %f seconds until initialized"), PostBeginPlayDelay);
+  UE_LOG(
+    LogRedwood,
+    Log,
+    TEXT(
+      "RedwoodGameModeComponent BeginPlay, will attempt to run PostBeginPlay every %f seconds until initialized"
+    ),
+    PostBeginPlayDelay
+  );
 
   FTimerManager &TimerManager = GetWorld()->GetTimerManager();
   TimerManager.SetTimer(
@@ -52,14 +59,22 @@ void URedwoodGameModeComponent::PostBeginPlay() {
     UE_LOG(
       LogRedwood,
       Log,
-      TEXT("URedwoodGameModeComponent::PostBeginPlay: Valid RedwoodServerGameSubsystem found, finishing initialization")
+      TEXT(
+        "URedwoodGameModeComponent::PostBeginPlay: Valid RedwoodServerGameSubsystem found, finishing initialization"
+      )
     );
 
     FTimerManager &TimerManager = GetWorld()->GetTimerManager();
     TimerManager.ClearTimer(PostBeginPlayTimerHandle);
 
     ServerSubsystem->InitialDataLoad(FRedwoodDelegate::CreateLambda([this]() {
-      UE_LOG(LogRedwood, Log, TEXT("URedwoodGameModeComponent::PostBeginPlay: Initial data load complete"));
+      UE_LOG(
+        LogRedwood,
+        Log,
+        TEXT(
+          "URedwoodGameModeComponent::PostBeginPlay: Initial data load complete"
+        )
+      );
 
       bPostBeganPlay = true;
 
@@ -79,7 +94,9 @@ void URedwoodGameModeComponent::PostBeginPlay() {
     UE_LOG(
       LogRedwood,
       Warning,
-      TEXT("URedwoodGameModeComponent::PostBeginPlay: Invalid RedwoodServerGameSubsystem (likely during world initialization); will retry shortly")
+      TEXT(
+        "URedwoodGameModeComponent::PostBeginPlay: Invalid RedwoodServerGameSubsystem (likely during world initialization); will retry shortly"
+      )
     );
   }
 }
@@ -143,12 +160,15 @@ void URedwoodGameModeComponent::OnGameModeLogout(
     return;
   }
 
-  ARedwoodPlayerState *RedwoodPlayerState =
-    Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
-  if (IsValid(RedwoodPlayerState)) {
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    IsValid(PlayerController->PlayerState)
+    ? PlayerController->PlayerState
+        ->FindComponentByClass<URedwoodPlayerStateComponent>()
+    : nullptr;
+  if (IsValid(PlayerStateComponent)) {
     if (ServerSubsystem) {
       TArray<APlayerState *> PlayerFlushArray;
-      PlayerFlushArray.Add(RedwoodPlayerState);
+      PlayerFlushArray.Add(PlayerController->PlayerState);
       ServerSubsystem->FlushPlayerCharacterData(PlayerFlushArray, true);
     }
 
@@ -156,10 +176,10 @@ void URedwoodGameModeComponent::OnGameModeLogout(
       if (Sidecar.IsValid() && Sidecar->bIsConnected) {
         TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
         JsonObject->SetStringField(
-          TEXT("playerId"), RedwoodPlayerState->RedwoodCharacter.PlayerId
+          TEXT("playerId"), PlayerStateComponent->RedwoodCharacter.PlayerId
         );
         JsonObject->SetStringField(
-          TEXT("characterId"), RedwoodPlayerState->RedwoodCharacter.Id
+          TEXT("characterId"), PlayerStateComponent->RedwoodCharacter.Id
         );
         Sidecar->Emit(
           TEXT("realm:servers:player-left:game-server-to-sidecar"), JsonObject
@@ -256,9 +276,10 @@ APlayerController *URedwoodGameModeComponent::Login(
               MessageStruct->GetObjectField(TEXT("player"));
             FString TempPlayerId = Player->GetStringField(TEXT("id"));
 
-            ARedwoodPlayerState *RedwoodPlayerState =
-              Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
-            if (IsValid(RedwoodPlayerState)) {
+            URedwoodPlayerStateComponent *PlayerStateComponent =
+              PlayerController->PlayerState
+                ->FindComponentByClass<URedwoodPlayerStateComponent>();
+            if (IsValid(PlayerStateComponent)) {
               UE_LOG(
                 LogRedwood,
                 Log,
@@ -267,18 +288,24 @@ APlayerController *URedwoodGameModeComponent::Login(
               );
 
               // This notifies subscribers to the OnRedwoodPlayerUpdated delegate (e.g. URedwoodCharacterComponent)
-              RedwoodPlayerState->SetRedwoodPlayer(
+              PlayerStateComponent->SetRedwoodPlayer(
                 URedwoodCommonGameSubsystem::ParsePlayerData(Player)
               );
 
               // This notifies subscribers to the OnRedwoodCharacterUpdated delegate (e.g. URedwoodCharacterComponent)
-              RedwoodPlayerState->SetRedwoodCharacter(
+              PlayerStateComponent->SetRedwoodCharacter(
                 URedwoodCommonGameSubsystem::ParseCharacter(Character)
               );
 
-              RedwoodPlayerState->SetServerReady();
+              PlayerStateComponent->SetServerReady();
 
-              GameMode->HandleStartingNewPlayer(PlayerController);
+              // if we haven't ran PostLogin yet, HandleStartingNewPlayer will be called there
+              if (PlayerStateComponent->bRanPostLogin) {
+                // This is called here because it was already called in ::PostLogin
+                // by the time we received a response from the backend and we
+                // need to call it again
+                GameMode->HandleStartingNewPlayer(PlayerController);
+              }
             } else {
               UE_LOG(
                 LogRedwood,
@@ -317,15 +344,19 @@ APlayerController *URedwoodGameModeComponent::Login(
       URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
 
     if (PlayerIndex < Characters.Num()) {
-      ARedwoodPlayerState *RedwoodPlayerState =
-        Cast<ARedwoodPlayerState>(PlayerController->PlayerState);
-      if (IsValid(RedwoodPlayerState)) {
+      URedwoodPlayerStateComponent *PlayerStateComponent =
+        PlayerController->PlayerState
+          ->FindComponentByClass<URedwoodPlayerStateComponent>();
+      if (IsValid(PlayerStateComponent)) {
         FRedwoodCharacterBackend &Character = Characters[PlayerIndex];
-        RedwoodPlayerState->SetRedwoodCharacter(Character);
+        PlayerStateComponent->SetRedwoodCharacter(Character);
 
-        RedwoodPlayerState->SetServerReady();
+        PlayerStateComponent->SetServerReady();
 
-        GameMode->HandleStartingNewPlayer(PlayerController);
+        // NOTE: we do not call HandleStartingNewPlayer here because we
+        // don't need to. This all runs synchronously and PostLogin will
+        // call HandleStartingNewPlayer for us. We only call HandleStartingNewPlayer
+        // above because of the asynchronous nature of the backend call
       } else {
         UE_LOG(
           LogRedwood,
@@ -342,6 +373,15 @@ APlayerController *URedwoodGameModeComponent::Login(
   }
 
   return PlayerController;
+}
+
+void URedwoodGameModeComponent::PostLogin(APlayerController *NewPlayer) {
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    NewPlayer->PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>(
+    );
+  if (IsValid(PlayerStateComponent)) {
+    PlayerStateComponent->bRanPostLogin = true;
+  }
 }
 
 TArray<FString> URedwoodGameModeComponent::GetExpectedCharacterIds() const {
@@ -375,10 +415,10 @@ bool URedwoodGameModeComponent::PlayerCanRestart_Implementation(
   APlayerController *Player,
   std::function<bool(APlayerController *)> SuperDelegate
 ) {
-  ARedwoodPlayerState *RedwoodPlayerState =
-    Cast<ARedwoodPlayerState>(Player->PlayerState);
-  if (IsValid(RedwoodPlayerState)) {
-    if (!RedwoodPlayerState->bServerReady) {
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    Player->PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
+  if (IsValid(PlayerStateComponent)) {
+    if (!PlayerStateComponent->bServerReady) {
       return false;
     }
   }
@@ -397,39 +437,19 @@ void URedwoodGameModeComponent::FinishRestartPlayer(
   if (!IsValid(NewPlayer->GetPawn())) {
     FailedToRestartPlayerDelegate(NewPlayer);
   } else {
-    ARedwoodPlayerState *RedwoodPlayerState =
-      Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+    URedwoodPlayerStateComponent *PlayerStateComponent =
+      NewPlayer->PlayerState
+        ->FindComponentByClass<URedwoodPlayerStateComponent>();
 
     FRotator NewControlRotation = NewPlayer->GetPawn()->GetActorRotation();
 
-    if (IsValid(RedwoodPlayerState)) {
-      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData) {
-        USIOJsonObject *LastLocation;
-        if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
-              TEXT("lastLocation"), LastLocation
-            )) {
-          USIOJsonObject *LastTransform;
-
-          if (LastLocation->TryGetObjectField(
-                TEXT("transform"), LastTransform
-              )) {
-            USIOJsonObject *ControlRotation =
-              LastTransform->GetObjectField(TEXT("controlRotation"));
-            if (ControlRotation) {
-              float Roll = ControlRotation->GetNumberField(TEXT("x"));
-              float Pitch = ControlRotation->GetNumberField(TEXT("y"));
-              float Yaw = ControlRotation->GetNumberField(TEXT("z"));
-
-              NewControlRotation = FRotator(Pitch, Yaw, Roll);
-            } else {
-              UE_LOG(
-                LogRedwood,
-                Error,
-                TEXT("Invalid lastTransform (no controlRotation object field)")
-              );
-            }
-          }
-        }
+    if (IsValid(PlayerStateComponent)) {
+      FTransform OutTransform;
+      FRotator OutControlRotation;
+      if (PlayerStateComponent->GetSpawnData(
+            OutTransform, OutControlRotation
+          )) {
+        NewControlRotation = OutControlRotation;
       }
     }
 
@@ -466,64 +486,15 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
     }
   }
 
-  ARedwoodPlayerState *RedwoodPlayerState =
-    Cast<ARedwoodPlayerState>(NewPlayer->PlayerState);
+  URedwoodPlayerStateComponent *PlayerStateComponent =
+    NewPlayer->PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>(
+    );
 
-  if (IsValid(RedwoodPlayerState)) {
-    if (IsValid(RedwoodPlayerState->RedwoodCharacter.RedwoodData)) {
-
-      USIOJsonObject *LastLocation;
-      if (RedwoodPlayerState->RedwoodCharacter.RedwoodData->TryGetObjectField(
-            TEXT("lastLocation"), LastLocation
-          )) {
-        FString LastZoneName = LastLocation->GetStringField(TEXT("zoneName"));
-
-        if (LastZoneName == RedwoodServerGameSubsystem->ZoneName) {
-
-          FString LastSpawnName;
-          USIOJsonObject *LastTransform;
-
-          if (LastLocation->TryGetStringField(
-                TEXT("spawnName"), LastSpawnName
-              )) {
-            for (ARedwoodZoneSpawn *ZoneSpawn : RedwoodZoneSpawns) {
-              if (ZoneSpawn->SpawnName == LastSpawnName) {
-                return ZoneSpawn->GetSpawnTransform();
-              }
-            }
-          } else if (LastLocation->TryGetObjectField(
-                       TEXT("transform"), LastTransform
-                     )) {
-            USIOJsonObject *Location =
-              LastTransform->GetObjectField(TEXT("location"));
-            USIOJsonObject *Rotation =
-              LastTransform->GetObjectField(TEXT("rotation"));
-            if (IsValid(Location) && IsValid(Rotation)) {
-              float LocX = Location->GetNumberField(TEXT("x"));
-              float LocY = Location->GetNumberField(TEXT("y"));
-              float LocZ = Location->GetNumberField(TEXT("z"));
-
-              float RotX = Rotation->GetNumberField(TEXT("x"));
-              float RotY = Rotation->GetNumberField(TEXT("y"));
-              float RotZ = Rotation->GetNumberField(TEXT("z"));
-
-              FTransform Transform = FTransform(
-                FRotator(RotY, RotZ, RotX), FVector(LocX, LocY, LocZ)
-              );
-
-              return Transform;
-            } else {
-              UE_LOG(
-                LogRedwood,
-                Error,
-                TEXT(
-                  "Invalid lastTransform (no location and/or rotation object fields)"
-                )
-              );
-            }
-          }
-        }
-      }
+  if (IsValid(PlayerStateComponent)) {
+    FTransform OutTransform;
+    FRotator OutControlRotation;
+    if (PlayerStateComponent->GetSpawnData(OutTransform, OutControlRotation)) {
+      return OutTransform;
     }
 
     UE_LOG(
