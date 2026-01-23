@@ -8,6 +8,7 @@ const baseDir = __dirname;
 const plugins = [
   "RedwoodChat",
   "RedwoodCore",
+  "RedwoodEOS",
   "RedwoodGAS",
   "RedwoodSteam",
 ];
@@ -20,18 +21,18 @@ for (const plugin of plugins) {
   fs.writeFileSync(pluginFile, JSON.stringify(pluginContent, null, 2) + "\n");
 }
 
-execSync("git add .", { cwd: baseDir, stdio: "inherit" });
+// execSync("git add .", { cwd: baseDir, stdio: "inherit" });
 
-try {
-  execSync(`git commit -m "Release ${version}"`, {
-    cwd: baseDir,
-    stdio: "inherit",
-  });
-} catch (e) {
-  console.log("No changes to commit, already have the correct version");
-}
+// try {
+//   execSync(`git commit -m "Release ${version}"`, {
+//     cwd: baseDir,
+//     stdio: "inherit",
+//   });
+// } catch (e) {
+//   console.log("No changes to commit, already have the correct version");
+// }
 
-execSync(`git tag ${version}`, { cwd: baseDir, stdio: "inherit" });
+// execSync(`git tag ${version}`, { cwd: baseDir, stdio: "inherit" });
 
 const args = [
   "7z",
