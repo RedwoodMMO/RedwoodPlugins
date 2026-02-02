@@ -7,6 +7,7 @@
 #include "RedwoodZoneSpawn.h"
 
 #include "GameFramework/PlayerState.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/OnlineEngineInterface.h"
 
 URedwoodPlayerStateComponent::URedwoodPlayerStateComponent(
