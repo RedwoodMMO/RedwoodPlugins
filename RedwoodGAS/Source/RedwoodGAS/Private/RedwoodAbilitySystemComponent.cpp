@@ -148,17 +148,19 @@ bool URedwoodAbilitySystemComponent::AddPersistedData(
 void URedwoodAbilitySystemComponent::OnControllerChanged(
   APawn *Pawn, AController *OldController, AController *NewController
 ) {
-  if (IsValid(NewController)) {
-    URedwoodPlayerStateComponent *PlayerStateComponent =
-      NewController->PlayerState
-        ->FindComponentByClass<URedwoodPlayerStateComponent>();
-    if (IsValid(PlayerStateComponent)) {
-      PlayerStateComponent->OnRedwoodCharacterUpdated.AddUniqueDynamic(
-        this,
-        &URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdated
-      );
-      RedwoodPlayerStateCharacterUpdated();
-    }
+  APlayerState *PlayerState = IsValid(NewController)
+    ? Cast<APlayerState>(NewController->PlayerState)
+    : Cast<APlayerState>(GetOwner());
+
+  URedwoodPlayerStateComponent *PlayerStateComponent = IsValid(PlayerState)
+    ? PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>()
+    : nullptr;
+
+  if (IsValid(PlayerStateComponent)) {
+    PlayerStateComponent->OnRedwoodCharacterUpdated.AddUniqueDynamic(
+      this, &URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdated
+    );
+    RedwoodPlayerStateCharacterUpdated();
   }
 }
 
