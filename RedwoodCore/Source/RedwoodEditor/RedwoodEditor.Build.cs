@@ -22,6 +22,10 @@ public class RedwoodEditor : ModuleRules {
       new string[] {
         "Core",
         "DeveloperSettings",
+        "ToolMenus",
+        "LevelEditor",
+        "Slate",
+        "SlateCore",
       }
     );
 

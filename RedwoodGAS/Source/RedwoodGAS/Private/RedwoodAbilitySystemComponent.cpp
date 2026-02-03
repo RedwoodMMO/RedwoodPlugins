@@ -23,11 +23,28 @@ void URedwoodAbilitySystemComponent::HandleGameplayEffectApplied(
   const FGameplayEffectSpec &Spec,
   FActiveGameplayEffectHandle ActiveHandle
 ) {
+  FActiveGameplayEffectEvents *EventSet =
+    ASC->GetActiveEffectEventSet(ActiveHandle);
+
+  if (EventSet != nullptr) {
+    EventSet->OnStackChanged.AddUObject(
+      this, &URedwoodAbilitySystemComponent::HandleGameplayEffectStackChanged
+    );
+  }
+
   MarkDirty();
 }
 
 void URedwoodAbilitySystemComponent::HandleGameplayEffectRemoved(
   const FActiveGameplayEffect &ActiveEffect
+) {
+  MarkDirty();
+}
+
+void URedwoodAbilitySystemComponent::HandleGameplayEffectStackChanged(
+  FActiveGameplayEffectHandle Handle,
+  int32 NewStackCount,
+  int32 PreviousStackCount
 ) {
   MarkDirty();
 }
@@ -230,11 +247,13 @@ TSharedPtr<FJsonObject> URedwoodAbilitySystemComponent::SerializeASC() {
 
     float Level = ActiveEffect->Spec.GetLevel();
     float TimeLeft = ActiveEffect->GetTimeRemaining(WorldTimeSeconds);
+    int32 StackCount = ActiveEffect->Spec.GetStackCount();
 
     TSharedPtr<FJsonObject> EffectObject = MakeShareable(new FJsonObject);
     EffectObject->SetStringField(TEXT("class"), EffectClassName.ToString());
     EffectObject->SetNumberField(TEXT("level"), Level);
     EffectObject->SetNumberField(TEXT("timeLeft"), TimeLeft);
+    EffectObject->SetNumberField(TEXT("stackCount"), StackCount);
 
     EffectObjects.Add(MakeShareable(new FJsonValueObject(EffectObject)));
   }
@@ -386,6 +405,8 @@ void URedwoodAbilitySystemComponent::DeserializeASC(TSharedPtr<FJsonObject> Data
         FString ClassName = EffectObject->GetStringField(TEXT("class"));
         float Level = EffectObject->GetNumberField(TEXT("level"));
         float TimeLeft = EffectObject->GetNumberField(TEXT("timeLeft"));
+        int32 StackCount = 0;
+        EffectObject->TryGetNumberField(TEXT("stackCount"), StackCount);
 
         TSubclassOf<UGameplayEffect> EffectClass =
           LoadClass<UGameplayEffect>(nullptr, *ClassName);
@@ -436,6 +457,8 @@ void URedwoodAbilitySystemComponent::DeserializeASC(TSharedPtr<FJsonObject> Data
         ActiveGameplayEffect = ActiveGameplayEffects.GetActiveGameplayEffect(
           ActiveGameplayEffect->Handle
         );
+
+        ActiveGameplayEffect->Spec.SetStackCount(StackCount);
 
         if (EffectSpec.GetDuration() > 0) {
           double AdjustedTimeLeft = bShouldPreserveTimeLeft ? TimeLeft

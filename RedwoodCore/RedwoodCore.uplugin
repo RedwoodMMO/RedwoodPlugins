@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
   "Version": 0,
-  "VersionName": "4.1.0",
+  "VersionName": "4.1.1-rc",
   "FriendlyName": "Redwood Multiplayer Backend",
   "Description": "All of the necessary support for the Redwood Multiplayer Backend",
   "Category": "Code Plugins",
@@ -22,7 +22,7 @@
     {
       "Name": "RedwoodEditor",
       "Type": "Editor",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "PostDefault"
     },
     {
       "Name": "RedwoodTests",

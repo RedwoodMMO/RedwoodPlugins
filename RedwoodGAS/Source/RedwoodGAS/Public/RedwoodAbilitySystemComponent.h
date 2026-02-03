@@ -44,6 +44,12 @@ protected:
   );
   UFUNCTION()
   void HandleGameplayEffectRemoved(const FActiveGameplayEffect &ActiveEffect);
+  UFUNCTION()
+  void HandleGameplayEffectStackChanged(
+    FActiveGameplayEffectHandle Handle,
+    int32 NewStackCount,
+    int32 PreviousStackCount
+  );
 
   //~ Begin UAbilitySystemComponent Interface
   virtual void OnGiveAbility(FGameplayAbilitySpec &AbilitySpec) override;
