@@ -36,6 +36,8 @@ public class Redwood : ModuleRules {
         "Engine",
         "LatencyChecker",
         "JsonUtilities",
+        "Slate",
+        "SlateCore",
       }
     );
 

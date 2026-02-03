@@ -11,4 +11,12 @@ public:
   /** IModuleInterface implementation */
   virtual void StartupModule() override;
   virtual void ShutdownModule() override;
+
+  static void ShowNotification(
+    const FString &Message,
+    float Duration = 10.0f,
+    bool bUseSuccessFailIcons = true,
+    bool bError = true,
+    const FString &SubText = TEXT("")
+  );
 };

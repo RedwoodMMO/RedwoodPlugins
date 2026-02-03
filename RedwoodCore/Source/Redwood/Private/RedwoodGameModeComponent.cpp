@@ -3,6 +3,7 @@
 #include "RedwoodGameModeComponent.h"
 #include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
+#include "RedwoodModule.h"
 #include "RedwoodPlayerState.h"
 #include "RedwoodServerGameSubsystem.h"
 #include "RedwoodZoneSpawn.h"
@@ -364,10 +365,20 @@ APlayerController *URedwoodGameModeComponent::Login(
           TEXT("Can't load character data as we're not using RedwoodPlayerState"
           )
         );
+
+        FRedwoodModule::ShowNotification(TEXT(
+          "Can't load character data as we're not using RedwoodPlayerState"
+        ));
       }
     } else {
       ErrorMessage = FString::Printf(
         TEXT("No character found for this player index %d"), PlayerIndex
+      );
+      FString SubText =
+        TEXT("Did you create one in Standalone with bUseBackendInPIE = false?");
+
+      FRedwoodModule::ShowNotification(
+        ErrorMessage, 10.0f, true, true, SubText
       );
     }
   }
@@ -510,8 +521,36 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
     }
 
     if (RedwoodZoneSpawns.Num() > 0) {
+      FRedwoodModule::ShowNotification(TEXT(
+        "Could not find ARedwoodZoneSpawn with SpawnName 'default', using first available spawn"
+      ));
+
       return RedwoodZoneSpawns[0]->GetSpawnTransform();
+    } else {
+      bool bShowNotification = true;
+
+      FString NotificationText = FString::Printf(
+        TEXT(
+          "Could not find a valid spawn location for the player; using default transform (Loc %f, %f, %f)."
+        ),
+        SpawnTransform.GetLocation().X,
+        SpawnTransform.GetLocation().Y,
+        SpawnTransform.GetLocation().Z
+      );
+
+      if (bShowNotification) {
+        FRedwoodModule::ShowNotification(NotificationText);
+      }
     }
+  } else {
+    FString NotificationText = FString::Printf(
+      TEXT(
+        "Trying to spawn player without valid URedwoodPlayerStateComponent; using default transform (Loc %f, %f, %f)."
+      ),
+      SpawnTransform.GetLocation().X,
+      SpawnTransform.GetLocation().Y,
+      SpawnTransform.GetLocation().Z
+    );
   }
 
   UE_LOG(

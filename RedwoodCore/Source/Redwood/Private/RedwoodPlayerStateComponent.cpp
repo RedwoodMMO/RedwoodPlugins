@@ -179,6 +179,15 @@ bool URedwoodPlayerStateComponent::GetSpawnData(
           }
         }
 
+        FString NotificationText = FString::Printf(
+          TEXT(
+            "Player had a lastLocation with spawnName %s, but no matching ARedwoodZoneSpawn could be found."
+          ),
+          *LastSpawnName
+        );
+
+        FRedwoodModule::ShowNotification(NotificationText);
+
         return false;
       }
 
@@ -193,6 +202,12 @@ bool URedwoodPlayerStateComponent::GetSpawnData(
             TEXT("Invalid lastTransform (no location object field)")
           );
 
+          FString NotificationText = FString::Printf(TEXT(
+            "Player had a lastLocation with transform but with no location object field"
+          ));
+
+          FRedwoodModule::ShowNotification(NotificationText);
+
           return false;
         }
 
@@ -203,6 +218,12 @@ bool URedwoodPlayerStateComponent::GetSpawnData(
             Error,
             TEXT("Invalid lastTransform (no rotation object field)")
           );
+
+          FString NotificationText = FString::Printf(TEXT(
+            "Player had a lastLocation with transform but with no rotation object field"
+          ));
+
+          FRedwoodModule::ShowNotification(NotificationText);
 
           return false;
         }
@@ -227,6 +248,12 @@ bool URedwoodPlayerStateComponent::GetSpawnData(
             Error,
             TEXT("Invalid lastTransform (no controlRotation object field)")
           );
+
+          FString NotificationText = FString::Printf(TEXT(
+            "Player had a lastLocation with transform but with no controlRotation object field"
+          ));
+
+          FRedwoodModule::ShowNotification(NotificationText);
 
           return false;
         }
