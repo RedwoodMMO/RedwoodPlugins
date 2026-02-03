@@ -22,7 +22,7 @@
     {
       "Name": "RedwoodEditor",
       "Type": "Editor",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "PostDefault"
     },
     {
       "Name": "RedwoodTests",

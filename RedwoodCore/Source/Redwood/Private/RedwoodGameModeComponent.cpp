@@ -487,11 +487,27 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
     NewPlayer->GetWorld(), ARedwoodZoneSpawn::StaticClass(), ZoneSpawns
   );
 
+  FString ZoneName = RedwoodServerGameSubsystem->ZoneName;
+
+#if WITH_EDITOR
+  const URedwoodEditorSettings *EditorSettings =
+    GetDefault<URedwoodEditorSettings>();
+
+  if (
+    NewPlayer->GetWorld()->WorldType == EWorldType::PIE &&
+    EditorSettings->bUseBackendInPIE == false &&
+    ZoneName.IsEmpty() &&
+    !EditorSettings->FallbackZoneName.IsEmpty()
+  ) {
+    ZoneName = EditorSettings->FallbackZoneName;
+  }
+#endif
+
   TArray<ARedwoodZoneSpawn *> RedwoodZoneSpawns;
   for (AActor *ZoneSpawn : ZoneSpawns) {
     ARedwoodZoneSpawn *RedwoodZoneSpawn = Cast<ARedwoodZoneSpawn>(ZoneSpawn);
     if (IsValid(RedwoodZoneSpawn)) {
-      if (RedwoodZoneSpawn->ZoneName == RedwoodServerGameSubsystem->ZoneName) {
+      if (RedwoodZoneSpawn->ZoneName == ZoneName) {
         RedwoodZoneSpawns.Add(RedwoodZoneSpawn);
       }
     }
@@ -528,6 +544,11 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
       return RedwoodZoneSpawns[0]->GetSpawnTransform();
     } else {
       bool bShowNotification = true;
+
+#if WITH_EDITOR
+      bShowNotification = EditorSettings->bUseBackendInPIE ||
+        !EditorSettings->FallbackZoneName.IsEmpty();
+#endif
 
       FString NotificationText = FString::Printf(
         TEXT(
