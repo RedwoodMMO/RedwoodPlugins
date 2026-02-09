@@ -1923,10 +1923,6 @@ void URedwoodServerGameSubsystem::RegisterSyncComponent(
     return;
   }
 
-  if (InComponent->RedwoodId == TEXT("proxy") || InComponent->RedwoodId == TEXT("zone")) {
-    return;
-  }
-
   if (SyncItemComponentsById.FindRef(InComponent->RedwoodId) != nullptr) {
     return;
   }
@@ -1980,10 +1976,6 @@ void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) &&
       Sidecar.IsValid() && Sidecar->bIsConnected) {
-    if (InComponent->RedwoodId == TEXT("proxy") || InComponent->RedwoodId == TEXT("zone")) {
-      return;
-    }
-
     TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
 
     TSharedPtr<FJsonObject> StateObject = MakeShareable(new FJsonObject);
