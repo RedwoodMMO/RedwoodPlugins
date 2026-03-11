@@ -7,6 +7,7 @@
 #include "RedwoodPlayerStateComponent.h"
 #include "RedwoodSkipOfflinePeriodsGameplayEffectComponent.h"
 
+#include "AbilitySystemGlobals.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
@@ -255,6 +256,29 @@ TSharedPtr<FJsonObject> URedwoodAbilitySystemComponent::SerializeASC() {
     EffectObject->SetNumberField(TEXT("timeLeft"), TimeLeft);
     EffectObject->SetNumberField(TEXT("stackCount"), StackCount);
 
+    // SetByCaller magnitudes (Data.Damage, Data.Healing, etc.)
+    if (ActiveEffect->Spec.SetByCallerTagMagnitudes.Num() > 0)
+    {
+      TSharedPtr<FJsonObject> MagnitudesObj = MakeShareable(new FJsonObject);
+      for (const auto &Pair : ActiveEffect->Spec.SetByCallerTagMagnitudes)
+      {
+        MagnitudesObj->SetNumberField(Pair.Key.ToString(), Pair.Value);
+      }
+      EffectObject->SetObjectField(TEXT("setByCallerMagnitudes"), MagnitudesObj);
+    }
+
+    // Dynamic asset tags (Ability.Source.Magic, Damage.Magic.Fire, etc.)
+    const FGameplayTagContainer &DynTags = ActiveEffect->Spec.GetDynamicAssetTags();
+    if (DynTags.Num() > 0)
+    {
+      TArray<TSharedPtr<FJsonValue>> TagsArray;
+      for (const FGameplayTag &Tag : DynTags)
+      {
+        TagsArray.Add(MakeShareable(new FJsonValueString(Tag.ToString())));
+      }
+      EffectObject->SetArrayField(TEXT("dynamicAssetTags"), TagsArray);
+    }
+
     EffectObjects.Add(MakeShareable(new FJsonValueObject(EffectObject)));
   }
   JsonObject->SetArrayField(TEXT("effects"), EffectObjects);
@@ -426,12 +450,40 @@ void URedwoodAbilitySystemComponent::DeserializeASC(TSharedPtr<FJsonObject> Data
 
         Effect->bExecutePeriodicEffectOnApplication = false;
 
-        FGameplayEffectContext *EffectContext = new FGameplayEffectContext();
-        // optionally call things like AddInstigator, SetAbility, See GameplayEffectTypes.h
+        FGameplayEffectContext *EffectContext =
+          UAbilitySystemGlobals::Get().AllocGameplayEffectContext();
 
         FGameplayEffectSpec EffectSpec(
           Effect, FGameplayEffectContextHandle(EffectContext), Level
         );
+
+        // Restore SetByCaller magnitudes before application (ExecCalc reads these)
+        const TSharedPtr<FJsonObject> *MagnitudesObj;
+        if (EffectObject->TryGetObjectField(TEXT("setByCallerMagnitudes"), MagnitudesObj))
+        {
+          for (const auto &Pair : (*MagnitudesObj)->Values)
+          {
+            FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Pair.Key), false);
+            if (Tag.IsValid())
+            {
+              EffectSpec.SetSetByCallerMagnitude(Tag, Pair.Value->AsNumber());
+            }
+          }
+        }
+
+        // Restore dynamic asset tags before application (ExecCalc branches on these)
+        const TArray<TSharedPtr<FJsonValue>> *DynTagsArray;
+        if (EffectObject->TryGetArrayField(TEXT("dynamicAssetTags"), DynTagsArray))
+        {
+          for (const TSharedPtr<FJsonValue> &TagValue : *DynTagsArray)
+          {
+            FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagValue->AsString()), false);
+            if (Tag.IsValid())
+            {
+              EffectSpec.AddDynamicAssetTag(Tag);
+            }
+          }
+        }
 
         FPredictionKey FakePredictionKey;
         bool bFoundExistingStackableGE = false;
