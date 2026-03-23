@@ -13,7 +13,7 @@ class REDWOODCHAT_API URedwoodChatSettings : public UDeveloperSettings {
 public:
   URedwoodChatSettings() {
     CategoryName = TEXT("Plugins");
-    SectionName = TEXT("Redwood");
+    SectionName = TEXT("Redwood Chat");
   }
 
   /** The full URI to connect to the XMPP server */
