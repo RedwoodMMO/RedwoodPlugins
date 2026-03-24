@@ -46,9 +46,13 @@ void FRedwoodModule::ShowNotification(
   }
   TSharedPtr<SNotificationItem> CompileNotification =
     FSlateNotificationManager::Get().AddNotification(Info);
-  CompileNotification->SetCompletionState(
-    bError ? SNotificationItem::CS_Fail : SNotificationItem::CS_Success
-  );
+
+  // uncooked game servers may trigger this error, which don't have slate
+  if (CompileNotification.IsValid()) {
+    CompileNotification->SetCompletionState(
+      bError ? SNotificationItem::CS_Fail : SNotificationItem::CS_Success
+    );
+  }
 #endif
 }
 
