@@ -6,14 +6,14 @@
 
 #include "RedwoodChatSettings.generated.h"
 
-UCLASS(config = ProjectSettings, meta = (DisplayName = "Redwood"))
+UCLASS(config = ProjectSettings, meta = (DisplayName = "Redwood Chat"))
 class REDWOODCHAT_API URedwoodChatSettings : public UDeveloperSettings {
   GENERATED_BODY()
 
 public:
   URedwoodChatSettings() {
     CategoryName = TEXT("Plugins");
-    SectionName = TEXT("Redwood");
+    SectionName = TEXT("Redwood Chat");
   }
 
   /** The full URI to connect to the XMPP server */

@@ -7,7 +7,7 @@
 #include "SIOJsonObject.h"
 
 #include "RedwoodAsyncCommon.h"
-#include "RedwoodServerGameSubsystem.h"
+#include "RedwoodClientGameSubsystem.h"
 
 #include "RedwoodGetRealmGlobalDataAsync.generated.h"
 
