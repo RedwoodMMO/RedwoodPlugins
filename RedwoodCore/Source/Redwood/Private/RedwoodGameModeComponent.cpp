@@ -326,9 +326,19 @@ APlayerController *URedwoodGameModeComponent::Login(
               TEXT("Player failed to authenticate, kicking them now: %s"),
               *Error
             );
-            GameMode->GameSession->KickPlayer(
-              PlayerController, FText::FromString(Error)
-            );
+            if (IsValid(GameMode) && IsValid(GameMode->GameSession)) {
+              GameMode->GameSession->KickPlayer(
+                PlayerController, FText::FromString(Error)
+              );
+            } else {
+              UE_LOG(
+                LogRedwood,
+                Error,
+                TEXT(
+                  "Failed to kick player after authentication failure because GameMode or GameSession was invalid"
+                )
+              );
+            }
           }
         }
       );
@@ -337,9 +347,19 @@ APlayerController *URedwoodGameModeComponent::Login(
         TEXT("Invalid authentication request: missing RedwoodAuth option");
     }
   } else {
-    // we're likely PIE so just load the character from disk
-    // based on the player controller index
-    uint8 PlayerIndex = PlayerController->NetPlayerIndex;
+    // we're likely PIE so just load the character from disk based on num players
+    uint8 PlayerIndex = 0;
+    if (IsValid(GameMode->GameState)) {
+      PlayerIndex = GameMode->GameState->PlayerArray.Num() - 1;
+    } else {
+      FString ErrorGameState = TEXT(
+        "GameState is not valid yet, defaulting to player index 0 for character loading"
+      );
+
+      UE_LOG(LogRedwood, Error, TEXT("%s"), *ErrorGameState);
+
+      FRedwoodModule::ShowNotification(ErrorGameState);
+    }
 
     TArray<FRedwoodCharacterBackend> Characters =
       URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
