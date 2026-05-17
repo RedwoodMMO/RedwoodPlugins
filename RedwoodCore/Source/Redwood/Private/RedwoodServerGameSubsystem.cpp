@@ -1322,6 +1322,27 @@ URedwoodServerGameSubsystem::CreatePlayerCharacterDataObject(
           continue;
         }
 
+        // Safety rail: refuse to serialize a component whose character identity
+        // doesn't match the PlayerState's authoritative character. This stops a
+        // stale or un-hydrated pawn-owned URedwoodCharacterComponent from ever
+        // contributing empty/default field values to the backend save (which is
+        // how prior pawn-possession flows could wipe a character row).
+        const FString& ComponentCharId = CharacterComponent->RedwoodCharacterId;
+        const FString& AuthoritativeCharId = PlayerStateComponent->RedwoodCharacter.Id;
+        if (ComponentCharId.IsEmpty() || ComponentCharId != AuthoritativeCharId) {
+          UE_LOG(
+            LogRedwood,
+            Warning,
+            TEXT("Skipping save for RedwoodCharacterComponent on %s: character id '%s' does not match PlayerState character id '%s' (pawn %s)"),
+            CharacterComponent->GetOwner() ? *CharacterComponent->GetOwner()->GetName() : TEXT("<null>"),
+            *ComponentCharId,
+            *AuthoritativeCharId,
+            Pawn ? *Pawn->GetName() : TEXT("<none>")
+          );
+          CharacterComponent->ClearDirtyFlags();
+          continue;
+        }
+
         bIsDirty = true;
 
         AActor *ComponentOwner = CharacterComponent->GetOwner();
