@@ -39,7 +39,7 @@ public class Redwood : ModuleRules {
         "Slate",
         "SlateCore",
         // Ed25519 verification for signed config files (e.g. redwood.json)
-        // when URedwoodSettings::PublicSigningKey is set. See M-3.
+        // when URedwoodSettings::PublicSigningKey is set.
         "OpenSSL",
       }
     );

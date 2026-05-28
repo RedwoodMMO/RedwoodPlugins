@@ -108,7 +108,7 @@ private:
    * with {playerId, characterId, token} and either marks the
    * PlayerController as ready (PlayerStateComponent->SetServerReady)
    * or kicks. Called from `Login()` for the legacy URL-Token path and
-   * from `ReceiveClientAuthToken()` for the Server-RPC path (M-4).
+   * from `ReceiveClientAuthToken()` for the Server-RPC path.
    */
   void RunSidecarPlayerAuth(
     APlayerController *PlayerController,

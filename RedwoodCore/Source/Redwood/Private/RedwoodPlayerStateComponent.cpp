@@ -56,8 +56,8 @@ URedwoodPlayerStateComponent::URedwoodPlayerStateComponent(
 void URedwoodPlayerStateComponent::BeginPlay() {
   Super::BeginPlay();
 
-  // M-4: on the owning client only, hand the realm-frontend-issued
-  // bearer token to the game server. The server defers sidecar auth
+  // On the owning client only, hand the realm-frontend-issued bearer
+  // token to the game server. The server defers sidecar auth
   // (URedwoodGameModeComponent::Login stashes a PendingAuth entry
   // keyed by the connection) until this RPC arrives. Sent here rather
   // than as a URL option so the token never lands in LogNet URL

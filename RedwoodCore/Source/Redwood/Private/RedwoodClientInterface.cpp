@@ -22,7 +22,7 @@ namespace {
  * into the equivalent HTTP scheme (`http://` / `https://`) and return
  * the resulting origin prefix unchanged otherwise. Used by the OAuth
  * paths to bind the backend-supplied `redirectUri` to the same origin
- * the client is currently connected to (M-2).
+ * the client is currently connected to.
  *
  * Replacing only the scheme prefix — rather than `FString::Replace`
  * across the whole string — keeps hostnames or paths that happen to
