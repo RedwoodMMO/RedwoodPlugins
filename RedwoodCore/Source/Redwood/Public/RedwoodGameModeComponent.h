@@ -50,6 +50,23 @@ public:
 
   void PostLogin(APlayerController *NewPlayer);
 
+  /**
+   * Server-side. Called by `URedwoodPlayerStateComponent::
+   * Server_SubmitJoinToken_Implementation` when the client's Server
+   * RPC delivers the realm-frontend-issued bearer token. Looks up the
+   * pending {playerId, characterId, playerController} stashed during
+   * Login() for this connection and runs the sidecar verification
+   * with the supplied token. Kicks the connection if no pending entry
+   * exists (token without preceding Login), if the sidecar rejects,
+   * or if anything else is amiss.
+   *
+   * Token never travels in the URL options, only over the
+   * Server RPC channel, so it can't leak via LogNet URL prints.
+   */
+  void ReceiveClientAuthToken(
+    UNetConnection *Connection, const FString &Token
+  );
+
   bool PlayerCanRestart_Implementation(
     APlayerController *Player,
     std::function<bool(APlayerController *)> SuperDelegate
@@ -86,6 +103,42 @@ public:
   };
 
 private:
+  /**
+   * Authoritative core of player-auth verification: hits the sidecar
+   * with {playerId, characterId, token} and either marks the
+   * PlayerController as ready (PlayerStateComponent->SetServerReady)
+   * or kicks. Called from `Login()` for the legacy URL-Token path and
+   * from `ReceiveClientAuthToken()` for the Server-RPC path (M-4).
+   */
+  void RunSidecarPlayerAuth(
+    APlayerController *PlayerController,
+    const FString &PlayerId,
+    const FString &CharacterId,
+    const FString &Token
+  );
+
+  /**
+   * Per-connection state for the deferred-auth (Server-RPC) path.
+   * Created in Login() when RedwoodAuth=1 is present in URL options
+   * but no Token (the new client path); consumed in
+   * ReceiveClientAuthToken().
+   */
+  struct FPendingAuth {
+    TWeakObjectPtr<APlayerController> PlayerController;
+    FString PlayerId;
+    FString CharacterId;
+    double CreatedAtSeconds = 0.0;
+  };
+  TMap<TWeakObjectPtr<UNetConnection>, FPendingAuth> PendingAuthByConnection;
+
+  /**
+   * Kicks any pending-auth entry that's been waiting too long for
+   * its Server_SubmitJoinToken RPC. Run on a recurring timer started
+   * in BeginPlay.
+   */
+  void PruneStalePendingAuth();
+  FTimerHandle PendingAuthPruneTimerHandle;
+
   float DatabasePersistenceInterval;
   float PostBeginPlayDelay;
 

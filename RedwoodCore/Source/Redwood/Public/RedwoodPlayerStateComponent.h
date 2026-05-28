@@ -41,12 +41,32 @@ public:
   }
 
   //~ Begin UActorComponent Interface
+  virtual void BeginPlay() override;
   virtual void TickComponent(
     float DeltaTime,
     enum ELevelTick TickType,
     FActorComponentTickFunction *ThisTickFunction
   ) override;
   //~ End UActorComponent Interface
+
+  /**
+   * Server RPC the local client invokes in BeginPlay to hand the
+   * realm-frontend-issued bearer token to the game server. Replaces
+   * the old URL-option `?Token=…` path so the secret never
+   * lands in `LogNet`-style URL prints.
+   *
+   * The server routes the token through
+   * `URedwoodGameModeComponent::ReceiveClientAuthToken`, which looks
+   * up the connection's deferred-auth entry and runs the sidecar
+   * verification.
+   */
+  UFUNCTION(
+    Server,
+    Reliable,
+    WithValidation,
+    Category = "Redwood|PlayerState"
+  )
+  void Server_SubmitJoinToken(const FString &Token);
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   bool bFollowPawn = false;

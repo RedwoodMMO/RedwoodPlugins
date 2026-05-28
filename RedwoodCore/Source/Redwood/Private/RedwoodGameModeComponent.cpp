@@ -13,6 +13,7 @@
 #endif
 
 #include "Dom/JsonObject.h"
+#include "Engine/NetConnection.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
@@ -49,6 +50,16 @@ void URedwoodGameModeComponent::BeginPlay() {
     &URedwoodGameModeComponent::PostBeginPlay,
     PostBeginPlayDelay,
     true
+  );
+
+  // Periodically kick connections that authenticated via the
+  // RedwoodAuth URL path but never invoked Server_SubmitJoinToken.
+  TimerManager.SetTimer(
+    PendingAuthPruneTimerHandle,
+    this,
+    &URedwoodGameModeComponent::PruneStalePendingAuth,
+    /* InRate */ 5.0f,
+    /* bLoop */ true
   );
 }
 
@@ -245,96 +256,56 @@ APlayerController *URedwoodGameModeComponent::Login(
     if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
       PlayerId = UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));
       CharacterId = UGameplayStatics::ParseOption(Options, TEXT("CharacterId"));
+      // Token is no longer carried in the URL. New clients send
+      // it via the `URedwoodPlayerStateComponent::Server_SubmitJoinToken`
+      // Server RPC after the connection is established (see
+      // `ReceiveClientAuthToken`). The `Token=` URL option is still
+      // read here as a legacy fallback so a server can be upgraded
+      // ahead of clients; remove this fallback once all clients have
+      // shipped with the Server-RPC path.
       Token = UGameplayStatics::ParseOption(Options, TEXT("Token"));
     }
 
-    if (!PlayerId.IsEmpty() && !CharacterId.IsEmpty() && !Token.IsEmpty()) {
-      // query for player legitimacy
-      TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-      JsonObject->SetStringField(TEXT("playerId"), PlayerId);
-      JsonObject->SetStringField(TEXT("characterId"), CharacterId);
-      JsonObject->SetStringField(TEXT("token"), Token);
+    if (PlayerId.IsEmpty() || CharacterId.IsEmpty()) {
+      ErrorMessage = TEXT(
+        "Invalid authentication request: missing RedwoodAuth/PlayerId/CharacterId"
+      );
+      return PlayerController;
+    }
 
-      if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
-        ErrorMessage = TEXT("Sidecar is not connected");
+    if (!Token.IsEmpty()) {
+      // Legacy URL-token path: verify immediately.
+      RunSidecarPlayerAuth(PlayerController, PlayerId, CharacterId, Token);
+    } else {
+      // Deferred-auth path: stash a pending entry keyed by this
+      // connection and wait for the client to invoke
+      // `Server_SubmitJoinToken`. PruneStalePendingAuth will kick
+      // connections that never send one.
+      UNetConnection *Connection =
+        Cast<UNetConnection>(PlayerController->Player);
+      if (Connection == nullptr) {
+        ErrorMessage = TEXT(
+          "Cannot defer auth: PlayerController has no UNetConnection"
+        );
         return PlayerController;
       }
 
-      Sidecar->Emit(
-        TEXT("realm:servers:player-auth:game-server-to-sidecar"),
-        JsonObject,
-        [this, PlayerId, PlayerController, GameMode](auto Response) {
-          TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
-          FString Error = MessageStruct->GetStringField(TEXT("error"));
+      FPendingAuth Pending;
+      Pending.PlayerController = PlayerController;
+      Pending.PlayerId = PlayerId;
+      Pending.CharacterId = CharacterId;
+      Pending.CreatedAtSeconds = FPlatformTime::Seconds();
+      PendingAuthByConnection.Add(Connection, MoveTemp(Pending));
 
-          if (Error.IsEmpty()) {
-            TSharedPtr<FJsonObject> Character =
-              MessageStruct->GetObjectField(TEXT("character"));
-            FString CharacterId = Character->GetStringField(TEXT("id"));
-            FString CharacterName = Character->GetStringField(TEXT("name"));
-
-            TSharedPtr<FJsonObject> Player =
-              MessageStruct->GetObjectField(TEXT("player"));
-            FString TempPlayerId = Player->GetStringField(TEXT("id"));
-
-            URedwoodPlayerStateComponent *PlayerStateComponent =
-              PlayerController->PlayerState
-                ->FindComponentByClass<URedwoodPlayerStateComponent>();
-            if (IsValid(PlayerStateComponent)) {
-              UE_LOG(
-                LogRedwood,
-                Log,
-                TEXT("Player joined as character %s"),
-                *CharacterId
-              );
-
-              // This notifies subscribers to the OnRedwoodPlayerUpdated delegate (e.g. URedwoodCharacterComponent)
-              PlayerStateComponent->SetRedwoodPlayer(
-                URedwoodCommonGameSubsystem::ParsePlayerData(Player)
-              );
-
-              // This notifies subscribers to the OnRedwoodCharacterUpdated delegate (e.g. URedwoodCharacterComponent)
-              PlayerStateComponent->SetRedwoodCharacter(
-                URedwoodCommonGameSubsystem::ParseCharacter(Character)
-              );
-
-              PlayerStateComponent->SetServerReady();
-
-              // if we haven't ran PostLogin yet, HandleStartingNewPlayer will be called there
-              if (PlayerStateComponent->bRanPostLogin) {
-                // This is called here because it was already called in ::PostLogin
-                // by the time we received a response from the backend and we
-                // need to call it again
-                GameMode->HandleStartingNewPlayer(PlayerController);
-              }
-            } else {
-              UE_LOG(
-                LogRedwood,
-                Log,
-                TEXT(
-                  "Player joined as character %s (player %s), but we're not using RedwoodPlayerState"
-                ),
-                *CharacterId,
-                *TempPlayerId
-              );
-            }
-          } else {
-            // kick the player
-            UE_LOG(
-              LogRedwood,
-              Error,
-              TEXT("Player failed to authenticate, kicking them now: %s"),
-              *Error
-            );
-            GameMode->GameSession->KickPlayer(
-              PlayerController, FText::FromString(Error)
-            );
-          }
-        }
+      UE_LOG(
+        LogRedwood,
+        Log,
+        TEXT(
+          "Player %s (character %s) connected; awaiting auth token via Server_SubmitJoinToken"
+        ),
+        *PlayerId,
+        *CharacterId
       );
-    } else {
-      ErrorMessage =
-        TEXT("Invalid authentication request: missing RedwoodAuth option");
     }
   } else {
     // we're likely PIE so just load the character from disk
@@ -584,4 +555,207 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
   );
 
   return SpawnTransform;
+}
+
+// ---------------------------------------------------------------------------
+// Deferred player auth via URedwoodPlayerStateComponent::
+//      Server_SubmitJoinToken Server RPC
+// ---------------------------------------------------------------------------
+
+namespace {
+// Max wall-clock time a connection can sit in PendingAuthByConnection
+// without the client invoking Server_SubmitJoinToken before we kick.
+// Sized generously since the token travels over the same socket as
+// the initial connect and arrives within a frame in practice.
+constexpr double PendingAuthTimeoutSeconds = 30.0;
+// How often the prune timer fires.
+constexpr float PendingAuthPruneIntervalSeconds = 5.0f;
+} // namespace
+
+void URedwoodGameModeComponent::RunSidecarPlayerAuth(
+  APlayerController *PlayerController,
+  const FString &PlayerId,
+  const FString &CharacterId,
+  const FString &Token
+) {
+  if (!IsValid(PlayerController)) {
+    return;
+  }
+
+  UWorld *World = GetWorld();
+  AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
+  if (GameMode == nullptr) {
+    return;
+  }
+
+  if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Sidecar is not connected; kicking %s"),
+      *PlayerId
+    );
+    GameMode->GameSession->KickPlayer(
+      PlayerController, FText::FromString(TEXT("Sidecar is not connected"))
+    );
+    return;
+  }
+
+  TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+  JsonObject->SetStringField(TEXT("playerId"), PlayerId);
+  JsonObject->SetStringField(TEXT("characterId"), CharacterId);
+  JsonObject->SetStringField(TEXT("token"), Token);
+
+  Sidecar->Emit(
+    TEXT("realm:servers:player-auth:game-server-to-sidecar"),
+    JsonObject,
+    [this, PlayerId, PlayerController, GameMode](auto Response) {
+      if (!IsValid(PlayerController)) {
+        return;
+      }
+      TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+      FString Error = MessageStruct->GetStringField(TEXT("error"));
+
+      if (Error.IsEmpty()) {
+        TSharedPtr<FJsonObject> Character =
+          MessageStruct->GetObjectField(TEXT("character"));
+        FString CharacterId = Character->GetStringField(TEXT("id"));
+        FString CharacterName = Character->GetStringField(TEXT("name"));
+
+        TSharedPtr<FJsonObject> Player =
+          MessageStruct->GetObjectField(TEXT("player"));
+        FString TempPlayerId = Player->GetStringField(TEXT("id"));
+
+        URedwoodPlayerStateComponent *PlayerStateComponent =
+          PlayerController->PlayerState
+            ->FindComponentByClass<URedwoodPlayerStateComponent>();
+        if (IsValid(PlayerStateComponent)) {
+          UE_LOG(
+            LogRedwood,
+            Log,
+            TEXT("Player joined as character %s"),
+            *CharacterId
+          );
+
+          PlayerStateComponent->SetRedwoodPlayer(
+            URedwoodCommonGameSubsystem::ParsePlayerData(Player)
+          );
+          PlayerStateComponent->SetRedwoodCharacter(
+            URedwoodCommonGameSubsystem::ParseCharacter(Character)
+          );
+          PlayerStateComponent->SetServerReady();
+
+          if (PlayerStateComponent->bRanPostLogin) {
+            GameMode->HandleStartingNewPlayer(PlayerController);
+          }
+        } else {
+          UE_LOG(
+            LogRedwood,
+            Log,
+            TEXT(
+              "Player joined as character %s (player %s), but we're not using RedwoodPlayerState"
+            ),
+            *CharacterId,
+            *TempPlayerId
+          );
+        }
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Player failed to authenticate, kicking them now: %s"),
+          *Error
+        );
+        GameMode->GameSession->KickPlayer(
+          PlayerController, FText::FromString(Error)
+        );
+      }
+    }
+  );
+}
+
+void URedwoodGameModeComponent::ReceiveClientAuthToken(
+  UNetConnection *Connection, const FString &Token
+) {
+  if (Connection == nullptr) {
+    return;
+  }
+
+  FPendingAuth Pending;
+  if (!PendingAuthByConnection.RemoveAndCopyValue(Connection, Pending)) {
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "Received auth-token Server RPC from a connection with no pending "
+        "entry; kicking"
+      )
+    );
+    if (Connection->PlayerController) {
+      UWorld *World = GetWorld();
+      AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
+      if (GameMode && GameMode->GameSession) {
+        GameMode->GameSession->KickPlayer(
+          Connection->PlayerController,
+          FText::FromString(TEXT("Unexpected auth token"))
+        );
+      }
+    }
+    return;
+  }
+
+  APlayerController *PlayerController = Pending.PlayerController.Get();
+  if (!IsValid(PlayerController)) {
+    // Player disconnected between Login() and the Server RPC arriving — nothing to do.
+    return;
+  }
+
+  if (Token.IsEmpty()) {
+    UWorld *World = GetWorld();
+    AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
+    if (GameMode && GameMode->GameSession) {
+      GameMode->GameSession->KickPlayer(
+        PlayerController, FText::FromString(TEXT("Empty auth token"))
+      );
+    }
+    return;
+  }
+
+  RunSidecarPlayerAuth(
+    PlayerController, Pending.PlayerId, Pending.CharacterId, Token
+  );
+}
+
+void URedwoodGameModeComponent::PruneStalePendingAuth() {
+  if (PendingAuthByConnection.Num() == 0) {
+    return;
+  }
+
+  const double Now = FPlatformTime::Seconds();
+  UWorld *World = GetWorld();
+  AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
+
+  for (auto It = PendingAuthByConnection.CreateIterator(); It; ++It) {
+    const FPendingAuth &Pending = It.Value();
+    if (Now - Pending.CreatedAtSeconds <= PendingAuthTimeoutSeconds) {
+      continue;
+    }
+
+    APlayerController *PC = Pending.PlayerController.Get();
+    UE_LOG(
+      LogRedwood,
+      Warning,
+      TEXT(
+        "No auth-token Server RPC received for player %s within %.0fs; kicking"
+      ),
+      *Pending.PlayerId,
+      PendingAuthTimeoutSeconds
+    );
+    if (IsValid(PC) && GameMode && GameMode->GameSession) {
+      GameMode->GameSession->KickPlayer(
+        PC, FText::FromString(TEXT("Auth token not received"))
+      );
+    }
+    It.RemoveCurrent();
+  }
 }

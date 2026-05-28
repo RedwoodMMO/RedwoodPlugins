@@ -3553,11 +3553,16 @@ FString URedwoodClientInterface::GetConnectionConsoleCommand() {
     return "";
   }
 
+  // ServerToken is NO LONGER put in the URL — UE prints URLs at
+  // Log/Verbose in many places (LogNet, browse logs, etc.), which would
+  // leak the bearer token. It is instead sent via the
+  // `URedwoodPlayerStateComponent::Server_SubmitJoinToken` Server RPC
+  // once the connection is established. The token is exposed to the
+  // PlayerStateComponent via `GetServerJoinToken()` below.
   TMap<FString, FString> Options;
   Options.Add("RedwoodAuth", "1");
   Options.Add("CharacterId", SelectedCharacterId);
   Options.Add("PlayerId", PlayerId);
-  Options.Add("Token", ServerToken);
 
   TArray<FString> JoinedOptions;
   for (const TPair<FString, FString> &Option : Options) {
@@ -3594,11 +3599,12 @@ FURL URedwoodClientInterface::GetConnectionURL() {
   URL.Port = FCString::Atoi(*Port);
   URL.Valid = 1;
 
+  // As above, `Token` is omitted; the client sends it via the
+  // Server_SubmitJoinToken RPC once the connection is established.
   TMap<FString, FString> Options;
   Options.Add("RedwoodAuth", "1");
   Options.Add("CharacterId", SelectedCharacterId);
   Options.Add("PlayerId", PlayerId);
-  Options.Add("Token", ServerToken);
   for (const TPair<FString, FString> &Option : Options) {
     URL.AddOption(*(Option.Key + "=" + Option.Value));
   }
