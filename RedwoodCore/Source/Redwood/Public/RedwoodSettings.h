@@ -24,26 +24,43 @@ public:
   UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
   FString DirectorUri = "ws://localhost:3001";
 
-  static FString GetDirectorUri() {
-    URedwoodSettings *Settings = GetMutableDefault<URedwoodSettings>();
-    FString Uri = Settings->DirectorUri;
+  /**
+   * When true (default), Redwood will look for a `redwood.json` file in
+   * the project directory at startup and use it to override settings
+   * such as `DirectorUri`. Set to false in shipped builds where you
+   * never want the runtime to read from that file — for example,
+   * console builds that should never be redirected away from the
+   * configured director, or any deployment where you'd rather rely
+   * entirely on cooked settings and accept that `DirectorUri` updates
+   * require a patch.
+   *
+   * Independent of `PublicSigningKey`: when false, the file is ignored
+   * regardless of whether it's signed. When true and `PublicSigningKey`
+   * is set, the file is required to carry a valid Ed25519 signature.
+   */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  bool bRedwoodJsonEnabled = true;
 
-    // read from `redwood.json` if it exists
-    FString JsonPath = FPaths::ProjectDir() / TEXT("redwood.json");
-    if (FPaths::FileExists(JsonPath)) {
-      FString Json;
-      FFileHelper::LoadFileToString(Json, *JsonPath);
-      TSharedPtr<FJsonObject> JsonObject;
-      TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
-      if (FJsonSerializer::Deserialize(Reader, JsonObject)) {
-        if (JsonObject->HasField(TEXT("directorUri"))) {
-          Uri = JsonObject->GetStringField(TEXT("directorUri"));
-        }
-      }
-    }
+  /**
+   * Optional base64-encoded Ed25519 public key (32 raw bytes, base64 =
+   * 44 characters with padding). When set, Redwood treats any
+   * untrusted-source configuration it reads (currently `redwood.json`
+   * loaded from the project directory) as untrusted unless it carries
+   * a valid `signature` field signed by the matching private key.
+   *
+   * Leaving this empty preserves the legacy behavior of trusting
+   * `redwood.json` verbatim — appropriate for development; not
+   * appropriate for shipped builds where local malware or a tampered
+   * install could otherwise rewrite the director URI silently.
+   *
+   * Future signed-payload features may reuse this key, so keep it
+   * generic to your project's Redwood deployment rather than scoping
+   * it per config file.
+   */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  FString PublicSigningKey;
 
-    return Uri;
-  }
+  static FString GetDirectorUri();
 
   /**
    * If set to true, Redwood will automatically connect clients to servers
