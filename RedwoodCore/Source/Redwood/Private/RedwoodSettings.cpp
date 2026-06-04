@@ -12,9 +12,21 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRedwoodSettings, Log, All);
 
+// OpenSSL's ossl_typ.h declares `typedef struct ui_st UI;`, which collides with
+// Unreal's `namespace UI` from ObjectMacros.h (pulled in via the UObject header
+// above). We don't use OpenSSL's UI type, so rename it across the OpenSSL include
+// to avoid the redefinition error, then restore the token afterwards.
+#define UI OpenSSL_UI
 THIRD_PARTY_INCLUDES_START
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
 #include <openssl/evp.h>
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 THIRD_PARTY_INCLUDES_END
+#undef UI
 
 // -----------------------------------------------------------------------
 // Canonical JSON serialization
@@ -34,7 +46,7 @@ THIRD_PARTY_INCLUDES_END
 
 namespace {
 
-FString EscapeJsonString(const FString &In) {
+FString RwEscapeJsonString(const FString &In) {
   FString Out;
   Out.Reserve(In.Len() + 2);
   Out.AppendChar(TEXT('"'));
@@ -109,7 +121,7 @@ FString SerializeCanonicalObject(const TSharedPtr<FJsonObject> &Object) {
     if (i > 0) {
       Out.AppendChar(TEXT(','));
     }
-    Out += EscapeJsonString(Keys[i]);
+    Out += RwEscapeJsonString(Keys[i]);
     Out.AppendChar(TEXT(':'));
     Out += SerializeCanonicalJson(Object->Values[Keys[i]]);
   }
@@ -127,7 +139,7 @@ FString SerializeCanonicalJson(const TSharedPtr<FJsonValue> &Value) {
     case EJson::Number:
       return SerializeNumber(Value->AsNumber());
     case EJson::String:
-      return EscapeJsonString(Value->AsString());
+      return RwEscapeJsonString(Value->AsString());
     case EJson::Array: {
       const TArray<TSharedPtr<FJsonValue>> &Arr = Value->AsArray();
       FString Out = TEXT("[");

@@ -115,13 +115,13 @@ void URedwoodPlayerStateComponent::Server_SubmitJoinToken_Implementation(
   if (PS == nullptr) {
     return;
   }
-  APlayerController *PC = PS->GetOwningController();
+  APlayerController *PC = Cast<APlayerController>(PS->GetOwningController());
   if (PC == nullptr) {
     UE_LOG(
       LogRedwood,
       Warning,
       TEXT(
-        "Server_SubmitJoinToken from PlayerState with no owning controller; "
+        "Server_SubmitJoinToken from PlayerState with no owning player controller; "
         "dropping"
       )
     );
