@@ -618,7 +618,7 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
       ->FindComponentByClass<URedwoodPlayerStateComponent>();
 
   if (PlayerStateComponent) {
-    PlayerStateComponent->bTransferring = true;
+    PlayerStateComponent->InitTransferring();
   }
 
   FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));
@@ -761,7 +761,7 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
       ->FindComponentByClass<URedwoodPlayerStateComponent>();
 
   if (PlayerStateComponent) {
-    PlayerStateComponent->bTransferring = true;
+    PlayerStateComponent->InitTransferring();
   }
 
   FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));

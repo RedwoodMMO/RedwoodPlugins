@@ -10,6 +10,7 @@
 #include "RedwoodPlayerStateComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodPlayerStateUpdated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRedwoodPlayerTransferring);
 
 UCLASS(
   BlueprintType,
@@ -105,6 +106,30 @@ public:
   FOnRedwoodPlayerStateUpdated OnRedwoodPlayerUpdated;
 
   bool bTransferring = false;
+
+  /**
+   * Server-only entry point that begins a zone transfer for this player.
+   * Marks the component as transferring and notifies the owning client
+   * via Client_OnTransferring, which broadcasts OnTransferring locally.
+   * Called from URedwoodServerGameSubsystem's TravelPlayerToZone* paths
+   * in place of setting bTransferring directly.
+   */
+  void InitTransferring();
+
+  /**
+   * Reliable RPC delivered only to this PlayerState's owning client.
+   * Broadcasts OnTransferring so C++/Blueprint listeners on the owning
+   * client can react (e.g. show a loading screen) before the travel.
+   */
+  UFUNCTION(Client, Reliable, Category = "Redwood|PlayerState")
+  void Client_OnTransferring();
+
+  // Broadcast on the owning client when a zone transfer begins. Bind in
+  // C++ or Blueprints. Only fires on the owning client (see
+  // Client_OnTransferring); it does not fire on the server or other
+  // clients.
+  UPROPERTY(BlueprintAssignable, Category = "Events")
+  FOnRedwoodPlayerTransferring OnTransferring;
 
   void ClearDirtyFlags() {
     bCharacterDataDirty = false;
