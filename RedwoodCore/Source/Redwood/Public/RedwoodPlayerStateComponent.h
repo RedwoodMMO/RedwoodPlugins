@@ -42,32 +42,12 @@ public:
   }
 
   //~ Begin UActorComponent Interface
-  virtual void BeginPlay() override;
   virtual void TickComponent(
     float DeltaTime,
     enum ELevelTick TickType,
     FActorComponentTickFunction *ThisTickFunction
   ) override;
   //~ End UActorComponent Interface
-
-  /**
-   * Server RPC the local client invokes in BeginPlay to hand the
-   * realm-frontend-issued bearer token to the game server. Replaces
-   * the old URL-option `?Token=…` path so the secret never
-   * lands in `LogNet`-style URL prints.
-   *
-   * The server routes the token through
-   * `URedwoodGameModeComponent::ReceiveClientAuthToken`, which looks
-   * up the connection's deferred-auth entry and runs the sidecar
-   * verification.
-   */
-  UFUNCTION(
-    Server,
-    Reliable,
-    WithValidation,
-    Category = "Redwood|PlayerState"
-  )
-  void Server_SubmitJoinToken(const FString &Token);
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
   bool bFollowPawn = false;
@@ -138,19 +118,7 @@ public:
   bool bRanPostLogin = false;
 
 private:
-  // Attempts to hand the realm-issued join token to the server via
-  // Server_SubmitJoinToken. Safe to call repeatedly; it no-ops until the
-  // owning PlayerController is linked and is the local controller, and
-  // only ever sends once. Called from BeginPlay and retried from
-  // TickComponent to ride out the BeginPlay-time owner-link race.
-  void TrySubmitJoinToken();
-
   TWeakObjectPtr<APlayerState> OwnerPlayerState = nullptr;
 
   bool bCharacterDataDirty = false;
-
-  // Client-side join-token submission state (see TrySubmitJoinToken).
-  bool bWantsToSubmitJoinToken = false;
-  bool bJoinTokenSubmitted = false;
-  float JoinTokenSubmitElapsed = 0.0f;
 };

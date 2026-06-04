@@ -13,7 +13,6 @@
 #endif
 
 #include "Dom/JsonObject.h"
-#include "Engine/NetConnection.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
@@ -50,16 +49,6 @@ void URedwoodGameModeComponent::BeginPlay() {
     &URedwoodGameModeComponent::PostBeginPlay,
     PostBeginPlayDelay,
     true
-  );
-
-  // Periodically kick connections that authenticated via the
-  // RedwoodAuth URL path but never invoked Server_SubmitJoinToken.
-  TimerManager.SetTimer(
-    PendingAuthPruneTimerHandle,
-    this,
-    &URedwoodGameModeComponent::PruneStalePendingAuth,
-    /* InRate */ 5.0f,
-    /* bLoop */ true
   );
 }
 
@@ -256,62 +245,17 @@ APlayerController *URedwoodGameModeComponent::Login(
     if (UGameplayStatics::HasOption(Options, TEXT("RedwoodAuth"))) {
       PlayerId = UGameplayStatics::ParseOption(Options, TEXT("PlayerId"));
       CharacterId = UGameplayStatics::ParseOption(Options, TEXT("CharacterId"));
-      // Token is no longer carried in the URL. New clients send
-      // it via the `URedwoodPlayerStateComponent::Server_SubmitJoinToken`
-      // Server RPC after the connection is established (see
-      // `ReceiveClientAuthToken`). The `Token=` URL option is still
-      // read here as a legacy fallback so a server can be upgraded
-      // ahead of clients; remove this fallback once all clients have
-      // shipped with the Server-RPC path.
       Token = UGameplayStatics::ParseOption(Options, TEXT("Token"));
     }
 
-    if (PlayerId.IsEmpty() || CharacterId.IsEmpty()) {
-      ErrorMessage = TEXT(
-        "Invalid authentication request: missing RedwoodAuth/PlayerId/CharacterId"
-      );
-      return PlayerController;
-    }
-
-    if (!Token.IsEmpty()) {
-      // Legacy URL-token path: verify immediately.
+    if (!PlayerId.IsEmpty() && !CharacterId.IsEmpty() && !Token.IsEmpty()) {
+      // The join token is carried in the connection URL options (see
+      // URedwoodClientInterface::GetConnectionURL). Verify it against
+      // the sidecar; RunSidecarPlayerAuth kicks the player on failure.
       RunSidecarPlayerAuth(PlayerController, PlayerId, CharacterId, Token);
     } else {
-      // Deferred-auth path: stash a pending entry keyed by this
-      // connection and wait for the client to invoke
-      // `Server_SubmitJoinToken`. PruneStalePendingAuth will kick
-      // connections that never send one.
-      //
-      // Key on `NewPlayer`, not `PlayerController->Player`: during Login
-      // the controller's Player/NetConnection is NOT set yet — the engine
-      // calls SetPlayer(NewPlayer) only after Login returns (see
-      // UWorld::SpawnPlayActor). `NewPlayer` is the UNetConnection for a
-      // remote client and is exactly what SetPlayer installs as the
-      // controller's NetConnection, so it matches PC->GetNetConnection()
-      // on the Server_SubmitJoinToken side.
-      UNetConnection *Connection = Cast<UNetConnection>(NewPlayer);
-      if (Connection == nullptr) {
-        // Not a networked player (e.g. a listen-server host's local
-        // player) — there's no client RPC coming, so nothing to defer.
-        return PlayerController;
-      }
-
-      FPendingAuth Pending;
-      Pending.PlayerController = PlayerController;
-      Pending.PlayerId = PlayerId;
-      Pending.CharacterId = CharacterId;
-      Pending.CreatedAtSeconds = FPlatformTime::Seconds();
-      PendingAuthByConnection.Add(Connection, MoveTemp(Pending));
-
-      UE_LOG(
-        LogRedwood,
-        Log,
-        TEXT(
-          "Player %s (character %s) connected; awaiting auth token via Server_SubmitJoinToken"
-        ),
-        *PlayerId,
-        *CharacterId
-      );
+      ErrorMessage =
+        TEXT("Invalid authentication request: missing RedwoodAuth option");
     }
   } else {
     // we're likely PIE so just load the character from disk based on num players
@@ -574,19 +518,8 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
 }
 
 // ---------------------------------------------------------------------------
-// Deferred player auth via URedwoodPlayerStateComponent::
-//      Server_SubmitJoinToken Server RPC
+// Player auth verification against the sidecar
 // ---------------------------------------------------------------------------
-
-namespace {
-// Max wall-clock time a connection can sit in PendingAuthByConnection
-// without the client invoking Server_SubmitJoinToken before we kick.
-// Sized generously since the token travels over the same socket as
-// the initial connect and arrives within a frame in practice.
-constexpr double PendingAuthTimeoutSeconds = 30.0;
-// How often the prune timer fires.
-constexpr float PendingAuthPruneIntervalSeconds = 5.0f;
-} // namespace
 
 void URedwoodGameModeComponent::RunSidecarPlayerAuth(
   APlayerController *PlayerController,
@@ -706,104 +639,4 @@ void URedwoodGameModeComponent::RunSidecarPlayerAuth(
       }
     }
   );
-}
-
-void URedwoodGameModeComponent::ReceiveClientAuthToken(
-  UNetConnection *Connection, const FString &Token
-) {
-  if (Connection == nullptr) {
-    return;
-  }
-
-  FPendingAuth Pending;
-  if (!PendingAuthByConnection.RemoveAndCopyValue(Connection, Pending)) {
-    // No pending entry. This is benign if the connection already has an
-    // authenticated player — e.g. a duplicate RPC, or a PlayerState that
-    // re-ran BeginPlay (after travel) and resubmitted a still-valid token.
-    // Only an unexpected token from an unauthenticated connection is a kick.
-    APlayerController *ExistingPC = Connection->PlayerController;
-    URedwoodPlayerStateComponent *PlayerStateComponent =
-      (ExistingPC && IsValid(ExistingPC->PlayerState))
-      ? ExistingPC->PlayerState
-          ->FindComponentByClass<URedwoodPlayerStateComponent>()
-      : nullptr;
-    if (IsValid(PlayerStateComponent) && PlayerStateComponent->bServerReady) {
-      // Already authenticated on this connection; ignore the resubmission.
-      return;
-    }
-
-    UE_LOG(
-      LogRedwood,
-      Warning,
-      TEXT(
-        "Received auth-token Server RPC from a connection with no pending "
-        "entry and no authenticated player; kicking"
-      )
-    );
-    if (ExistingPC) {
-      UWorld *World = GetWorld();
-      AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
-      if (GameMode && GameMode->GameSession) {
-        GameMode->GameSession->KickPlayer(
-          ExistingPC, FText::FromString(TEXT("Unexpected auth token"))
-        );
-      }
-    }
-    return;
-  }
-
-  APlayerController *PlayerController = Pending.PlayerController.Get();
-  if (!IsValid(PlayerController)) {
-    // Player disconnected between Login() and the Server RPC arriving — nothing to do.
-    return;
-  }
-
-  if (Token.IsEmpty()) {
-    UWorld *World = GetWorld();
-    AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
-    if (GameMode && GameMode->GameSession) {
-      GameMode->GameSession->KickPlayer(
-        PlayerController, FText::FromString(TEXT("Empty auth token"))
-      );
-    }
-    return;
-  }
-
-  RunSidecarPlayerAuth(
-    PlayerController, Pending.PlayerId, Pending.CharacterId, Token
-  );
-}
-
-void URedwoodGameModeComponent::PruneStalePendingAuth() {
-  if (PendingAuthByConnection.Num() == 0) {
-    return;
-  }
-
-  const double Now = FPlatformTime::Seconds();
-  UWorld *World = GetWorld();
-  AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
-
-  for (auto It = PendingAuthByConnection.CreateIterator(); It; ++It) {
-    const FPendingAuth &Pending = It.Value();
-    if (Now - Pending.CreatedAtSeconds <= PendingAuthTimeoutSeconds) {
-      continue;
-    }
-
-    APlayerController *PC = Pending.PlayerController.Get();
-    UE_LOG(
-      LogRedwood,
-      Warning,
-      TEXT(
-        "No auth-token Server RPC received for player %s within %.0fs; kicking"
-      ),
-      *Pending.PlayerId,
-      PendingAuthTimeoutSeconds
-    );
-    if (IsValid(PC) && GameMode && GameMode->GameSession) {
-      GameMode->GameSession->KickPlayer(
-        PC, FText::FromString(TEXT("Auth token not received"))
-      );
-    }
-    It.RemoveCurrent();
-  }
 }

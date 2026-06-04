@@ -343,18 +343,6 @@ public:
   FString GetConnectionConsoleCommand();
   FURL GetConnectionURL();
 
-  /**
-   * Read-only accessor for the server-join bearer token issued by the
-   * realm frontend at `Realms.Servers.JoinProxy` time. Consumed by
-   * `URedwoodPlayerStateComponent` to send the token to the game
-   * server via a Server RPC after connection, instead of via
-   * URL options — so it never lands in `LogNet`-style URL prints.
-   * Returns an empty string when no token is currently held.
-   */
-  const FString &GetServerJoinToken() const {
-    return ServerToken;
-  }
-
   FRedwoodPartyInvitedDynamicDelegate OnPartyInvited;
   FRedwoodPartyUpdatedDynamicDelegate OnPartyUpdated;
   FRedwoodDynamicDelegate OnPartyKicked;
