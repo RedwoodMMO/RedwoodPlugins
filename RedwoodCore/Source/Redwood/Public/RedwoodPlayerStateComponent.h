@@ -113,7 +113,19 @@ public:
   bool bRanPostLogin = false;
 
 private:
+  // Attempts to hand the realm-issued join token to the server via
+  // Server_SubmitJoinToken. Safe to call repeatedly; it no-ops until the
+  // owning PlayerController is linked and is the local controller, and
+  // only ever sends once. Called from BeginPlay and retried from
+  // TickComponent to ride out the BeginPlay-time owner-link race.
+  void TrySubmitJoinToken();
+
   TWeakObjectPtr<APlayerState> OwnerPlayerState = nullptr;
 
   bool bCharacterDataDirty = false;
+
+  // Client-side join-token submission state (see TrySubmitJoinToken).
+  bool bWantsToSubmitJoinToken = false;
+  bool bJoinTokenSubmitted = false;
+  float JoinTokenSubmitElapsed = 0.0f;
 };

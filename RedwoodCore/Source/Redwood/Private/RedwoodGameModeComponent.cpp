@@ -281,12 +281,18 @@ APlayerController *URedwoodGameModeComponent::Login(
       // connection and wait for the client to invoke
       // `Server_SubmitJoinToken`. PruneStalePendingAuth will kick
       // connections that never send one.
-      UNetConnection *Connection =
-        Cast<UNetConnection>(PlayerController->Player);
+      //
+      // Key on `NewPlayer`, not `PlayerController->Player`: during Login
+      // the controller's Player/NetConnection is NOT set yet — the engine
+      // calls SetPlayer(NewPlayer) only after Login returns (see
+      // UWorld::SpawnPlayActor). `NewPlayer` is the UNetConnection for a
+      // remote client and is exactly what SetPlayer installs as the
+      // controller's NetConnection, so it matches PC->GetNetConnection()
+      // on the Server_SubmitJoinToken side.
+      UNetConnection *Connection = Cast<UNetConnection>(NewPlayer);
       if (Connection == nullptr) {
-        ErrorMessage = TEXT(
-          "Cannot defer auth: PlayerController has no UNetConnection"
-        );
+        // Not a networked player (e.g. a listen-server host's local
+        // player) — there's no client RPC coming, so nothing to defer.
         return PlayerController;
       }
 
@@ -616,11 +622,19 @@ void URedwoodGameModeComponent::RunSidecarPlayerAuth(
   JsonObject->SetStringField(TEXT("characterId"), CharacterId);
   JsonObject->SetStringField(TEXT("token"), Token);
 
+  // The sidecar round-trip is async; the player, GameMode, or world may be
+  // torn down before it returns. Capture weak pointers and re-resolve them
+  // in the callback rather than holding raw pointers across the await.
+  TWeakObjectPtr<APlayerController> WeakPlayerController(PlayerController);
+  TWeakObjectPtr<AGameModeBase> WeakGameMode(GameMode);
+
   Sidecar->Emit(
     TEXT("realm:servers:player-auth:game-server-to-sidecar"),
     JsonObject,
-    [this, PlayerId, PlayerController, GameMode](auto Response) {
-      if (!IsValid(PlayerController)) {
+    [PlayerId, WeakPlayerController, WeakGameMode](auto Response) {
+      APlayerController *PlayerController = WeakPlayerController.Get();
+      AGameModeBase *GameMode = WeakGameMode.Get();
+      if (!IsValid(PlayerController) || !IsValid(GameMode)) {
         return;
       }
       TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
@@ -703,21 +717,35 @@ void URedwoodGameModeComponent::ReceiveClientAuthToken(
 
   FPendingAuth Pending;
   if (!PendingAuthByConnection.RemoveAndCopyValue(Connection, Pending)) {
+    // No pending entry. This is benign if the connection already has an
+    // authenticated player — e.g. a duplicate RPC, or a PlayerState that
+    // re-ran BeginPlay (after travel) and resubmitted a still-valid token.
+    // Only an unexpected token from an unauthenticated connection is a kick.
+    APlayerController *ExistingPC = Connection->PlayerController;
+    URedwoodPlayerStateComponent *PlayerStateComponent =
+      (ExistingPC && IsValid(ExistingPC->PlayerState))
+      ? ExistingPC->PlayerState
+          ->FindComponentByClass<URedwoodPlayerStateComponent>()
+      : nullptr;
+    if (IsValid(PlayerStateComponent) && PlayerStateComponent->bServerReady) {
+      // Already authenticated on this connection; ignore the resubmission.
+      return;
+    }
+
     UE_LOG(
       LogRedwood,
       Warning,
       TEXT(
         "Received auth-token Server RPC from a connection with no pending "
-        "entry; kicking"
+        "entry and no authenticated player; kicking"
       )
     );
-    if (Connection->PlayerController) {
+    if (ExistingPC) {
       UWorld *World = GetWorld();
       AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
       if (GameMode && GameMode->GameSession) {
         GameMode->GameSession->KickPlayer(
-          Connection->PlayerController,
-          FText::FromString(TEXT("Unexpected auth token"))
+          ExistingPC, FText::FromString(TEXT("Unexpected auth token"))
         );
       }
     }

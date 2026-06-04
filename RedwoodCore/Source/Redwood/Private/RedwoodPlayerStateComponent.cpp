@@ -53,31 +53,67 @@ URedwoodPlayerStateComponent::URedwoodPlayerStateComponent(
   OwnerPlayerState->PrimaryActorTick.bCanEverTick = true;
 }
 
+// Max wall-clock time the owning client keeps retrying TrySubmitJoinToken
+// before giving up. Bounds the per-frame retry on PlayerStates that never
+// resolve to a local controller (e.g. remote players' PlayerStates, which
+// also tick this component). Comfortably exceeds the server's
+// PendingAuth timeout, so a real owning client always gets its chance.
+static constexpr float JoinTokenSubmitTimeoutSeconds = 30.0f;
+
 void URedwoodPlayerStateComponent::BeginPlay() {
   Super::BeginPlay();
 
   // On the owning client only, hand the realm-frontend-issued bearer
   // token to the game server. The server defers sidecar auth
   // (URedwoodGameModeComponent::Login stashes a PendingAuth entry
-  // keyed by the connection) until this RPC arrives. Sent here rather
-  // than as a URL option so the token never lands in LogNet URL
+  // keyed by the connection) until this RPC arrives. Sent via RPC
+  // rather than as a URL option so the token never lands in LogNet URL
   // prints.
   //
-  // Filter to ROLE_AutonomousProxy: this is the local player on a
-  // remote-hosted server. On a dedicated server the owner is
-  // ROLE_Authority (no RPC needed; server already has the URL state).
-  // On remote PlayerStates the role is ROLE_SimulatedProxy (we'd be
-  // sending the wrong player's token).
-  AActor *Owner = GetOwner();
-  if (Owner == nullptr || Owner->GetLocalRole() != ROLE_AutonomousProxy) {
+  // Only NM_Client submits: on a dedicated/listen/standalone host the
+  // local PlayerState has authority and the server already holds the
+  // connection's auth state, so there's nothing to send.
+  //
+  // NOTE: we deliberately do NOT gate on ROLE_AutonomousProxy here. A
+  // PlayerState is always ROLE_SimulatedProxy on clients — even the
+  // owning client's own (see APlayerState ctor:
+  // SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy)) — so that
+  // check would never pass. We instead identify our PlayerState by its
+  // owning controller being the local controller (in TrySubmitJoinToken).
+  UWorld *World = GetWorld();
+  if (World == nullptr || World->GetNetMode() != NM_Client) {
+    return;
+  }
+
+  // The owning PlayerController may not be linked to this PlayerState yet
+  // at BeginPlay, so arm a retry that TickComponent drives until the
+  // token is sent (or we time out).
+  bWantsToSubmitJoinToken = true;
+  TrySubmitJoinToken();
+}
+
+void URedwoodPlayerStateComponent::TrySubmitJoinToken() {
+  if (!bWantsToSubmitJoinToken || bJoinTokenSubmitted) {
+    return;
+  }
+
+  APlayerState *PS = OwnerPlayerState.Get();
+  if (PS == nullptr) {
+    return;
+  }
+
+  // Is this our local player's PlayerState? On a client only the local
+  // PlayerController(s) are present/linked — remote players' PCs aren't
+  // replicated to us — so an owning controller that IsLocalController()
+  // means this PlayerState belongs to a local player. If the owner isn't
+  // linked yet, we'll be retried next tick.
+  APlayerController *PC = Cast<APlayerController>(PS->GetOwningController());
+  if (PC == nullptr || !PC->IsLocalController()) {
     return;
   }
 
   UWorld *World = GetWorld();
-  if (World == nullptr) {
-    return;
-  }
-  UGameInstance *GameInstance = World->GetGameInstance();
+  UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
   if (GameInstance == nullptr) {
     return;
   }
@@ -93,11 +129,14 @@ void URedwoodPlayerStateComponent::BeginPlay() {
   const FString &Token = ClientInterface->GetServerJoinToken();
   if (Token.IsEmpty()) {
     // Local play, PIE without backend, or this PlayerState arrived for
-    // some non-Redwood reason — nothing to submit.
+    // some non-Redwood reason — nothing to submit. Stop retrying.
+    bWantsToSubmitJoinToken = false;
     return;
   }
 
   Server_SubmitJoinToken(Token);
+  bJoinTokenSubmitted = true;
+  bWantsToSubmitJoinToken = false;
 }
 
 void URedwoodPlayerStateComponent::Server_SubmitJoinToken_Implementation(
@@ -177,6 +216,19 @@ void URedwoodPlayerStateComponent::TickComponent(
   FActorComponentTickFunction *ThisTickFunction
 ) {
   Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+  // Owning-client retry for the join-token submission: the owning
+  // PlayerController may not have been linked at BeginPlay. Keep trying
+  // until we send it, or give up after the timeout (e.g. on remote
+  // players' PlayerStates, which never resolve to a local controller).
+  if (bWantsToSubmitJoinToken) {
+    JoinTokenSubmitElapsed += DeltaTime;
+    if (JoinTokenSubmitElapsed >= JoinTokenSubmitTimeoutSeconds) {
+      bWantsToSubmitJoinToken = false;
+    } else {
+      TrySubmitJoinToken();
+    }
+  }
 
   if (bFollowPawn) {
     UWorld *World = GetWorld();
