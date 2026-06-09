@@ -249,97 +249,28 @@ APlayerController *URedwoodGameModeComponent::Login(
     }
 
     if (!PlayerId.IsEmpty() && !CharacterId.IsEmpty() && !Token.IsEmpty()) {
-      // query for player legitimacy
-      TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-      JsonObject->SetStringField(TEXT("playerId"), PlayerId);
-      JsonObject->SetStringField(TEXT("characterId"), CharacterId);
-      JsonObject->SetStringField(TEXT("token"), Token);
-
-      if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
-        ErrorMessage = TEXT("Sidecar is not connected");
-        return PlayerController;
-      }
-
-      Sidecar->Emit(
-        TEXT("realm:servers:player-auth:game-server-to-sidecar"),
-        JsonObject,
-        [this, PlayerId, PlayerController, GameMode](auto Response) {
-          TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
-          FString Error = MessageStruct->GetStringField(TEXT("error"));
-
-          if (Error.IsEmpty()) {
-            TSharedPtr<FJsonObject> Character =
-              MessageStruct->GetObjectField(TEXT("character"));
-            FString CharacterId = Character->GetStringField(TEXT("id"));
-            FString CharacterName = Character->GetStringField(TEXT("name"));
-
-            TSharedPtr<FJsonObject> Player =
-              MessageStruct->GetObjectField(TEXT("player"));
-            FString TempPlayerId = Player->GetStringField(TEXT("id"));
-
-            URedwoodPlayerStateComponent *PlayerStateComponent =
-              PlayerController->PlayerState
-                ->FindComponentByClass<URedwoodPlayerStateComponent>();
-            if (IsValid(PlayerStateComponent)) {
-              UE_LOG(
-                LogRedwood,
-                Log,
-                TEXT("Player joined as character %s"),
-                *CharacterId
-              );
-
-              // This notifies subscribers to the OnRedwoodPlayerUpdated delegate (e.g. URedwoodCharacterComponent)
-              PlayerStateComponent->SetRedwoodPlayer(
-                URedwoodCommonGameSubsystem::ParsePlayerData(Player)
-              );
-
-              // This notifies subscribers to the OnRedwoodCharacterUpdated delegate (e.g. URedwoodCharacterComponent)
-              PlayerStateComponent->SetRedwoodCharacter(
-                URedwoodCommonGameSubsystem::ParseCharacter(Character)
-              );
-
-              PlayerStateComponent->SetServerReady();
-
-              // if we haven't ran PostLogin yet, HandleStartingNewPlayer will be called there
-              if (PlayerStateComponent->bRanPostLogin) {
-                // This is called here because it was already called in ::PostLogin
-                // by the time we received a response from the backend and we
-                // need to call it again
-                GameMode->HandleStartingNewPlayer(PlayerController);
-              }
-            } else {
-              UE_LOG(
-                LogRedwood,
-                Log,
-                TEXT(
-                  "Player joined as character %s (player %s), but we're not using RedwoodPlayerState"
-                ),
-                *CharacterId,
-                *TempPlayerId
-              );
-            }
-          } else {
-            // kick the player
-            UE_LOG(
-              LogRedwood,
-              Error,
-              TEXT("Player failed to authenticate, kicking them now: %s"),
-              *Error
-            );
-            GameMode->GameSession->KickPlayer(
-              PlayerController, FText::FromString(Error)
-            );
-          }
-        }
-      );
+      // The join token is carried in the connection URL options (see
+      // URedwoodClientInterface::GetConnectionURL). Verify it against
+      // the sidecar; RunSidecarPlayerAuth kicks the player on failure.
+      RunSidecarPlayerAuth(PlayerController, PlayerId, CharacterId, Token);
     } else {
       ErrorMessage =
         TEXT("Invalid authentication request: missing RedwoodAuth option");
     }
   } else {
-    // we're likely PIE so just load the character from disk
-    // based on the player controller index
-    uint8 PlayerIndex = PlayerController->NetPlayerIndex;
+    // we're likely PIE so just load the character from disk based on num players
+    uint8 PlayerIndex = 0;
+    if (IsValid(GameMode->GameState)) {
+      PlayerIndex = GameMode->GameState->PlayerArray.Num() - 1;
+    } else {
+      FString ErrorGameState = TEXT(
+        "GameState is not valid yet, defaulting to player index 0 for character loading"
+      );
+
+      UE_LOG(LogRedwood, Error, TEXT("%s"), *ErrorGameState);
+
+      FRedwoodModule::ShowNotification(ErrorGameState);
+    }
 
     TArray<FRedwoodCharacterBackend> Characters =
       URedwoodCommonGameSubsystem::LoadAllCharactersFromDisk();
@@ -584,4 +515,128 @@ FTransform URedwoodGameModeComponent::PickPawnSpawnTransform(
   );
 
   return SpawnTransform;
+}
+
+// ---------------------------------------------------------------------------
+// Player auth verification against the sidecar
+// ---------------------------------------------------------------------------
+
+void URedwoodGameModeComponent::RunSidecarPlayerAuth(
+  APlayerController *PlayerController,
+  const FString &PlayerId,
+  const FString &CharacterId,
+  const FString &Token
+) {
+  if (!IsValid(PlayerController)) {
+    return;
+  }
+
+  UWorld *World = GetWorld();
+  AGameModeBase *GameMode = World ? World->GetAuthGameMode() : nullptr;
+  if (GameMode == nullptr) {
+    return;
+  }
+
+  if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Sidecar is not connected; kicking %s"),
+      *PlayerId
+    );
+    GameMode->GameSession->KickPlayer(
+      PlayerController, FText::FromString(TEXT("Sidecar is not connected"))
+    );
+    return;
+  }
+
+  TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+  JsonObject->SetStringField(TEXT("playerId"), PlayerId);
+  JsonObject->SetStringField(TEXT("characterId"), CharacterId);
+  JsonObject->SetStringField(TEXT("token"), Token);
+
+  // The sidecar round-trip is async; the player, GameMode, or world may be
+  // torn down before it returns. Capture weak pointers and re-resolve them
+  // in the callback rather than holding raw pointers across the await.
+  TWeakObjectPtr<APlayerController> WeakPlayerController(PlayerController);
+  TWeakObjectPtr<AGameModeBase> WeakGameMode(GameMode);
+
+  Sidecar->Emit(
+    TEXT("realm:servers:player-auth:game-server-to-sidecar"),
+    JsonObject,
+    [PlayerId, WeakPlayerController, WeakGameMode](auto Response) {
+      APlayerController *PlayerController = WeakPlayerController.Get();
+      AGameModeBase *GameMode = WeakGameMode.Get();
+      if (!IsValid(PlayerController) || !IsValid(GameMode)) {
+        return;
+      }
+      TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+      FString Error = MessageStruct->GetStringField(TEXT("error"));
+
+      if (Error.IsEmpty()) {
+        TSharedPtr<FJsonObject> Character =
+          MessageStruct->GetObjectField(TEXT("character"));
+        FString CharacterId = Character->GetStringField(TEXT("id"));
+        FString CharacterName = Character->GetStringField(TEXT("name"));
+
+        TSharedPtr<FJsonObject> Player =
+          MessageStruct->GetObjectField(TEXT("player"));
+        FString TempPlayerId = Player->GetStringField(TEXT("id"));
+
+        URedwoodPlayerStateComponent *PlayerStateComponent =
+          PlayerController->PlayerState
+            ->FindComponentByClass<URedwoodPlayerStateComponent>();
+        if (IsValid(PlayerStateComponent)) {
+          UE_LOG(
+            LogRedwood,
+            Log,
+            TEXT("Player joined as character %s"),
+            *CharacterId
+          );
+
+          PlayerStateComponent->SetRedwoodPlayer(
+            URedwoodCommonGameSubsystem::ParsePlayerData(Player)
+          );
+          PlayerStateComponent->SetRedwoodCharacter(
+            URedwoodCommonGameSubsystem::ParseCharacter(Character)
+          );
+          PlayerStateComponent->SetServerReady();
+
+          if (PlayerStateComponent->bRanPostLogin) {
+            GameMode->HandleStartingNewPlayer(PlayerController);
+          }
+        } else {
+          UE_LOG(
+            LogRedwood,
+            Log,
+            TEXT(
+              "Player joined as character %s (player %s), but we're not using RedwoodPlayerState"
+            ),
+            *CharacterId,
+            *TempPlayerId
+          );
+        }
+      } else {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Player failed to authenticate, kicking them now: %s"),
+          *Error
+        );
+        if (IsValid(GameMode) && IsValid(GameMode->GameSession)) {
+          GameMode->GameSession->KickPlayer(
+            PlayerController, FText::FromString(Error)
+          );
+        } else {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "Failed to kick player after authentication failure because GameMode or GameSession was invalid"
+            )
+          );
+        }
+      }
+    }
+  );
 }

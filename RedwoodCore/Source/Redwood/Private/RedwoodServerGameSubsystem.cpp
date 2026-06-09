@@ -618,7 +618,7 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneTransform(
       ->FindComponentByClass<URedwoodPlayerStateComponent>();
 
   if (PlayerStateComponent) {
-    PlayerStateComponent->bTransferring = true;
+    PlayerStateComponent->InitTransferring();
   }
 
   FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));
@@ -761,7 +761,7 @@ void URedwoodServerGameSubsystem::TravelPlayerToZoneSpawnName(
       ->FindComponentByClass<URedwoodPlayerStateComponent>();
 
   if (PlayerStateComponent) {
-    PlayerStateComponent->bTransferring = true;
+    PlayerStateComponent->InitTransferring();
   }
 
   FString PlayerId = UniqueId.Left(UniqueId.Find(TEXT(":")));
@@ -1571,18 +1571,12 @@ void URedwoodServerGameSubsystem::UpdateSyncItem(FRedwoodSyncItem &Item) {
       return;
     }
   } else {
-    bool bCleanupEntry = true;
     if (TWeakObjectPtr<URedwoodSyncComponent> *WeakPtr = SyncItemComponentsById.Find(Item.State.Id)) {
       SyncItemComponent = WeakPtr->Get();
-      if (SyncItemComponent != nullptr) {
-        bCleanupEntry = false;
+      if (SyncItemComponent == nullptr) {
+        // entry was GC'd; drop it and respawn below
+        SyncItemComponentsById.Remove(Item.State.Id);
       }
-    }
-
-    if (bCleanupEntry) {
-      // Clean up dead entry
-      SyncItemComponentsById.Remove(Item.State.Id);
-      return;
     }
 
     if (SyncItemComponent == nullptr) {

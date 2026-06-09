@@ -15,6 +15,34 @@
 #include "SocketIOClient.h"
 #include "TimerManager.h"
 
+namespace {
+
+/**
+ * Translate the configured director URI scheme (`ws://` / `wss://`)
+ * into the equivalent HTTP scheme (`http://` / `https://`) and return
+ * the resulting origin prefix unchanged otherwise. Used by the OAuth
+ * paths to bind the backend-supplied `redirectUri` to the same origin
+ * the client is currently connected to.
+ *
+ * Replacing only the scheme prefix — rather than `FString::Replace`
+ * across the whole string — keeps hostnames or paths that happen to
+ * contain the substring "ws" intact.
+ */
+static FString GetDirectorOriginAsHttp() {
+  FString Uri = URedwoodSettings::GetDirectorUri();
+  if (Uri.StartsWith(TEXT("wss://"), ESearchCase::IgnoreCase)) {
+    return TEXT("https://") + Uri.Mid(6);
+  }
+  if (Uri.StartsWith(TEXT("ws://"), ESearchCase::IgnoreCase)) {
+    return TEXT("http://") + Uri.Mid(5);
+  }
+  // Already an http(s) URI, or something unrecognized — return as-is
+  // and let the StartsWith comparison decide.
+  return Uri;
+}
+
+} // namespace
+
 void URedwoodClientInterface::Deinitialize() {
   if (Director.IsValid()) {
     Director->ClearAllCallbacks();
@@ -509,6 +537,32 @@ void URedwoodClientInterface::LoginWithDiscord(
         FString RedirectUri =
           MessageObject->GetStringField(TEXT("redirectUri"));
 
+        // Validate the backend-supplied redirectUri targets the
+        // same origin as the director we're connected to. A
+        // compromised/malicious director could otherwise send us off
+        // to an attacker-controlled callback after the user grants
+        // OAuth consent, leaking the auth code.
+        const FString ExpectedRedirectPrefix = GetDirectorOriginAsHttp();
+        if (!RedirectUri.StartsWith(
+              ExpectedRedirectPrefix, ESearchCase::IgnoreCase
+            )) {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "Refusing Discord OAuth: redirectUri %s does not match the connected director origin %s"
+            ),
+            *RedirectUri,
+            *ExpectedRedirectPrefix
+          );
+          FRedwoodAuthUpdate Update;
+          Update.Type = ERedwoodAuthUpdateType::Error;
+          Update.Message =
+            TEXT("Login canceled: server returned an unexpected redirect URL.");
+          OnUpdate.ExecuteIfBound(Update);
+          return;
+        }
+
         FString AuthorizationUrl = FString::Printf(
           TEXT(
             "https://discord.com/oauth2/authorize?response_type=code&client_id=%s&scope=identify&state=%s&redirect_uri=%s&prompt=none&integration_type=1"
@@ -602,6 +656,32 @@ void URedwoodClientInterface::LoginWithTwitch(
         FString State = MessageObject->GetStringField(TEXT("state"));
         FString RedirectUri =
           MessageObject->GetStringField(TEXT("redirectUri"));
+
+        // Validate the backend-supplied redirectUri targets the
+        // same origin as the director we're connected to. A
+        // compromised/malicious director could otherwise send us off
+        // to an attacker-controlled callback after the user grants
+        // OAuth consent, leaking the auth code.
+        const FString ExpectedRedirectPrefix = GetDirectorOriginAsHttp();
+        if (!RedirectUri.StartsWith(
+              ExpectedRedirectPrefix, ESearchCase::IgnoreCase
+            )) {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT(
+              "Refusing Twitch OAuth: redirectUri %s does not match the connected director origin %s"
+            ),
+            *RedirectUri,
+            *ExpectedRedirectPrefix
+          );
+          FRedwoodAuthUpdate Update;
+          Update.Type = ERedwoodAuthUpdateType::Error;
+          Update.Message =
+            TEXT("Login canceled: server returned an unexpected redirect URL.");
+          OnUpdate.ExecuteIfBound(Update);
+          return;
+        }
 
         FString AuthorizationUrl = FString::Printf(
           TEXT(

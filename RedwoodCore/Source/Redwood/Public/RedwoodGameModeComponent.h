@@ -86,6 +86,20 @@ public:
   };
 
 private:
+  /**
+   * Authoritative core of player-auth verification: hits the sidecar
+   * with {playerId, characterId, token} and either marks the
+   * PlayerController as ready (PlayerStateComponent->SetServerReady)
+   * or kicks. Called from `Login()` once the join token has been
+   * parsed from the connection URL options.
+   */
+  void RunSidecarPlayerAuth(
+    APlayerController *PlayerController,
+    const FString &PlayerId,
+    const FString &CharacterId,
+    const FString &Token
+  );
+
   float DatabasePersistenceInterval;
   float PostBeginPlayDelay;
 

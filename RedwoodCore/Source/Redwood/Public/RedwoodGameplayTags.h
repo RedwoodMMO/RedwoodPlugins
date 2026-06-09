@@ -10,7 +10,7 @@
 
 #include "RedwoodGameplayTags.generated.h"
 
-class ARedwoodPlayerState;
+class URedwoodPlayerStateComponent;
 class URedwoodCharacterComponent;
 
 REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Shutdown_Instance);
@@ -37,7 +37,7 @@ struct REDWOOD_API FRedwoodPlayerInventoryChanged {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  ARedwoodPlayerState *PlayerState = nullptr;
+  URedwoodPlayerStateComponent *PlayerStateComponent = nullptr;
 };
 
 REDWOOD_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Redwood_Player_Interaction);

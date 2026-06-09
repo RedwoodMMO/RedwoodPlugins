@@ -97,6 +97,20 @@ void URedwoodPlayerStateComponent::SetServerReady() {
   }
 }
 
+void URedwoodPlayerStateComponent::InitTransferring() {
+  bTransferring = true;
+
+  // Notify the owning client. The Client RPC routes through the
+  // PlayerState's owning controller's net connection, so only the
+  // player being transferred receives it. On a standalone/listen host
+  // the implementation runs locally and broadcasts directly.
+  Client_OnTransferring();
+}
+
+void URedwoodPlayerStateComponent::Client_OnTransferring_Implementation() {
+  OnTransferring.Broadcast();
+}
+
 void URedwoodPlayerStateComponent::SetRedwoodPlayer(
   FRedwoodPlayerData InRedwoodPlayer
 ) {
