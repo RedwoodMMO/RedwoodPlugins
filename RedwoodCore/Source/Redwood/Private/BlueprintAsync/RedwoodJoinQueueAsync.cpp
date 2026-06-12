@@ -7,13 +7,15 @@ URedwoodJoinQueueAsync *URedwoodJoinQueueAsync::JoinQueue(
   UObject *WorldContextObject,
   FString ProxyId,
   FString ZoneName,
-  bool bTransferWholeParty
+  bool bTransferWholeParty,
+  bool bFavorLastZone
 ) {
   URedwoodJoinQueueAsync *Action = NewObject<URedwoodJoinQueueAsync>();
   Action->Target = Target;
   Action->ProxyId = ProxyId;
   Action->ZoneName = ZoneName;
   Action->bTransferWholeParty = bTransferWholeParty;
+  Action->bFavorLastZone = bFavorLastZone;
   Action->RegisterWithGameInstance(WorldContextObject);
 
   return Action;
@@ -24,6 +26,7 @@ void URedwoodJoinQueueAsync::Activate() {
     ProxyId,
     ZoneName,
     bTransferWholeParty,
+    bFavorLastZone,
     FRedwoodTicketingUpdateDelegate::CreateLambda(
       [this](FRedwoodTicketingUpdate Update) {
         OnUpdate.Broadcast(Update);

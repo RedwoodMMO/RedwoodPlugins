@@ -2793,6 +2793,7 @@ void URedwoodClientInterface::JoinQueue(
   FString ProxyId,
   FString ZoneName,
   bool bTransferWholeParty,
+  bool bFavorLastZone,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   if (SelectedCharacterId.IsEmpty()) {
@@ -2813,6 +2814,7 @@ void URedwoodClientInterface::JoinQueue(
   QueueData->SetStringField(TEXT("proxyId"), ProxyId);
   QueueData->SetStringField(TEXT("zoneName"), ZoneName);
   QueueData->SetBoolField(TEXT("transferWholeParty"), bTransferWholeParty);
+  QueueData->SetBoolField(TEXT("favorLastZone"), bFavorLastZone);
 
   TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
   QueueData->SetField(TEXT("priorZoneName"), NullValue);

@@ -329,6 +329,7 @@ public:
     FString ProxyId,
     FString ZoneName,
     bool bTransferWholeParty,
+    bool bFavorLastZone,
     FRedwoodTicketingUpdateDelegate OnUpdate
   );
 

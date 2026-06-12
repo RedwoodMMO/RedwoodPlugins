@@ -28,7 +28,8 @@ public:
     UObject *WorldContextObject,
     FString ProxyId,
     FString ZoneName,
-    bool bTransferWholeParty
+    bool bTransferWholeParty,
+    bool bFavorLastZone
   );
 
   UPROPERTY(BlueprintAssignable)
@@ -40,4 +41,5 @@ public:
   FString ProxyId;
   FString ZoneName;
   bool bTransferWholeParty;
+  bool bFavorLastZone;
 };

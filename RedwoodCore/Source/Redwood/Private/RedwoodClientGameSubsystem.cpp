@@ -953,11 +953,12 @@ void URedwoodClientGameSubsystem::JoinQueue(
   FString ProxyId,
   FString ZoneName,
   bool bTransferWholeParty,
+  bool bFavorLastZone,
   FRedwoodTicketingUpdateDelegate OnUpdate
 ) {
   if (URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld())) {
     ClientInterface->JoinQueue(
-      ProxyId, ZoneName, bTransferWholeParty, OnUpdate
+      ProxyId, ZoneName, bTransferWholeParty, bFavorLastZone, OnUpdate
     );
   } else {
     FRedwoodTicketingUpdate Output;
