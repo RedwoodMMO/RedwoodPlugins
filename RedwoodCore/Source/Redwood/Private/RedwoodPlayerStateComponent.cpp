@@ -2,7 +2,6 @@
 
 #include "RedwoodPlayerStateComponent.h"
 #include "RedwoodModule.h"
-#include "RedwoodPlayerState.h"
 #include "RedwoodServerGameSubsystem.h"
 #include "RedwoodZoneSpawn.h"
 
@@ -31,17 +30,6 @@ URedwoodPlayerStateComponent::URedwoodPlayerStateComponent(
     }
 
     return;
-  }
-
-  if (Cast<ARedwoodPlayerState>(GetOwner())) {
-    UE_LOG(
-      LogRedwood,
-      Warning,
-      TEXT(
-        "ARedwoodPlayerState is deprecated and will be removed in 5.0.0. Migrate to using URedwoodPlayerStateComponent on any other APlayerState actor."
-      ),
-      *GetOwner()->GetName()
-    );
   }
 
   OwnerPlayerState->PrimaryActorTick.bCanEverTick = true;

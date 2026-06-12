@@ -8,7 +8,7 @@
 #include "RedwoodGameplayTags.h"
 #include "RedwoodMapAsset.h"
 #include "RedwoodPersistenceComponentInterface.h"
-#include "RedwoodPlayerState.h"
+#include "RedwoodPlayerStateComponent.h"
 #include "RedwoodSettings.h"
 #include "RedwoodSyncComponent.h"
 #include "RedwoodSyncItemAsset.h"

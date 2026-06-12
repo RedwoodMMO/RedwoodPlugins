@@ -1,8 +1,6 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodGameplayTags.h"
-#include "RedwoodCharacterComponent.h"
-#include "RedwoodPlayerState.h"
 
 #include "UObject/NameTypes.h"
 

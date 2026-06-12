@@ -4,7 +4,7 @@
 #include "RedwoodCommonGameSubsystem.h"
 #include "RedwoodGameplayTags.h"
 #include "RedwoodModule.h"
-#include "RedwoodPlayerState.h"
+#include "RedwoodPlayerStateComponent.h"
 #include "RedwoodServerGameSubsystem.h"
 #include "RedwoodZoneSpawn.h"
 
@@ -293,12 +293,12 @@ APlayerController *URedwoodGameModeComponent::Login(
         UE_LOG(
           LogRedwood,
           Log,
-          TEXT("Can't load character data as we're not using RedwoodPlayerState"
+          TEXT("Can't load character data as we're not using RedwoodPlayerStateComponent"
           )
         );
 
         FRedwoodModule::ShowNotification(TEXT(
-          "Can't load character data as we're not using RedwoodPlayerState"
+          "Can't load character data as we're not using RedwoodPlayerStateComponent"
         ));
       }
     } else {
@@ -610,7 +610,7 @@ void URedwoodGameModeComponent::RunSidecarPlayerAuth(
             LogRedwood,
             Log,
             TEXT(
-              "Player joined as character %s (player %s), but we're not using RedwoodPlayerState"
+              "Player joined as character %s (player %s), but we're not using RedwoodPlayerStateComponent"
             ),
             *CharacterId,
             *TempPlayerId
