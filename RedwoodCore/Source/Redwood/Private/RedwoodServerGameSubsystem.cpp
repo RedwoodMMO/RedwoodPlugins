@@ -327,6 +327,83 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
   );
 
   Sidecar->OnEvent(
+    TEXT("realm:parties:update:bulk"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (Message->TryGetObject(Object) && Object) {
+        const TSharedPtr<FJsonObject> *PartiesObj;
+        if (!(*Object)->TryGetObjectField(TEXT("parties"), PartiesObj)) {
+          UE_LOG(
+            LogRedwood,
+            Error,
+            TEXT("Party bulk update message has no parties object")
+          );
+          return;
+        }
+
+        TrackedParties.Empty();
+
+        for (const auto &Pair : (*PartiesObj)->Values) {
+          const TSharedPtr<FJsonObject> *PartyObj;
+          if (Pair.Value->TryGetObject(PartyObj) && PartyObj) {
+            TrackedParties.Add(
+              Pair.Key, URedwoodCommonGameSubsystem::ParseParty(*PartyObj)
+            );
+          }
+        }
+
+        UpdatePlayerStateComponentPartyIds();
+
+        OnTrackedPartiesUpdated.Broadcast();
+      }
+    }
+  );
+
+  Sidecar->OnEvent(
+    TEXT("realm:parties:update:single"),
+    [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
+      const TSharedPtr<FJsonObject> *Object;
+
+      if (!Message->TryGetObject(Object) || !Object) {
+        return;
+      }
+
+      FString PartyId;
+      if (!(*Object)->TryGetStringField(TEXT("partyId"), PartyId)) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Party single update message has no partyId")
+        );
+        return;
+      }
+
+      // `party` is null when the party disbanded or this server no
+      // longer hosts any of its members; otherwise we track it only if
+      // we host a current member (the backend also sends single updates
+      // to the servers of members who just left, so they can drop it).
+      const TSharedPtr<FJsonObject> *PartyObj;
+      FRedwoodParty Party;
+      bool bHasParty = false;
+      if ((*Object)->TryGetObjectField(TEXT("party"), PartyObj) && PartyObj) {
+        Party = URedwoodCommonGameSubsystem::ParseParty(*PartyObj);
+        bHasParty = Party.bValid;
+      }
+
+      if (bHasParty && DoesServerHostPartyMember(Party)) {
+        TrackedParties.Add(PartyId, Party);
+      } else {
+        TrackedParties.Remove(PartyId);
+      }
+
+      UpdatePlayerStateComponentPartyIds();
+
+      OnTrackedPartiesUpdated.Broadcast();
+    }
+  );
+
+  Sidecar->OnEvent(
     TEXT("realm:servers:session:sync:new"),
     [this](const FString &Event, const TSharedPtr<FJsonValue> &Message) {
       const TSharedPtr<FJsonObject> *Object;
@@ -2130,6 +2207,175 @@ void URedwoodServerGameSubsystem::GetSaveGame(
       }
     )
   );
+}
+
+void URedwoodServerGameSubsystem::GetPartyById(
+  const FString &PartyId, FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  GetParty(PartyId, TEXT(""), OnOutput);
+}
+
+void URedwoodServerGameSubsystem::GetPartyByPlayerId(
+  const FString &PlayerId, FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  GetParty(TEXT(""), PlayerId, OnOutput);
+}
+
+void URedwoodServerGameSubsystem::GetParty(
+  const FString &PartyId,
+  const FString &PlayerId,
+  FRedwoodGetPartyOutputDelegate OnOutput
+) {
+  if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    FRedwoodGetPartyOutput Output;
+    Output.Error = TEXT("Sidecar is not connected");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("id"), TEXT("game-server"));
+
+  TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
+
+  if (PartyId.IsEmpty()) {
+    Payload->SetField(TEXT("partyId"), NullValue);
+  } else {
+    Payload->SetStringField(TEXT("partyId"), PartyId);
+  }
+
+  if (PlayerId.IsEmpty()) {
+    Payload->SetField(TEXT("playerId"), NullValue);
+  } else {
+    Payload->SetStringField(TEXT("playerId"), PlayerId);
+  }
+
+  Sidecar->Emit(
+    TEXT("realm:parties:get:backend"),
+    Payload,
+    [OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
+
+      FRedwoodGetPartyOutput Output;
+      Output.Error = MessageObject->GetStringField(TEXT("error"));
+
+      const TSharedPtr<FJsonObject> *PartyObj;
+      if (MessageObject->TryGetObjectField(TEXT("party"), PartyObj)) {
+        Output.Party = URedwoodCommonGameSubsystem::ParseParty(*PartyObj);
+      }
+
+      OnOutput.ExecuteIfBound(Output);
+    }
+  );
+}
+
+FRedwoodParty URedwoodServerGameSubsystem::GetTrackedPartyById(
+  const FString &InPartyId
+) const {
+  if (const FRedwoodParty *Party = TrackedParties.Find(InPartyId)) {
+    return *Party;
+  }
+
+  return FRedwoodParty();
+}
+
+FRedwoodParty URedwoodServerGameSubsystem::GetTrackedPartyByPlayerId(
+  const FString &InPlayerId
+) const {
+  if (InPlayerId.IsEmpty()) {
+    return FRedwoodParty();
+  }
+
+  for (const auto &Pair : TrackedParties) {
+    for (const FRedwoodPartyMember &Member : Pair.Value.Members) {
+      if (Member.PlayerId == InPlayerId) {
+        return Pair.Value;
+      }
+    }
+  }
+
+  return FRedwoodParty();
+}
+
+bool URedwoodServerGameSubsystem::DoesServerHostPartyMember(
+  const FRedwoodParty &Party
+) const {
+  if (!Party.bValid || Party.Members.Num() == 0) {
+    return false;
+  }
+
+  UWorld *World = GetWorld();
+  AGameStateBase *GameState = IsValid(World) ? World->GetGameState() : nullptr;
+
+  if (!IsValid(GameState)) {
+    return false;
+  }
+
+  TSet<FString> MemberPlayerIds;
+  for (const FRedwoodPartyMember &Member : Party.Members) {
+    MemberPlayerIds.Add(Member.PlayerId);
+  }
+
+  for (APlayerState *PlayerState : GameState->PlayerArray) {
+    if (!IsValid(PlayerState)) {
+      continue;
+    }
+
+    URedwoodPlayerStateComponent *PlayerStateComponent =
+      PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
+
+    if (
+      IsValid(PlayerStateComponent) &&
+      MemberPlayerIds.Contains(PlayerStateComponent->RedwoodPlayer.Id)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void URedwoodServerGameSubsystem::UpdatePlayerStateComponentPartyIds() {
+  UWorld *World = GetWorld();
+  AGameStateBase *GameState = IsValid(World) ? World->GetGameState() : nullptr;
+
+  if (!IsValid(GameState)) {
+    return;
+  }
+
+  TMap<FString, FString> PartyIdsByPlayerId;
+  for (const auto &Pair : TrackedParties) {
+    for (const FRedwoodPartyMember &Member : Pair.Value.Members) {
+      PartyIdsByPlayerId.Add(Member.PlayerId, Pair.Key);
+    }
+  }
+
+  for (APlayerState *PlayerState : GameState->PlayerArray) {
+    if (!IsValid(PlayerState)) {
+      continue;
+    }
+
+    URedwoodPlayerStateComponent *PlayerStateComponent =
+      PlayerState->FindComponentByClass<URedwoodPlayerStateComponent>();
+
+    if (!IsValid(PlayerStateComponent)) {
+      continue;
+    }
+
+    const FString &PlayerId = PlayerStateComponent->RedwoodPlayer.Id;
+
+    if (PlayerId.IsEmpty()) {
+      // The player hasn't finished authenticating yet; their PartyId
+      // gets synced once their RedwoodPlayer data is set.
+      continue;
+    }
+
+    if (const FString *PartyId = PartyIdsByPlayerId.Find(PlayerId)) {
+      PlayerStateComponent->SetPartyId(*PartyId);
+    } else {
+      PlayerStateComponent->SetPartyId(TEXT(""));
+    }
+  }
 }
 
 void URedwoodServerGameSubsystem::RequestEngineExit(bool bForce) {

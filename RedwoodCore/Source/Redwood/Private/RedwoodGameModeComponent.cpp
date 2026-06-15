@@ -602,6 +602,17 @@ void URedwoodGameModeComponent::RunSidecarPlayerAuth(
           );
           PlayerStateComponent->SetServerReady();
 
+          // The realm backend pushes party data to this server when the
+          // player authenticates, but that push races with this auth
+          // response; now that RedwoodPlayer.Id is set, reapply the
+          // already-tracked parties so this player's PartyId is synced.
+          URedwoodServerGameSubsystem *ServerSubsystem =
+            GameMode->GetGameInstance()
+              ->GetSubsystem<URedwoodServerGameSubsystem>();
+          if (IsValid(ServerSubsystem)) {
+            ServerSubsystem->UpdatePlayerStateComponentPartyIds();
+          }
+
           if (PlayerStateComponent->bRanPostLogin) {
             GameMode->HandleStartingNewPlayer(PlayerController);
           }

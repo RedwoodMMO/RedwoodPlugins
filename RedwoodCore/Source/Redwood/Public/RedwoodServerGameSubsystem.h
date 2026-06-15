@@ -138,6 +138,47 @@ public:
     const FString &Key, FRedwoodGetSaveGameOutputDelegate OnComplete
   );
 
+  void GetPartyById(
+    const FString &PartyId, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+  void GetPartyByPlayerId(
+    const FString &PlayerId, FRedwoodGetPartyOutputDelegate OnOutput
+  );
+
+  // The latest party data for all parties that have at least one
+  // member connected to this server, keyed by party id. The realm
+  // backend pushes updates as parties change; each push fully replaces
+  // this map.
+  UPROPERTY(BlueprintReadOnly, Category = "Redwood")
+  TMap<FString, FRedwoodParty> TrackedParties;
+
+  // Broadcast after the realm backend pushes new party data into
+  // TrackedParties (and the PlayerStateComponents' PartyIds have been
+  // updated to match).
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodDynamicDelegate OnTrackedPartiesUpdated;
+
+  // Returns the tracked party with the given id; bValid is false if
+  // this server doesn't currently track it.
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  FRedwoodParty GetTrackedPartyById(const FString &InPartyId) const;
+
+  // Returns the tracked party that has a member with the given player
+  // id; bValid is false if there isn't one.
+  UFUNCTION(BlueprintPure, Category = "Redwood")
+  FRedwoodParty GetTrackedPartyByPlayerId(const FString &InPlayerId) const;
+
+  // Reapplies TrackedParties to the PartyId of every
+  // URedwoodPlayerStateComponent in the current world. Called
+  // automatically when the backend pushes party data and when a player
+  // finishes authentication.
+  void UpdatePlayerStateComponentPartyIds();
+
+  // True if any player connected to this server is a member of the
+  // given party. Used to decide whether a single-party update should
+  // be tracked or dropped.
+  bool DoesServerHostPartyMember(const FRedwoodParty &Party) const;
+
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void RequestEngineExit(bool bForce);
 
@@ -151,6 +192,12 @@ private:
 
   void InitializeSidecar();
   void SendUpdateToSidecar();
+
+  void GetParty(
+    const FString &PartyId,
+    const FString &PlayerId,
+    FRedwoodGetPartyOutputDelegate OnOutput
+  );
 
   TSharedPtr<FSocketIONative> Sidecar;
 

@@ -47,6 +47,9 @@ public:
     enum ELevelTick TickType,
     FActorComponentTickFunction *ThisTickFunction
   ) override;
+  virtual void GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty> &OutLifetimeProps
+  ) const override;
   //~ End UActorComponent Interface
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Redwood")
@@ -76,6 +79,30 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetRedwoodCharacter(FRedwoodCharacterBackend InRedwoodCharacter);
 
+  // The id of the party this player is in; empty if not in a party.
+  // Set on the server when the player logs in and replicated to all
+  // clients. It does NOT automatically update if the player's party
+  // changes while they're in this server; the server can refresh it
+  // via URedwoodServerGameSubsystem::GetPartyByPlayerId + SetPartyId.
+  UPROPERTY(
+    BlueprintReadOnly, ReplicatedUsing = OnRep_PartyId, Category = "Redwood"
+  )
+  FString PartyId;
+
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
+  void SetPartyId(const FString &InPartyId);
+
+  /**
+   * Returns the URedwoodPlayerStateComponents of all players in this
+   * player's party, based on matching replicated PartyId values; usable
+   * on both the server and clients. This component is always included
+   * when bExcludeSelf is false, even if the player isn't in a party.
+   */
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  TArray<URedwoodPlayerStateComponent *> GetPartyMemberPlayerStateComponents(
+    bool bExcludeSelf = false
+  ) const;
+
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   bool GetSpawnData(FTransform &Transform, FRotator &ControlRotation);
 
@@ -84,6 +111,10 @@ public:
 
   UPROPERTY(BlueprintAssignable, Category = "Events")
   FOnRedwoodPlayerStateUpdated OnRedwoodPlayerUpdated;
+
+  // Broadcast on the server and on all clients when PartyId changes.
+  UPROPERTY(BlueprintAssignable, Category = "Events")
+  FOnRedwoodPlayerStateUpdated OnPartyIdChanged;
 
   bool bTransferring = false;
 
@@ -118,6 +149,9 @@ public:
   bool bRanPostLogin = false;
 
 private:
+  UFUNCTION()
+  void OnRep_PartyId();
+
   TWeakObjectPtr<APlayerState> OwnerPlayerState = nullptr;
 
   bool bCharacterDataDirty = false;
