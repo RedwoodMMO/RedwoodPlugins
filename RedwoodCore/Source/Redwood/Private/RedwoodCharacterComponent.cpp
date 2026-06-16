@@ -36,6 +36,8 @@ void URedwoodCharacterComponent::GetLifetimeReplicatedProps(
   );
   DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterId);
   DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterName);
+  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerUpdateCount);
+  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterUpdateCount);
 }
 
 void URedwoodCharacterComponent::BeginPlay() {
@@ -111,6 +113,15 @@ void URedwoodCharacterComponent::OnControllerChanged(
 }
 
 void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
+  // The source PlayerStateComponent->RedwoodPlayer struct is server-only and is
+  // empty on clients. This function copies it into the replicated fields below,
+  // so it must only run on the authority; clients receive the values via
+  // replication and learn about the update via OnRep_RedwoodPlayerUpdated.
+  // Running it on a client would overwrite the replicated fields with blanks.
+  if (GetOwnerRole() != ROLE_Authority) {
+    return;
+  }
+
   APawn *Pawn = Cast<APawn>(GetOwner());
   AController *Controller = IsValid(Pawn) ? Pawn->GetController() : nullptr;
   APlayerState *PlayerState = IsValid(Controller)
@@ -216,16 +227,28 @@ void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
       CustomPlayerName == nullptr ? DefaultPlayerName : *CustomPlayerName
     );
 
+    // Broadcast locally on the server, then bump the replicated counter so the
+    // notify fires on clients once the updated fields have been applied.
     OnRedwoodPlayerUpdated.Broadcast();
-    MC_RedwoodPlayerUpdated();
+    RedwoodPlayerUpdateCount++;
   }
 }
 
-void URedwoodCharacterComponent::MC_RedwoodPlayerUpdated_Implementation() {
+void URedwoodCharacterComponent::OnRep_RedwoodPlayerUpdated() {
   OnRedwoodPlayerUpdated.Broadcast();
 }
 
 void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
+  // The source PlayerStateComponent->RedwoodCharacter struct is server-only and
+  // is empty on clients. This function copies it into the replicated fields
+  // below, so it must only run on the authority; clients receive the values via
+  // replication and learn about the update via OnRep_RedwoodCharacterUpdated.
+  // Running it on a client would overwrite the replicated fields (including
+  // RedwoodCharacterId) with blanks.
+  if (GetOwnerRole() != ROLE_Authority) {
+    return;
+  }
+
   APawn *Pawn = Cast<APawn>(GetOwner());
   AController *Controller = IsValid(Pawn) ? Pawn->GetController() : nullptr;
   APlayerState *PlayerState = IsValid(Controller)
@@ -461,11 +484,13 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
       }
     }
 
+    // Broadcast locally on the server, then bump the replicated counter so the
+    // notify fires on clients once the updated fields have been applied.
     OnRedwoodCharacterUpdated.Broadcast();
-    MC_RedwoodCharacterUpdated();
+    RedwoodCharacterUpdateCount++;
   }
 }
 
-void URedwoodCharacterComponent::MC_RedwoodCharacterUpdated_Implementation() {
+void URedwoodCharacterComponent::OnRep_RedwoodCharacterUpdated() {
   OnRedwoodCharacterUpdated.Broadcast();
 }
