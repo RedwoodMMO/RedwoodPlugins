@@ -138,7 +138,7 @@ void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         PlayerData.Data,
         *PlayerDataVariableName,
-        LatestMetadataSchemaVersion,
+        LatestPlayerDataSchemaVersion,
         bErrored
       );
 
@@ -250,7 +250,7 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
         bStoreDataInActor ? (UObject *)Pawn : (UObject *)this,
         RedwoodCharacterBackend.CharacterCreatorData,
         *CharacterCreatorDataVariableName,
-        LatestMetadataSchemaVersion,
+        LatestCharacterCreatorDataSchemaVersion,
         bErrored
       );
 

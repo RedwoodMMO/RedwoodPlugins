@@ -70,6 +70,9 @@ public:
   FString PlayerDataVariableName = TEXT("PlayerData");
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
+  int32 LatestPlayerDataSchemaVersion = 0;
+
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
   bool bUseCharacterCreatorData = true;
 
   UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Redwood")
