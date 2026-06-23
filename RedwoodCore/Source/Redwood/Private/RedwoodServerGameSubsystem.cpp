@@ -303,9 +303,10 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
 
         const TSharedPtr<FJsonObject> *DataObj;
         if (ActualObject->TryGetObjectField(TEXT("data"), DataObj)) {
-          TArray<FString> Keys;
-          (*DataObj)->Values.GetKeys(Keys);
-          for (FString Key : Keys) {
+          // Iterate the JSON object directly; deref of the key works whether it
+          // is stored as FString or UE::FSharedString (5.8 FStringView keys).
+          for (const auto &Pair : (*DataObj)->Values) {
+            const FString Key = *Pair.Key;
             FString Value;
             if ((*DataObj)->TryGetStringField(Key, Value)) {
               Url.AddOption(*FString(Key + "=" + Value));
