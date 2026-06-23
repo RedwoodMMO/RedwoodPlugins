@@ -254,14 +254,27 @@ private:
   UFUNCTION()
   void RedwoodPlayerStatePlayerUpdated();
 
-  UFUNCTION(NetMulticast, Reliable)
-  void MC_RedwoodPlayerUpdated();
-
   UFUNCTION()
   void RedwoodPlayerStateCharacterUpdated();
 
-  UFUNCTION(NetMulticast, Reliable)
-  void MC_RedwoodCharacterUpdated();
+  // Bumped on the server (authority) after the player/character fields above
+  // have been copied from the server-only PlayerStateComponent structs. The
+  // ReplicatedUsing notifies fire on clients once the new value (and the
+  // accompanying field updates in the same net update) have been applied,
+  // which is how clients learn to broadcast OnRedwoodPlayerUpdated /
+  // OnRedwoodCharacterUpdated. This replaces the old MC_* multicast RPCs so
+  // that late-relevant clients are notified too.
+  UPROPERTY(ReplicatedUsing = OnRep_RedwoodPlayerUpdated)
+  uint8 RedwoodPlayerUpdateCount = 0;
+
+  UPROPERTY(ReplicatedUsing = OnRep_RedwoodCharacterUpdated)
+  uint8 RedwoodCharacterUpdateCount = 0;
+
+  UFUNCTION()
+  void OnRep_RedwoodPlayerUpdated();
+
+  UFUNCTION()
+  void OnRep_RedwoodCharacterUpdated();
 
   bool bPlayerDataDirty = false;
   bool bCharacterCreatorDataDirty = false;

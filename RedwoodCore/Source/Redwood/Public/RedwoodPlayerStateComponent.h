@@ -73,10 +73,10 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Redwood")
   void SetServerReady();
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void SetRedwoodPlayer(FRedwoodPlayerData InRedwoodPlayer);
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Redwood")
   void SetRedwoodCharacter(FRedwoodCharacterBackend InRedwoodCharacter);
 
   // The id of the party this player is in; empty if not in a party.
