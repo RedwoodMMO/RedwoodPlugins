@@ -127,7 +127,7 @@ void FCreateCharacter::Initialize() {
           TEXT("TestCharacter")
         );
 
-        Context->Data.SetStringField("CharacterId", Output.Character.Id);
+        Context->Data.SetStringField(TEXT("CharacterId"), Output.Character.Id);
 
         Context->bIsCurrentTestComplete = true;
       }
@@ -242,7 +242,7 @@ void FCreatePublicServer::Initialize() {
         CurrentTest->TestTrue(
           TEXT("CreateProxy has valid server"), !Output.ProxyReference.IsEmpty()
         );
-        Context->Data.SetStringField("ProxyReference", Output.ProxyReference);
+        Context->Data.SetStringField(TEXT("ProxyReference"), Output.ProxyReference);
         Context->bIsCurrentTestComplete = true;
       }
     )
