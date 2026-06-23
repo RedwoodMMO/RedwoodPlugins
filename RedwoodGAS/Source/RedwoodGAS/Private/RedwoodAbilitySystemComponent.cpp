@@ -183,6 +183,16 @@ void URedwoodAbilitySystemComponent::OnControllerChanged(
 }
 
 void URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdated() {
+  if (!bDisableAutoDeserialization) {
+    RedwoodPlayerStateCharacterUpdatedRun();
+  }
+}
+
+void URedwoodAbilitySystemComponent::ReinitializeASC() {
+  RedwoodPlayerStateCharacterUpdatedRun();
+}
+
+void URedwoodAbilitySystemComponent::RedwoodPlayerStateCharacterUpdatedRun() {
   APawn *Pawn = Cast<APawn>(GetOwner());
   AController *Controller = IsValid(Pawn) ? Pawn->GetController() : nullptr;
   APlayerState *PlayerState = IsValid(Controller)

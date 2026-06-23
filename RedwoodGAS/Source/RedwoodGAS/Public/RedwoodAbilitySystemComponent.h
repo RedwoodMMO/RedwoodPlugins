@@ -70,6 +70,19 @@ public:
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   int32 UpdateIntervals = 0;
 
+  /**
+   * When false (default), the ASC deserializes its persisted data automatically
+   * in response to the usual triggers.
+   *
+   * When true, those automatic triggers no longer deserialize directly.
+   * Deserialization is instead driven explicitly by calling ReinitializeASC(),
+   * letting you control its timing relative to your own ASC setup.
+   *
+   * This can be set in the Blueprint editor or in the C++ CDO of a child class.
+   */
+  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
+  bool bDisableAutoDeserialization = false;
+
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   ERedwoodASCInclusionMode AbilityInclusionMode =
     ERedwoodASCInclusionMode::Blacklist;
@@ -98,6 +111,15 @@ public:
     return bDirty;
   }
 
+  /**
+   * Explicitly (re)deserialize the persisted ASC data from the owning player
+   * state's Redwood character. This is the manual entry point used when
+   * bDisableAutoDeserialization is true, but it can be called at any time to
+   * force a re-deserialization regardless of that setting.
+   */
+  UFUNCTION(BlueprintCallable, Category = "Redwood")
+  void ReinitializeASC();
+
 protected:
   TSharedPtr<FJsonObject> SerializeASC();
   void DeserializeASC(TSharedPtr<FJsonObject> Data);
@@ -110,6 +132,7 @@ private:
 
   UFUNCTION()
   void RedwoodPlayerStateCharacterUpdated();
+  void RedwoodPlayerStateCharacterUpdatedRun();
 
   bool bDirty = false;
   uint32 UpdateIntervalCounter = 0;
