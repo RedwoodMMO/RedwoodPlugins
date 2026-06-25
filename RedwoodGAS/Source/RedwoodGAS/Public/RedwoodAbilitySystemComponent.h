@@ -85,7 +85,7 @@ public:
 
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   ERedwoodASCInclusionMode AbilityInclusionMode =
-    ERedwoodASCInclusionMode::Blacklist;
+    ERedwoodASCInclusionMode::Whitelist;
   UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Redwood")
   TArray<TSubclassOf<UGameplayAbility>> AbilityInclusionArray;
 
