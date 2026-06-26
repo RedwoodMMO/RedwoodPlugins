@@ -6,6 +6,7 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
 // add a sphere collision component to the interactable
@@ -27,7 +28,11 @@ void ARedwoodInteractable::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-  DOREPLIFETIME(ARedwoodInteractable, bAutoInteract);
+  // bAutoInteract is an editor-set default that never mutates at runtime, so its
+  // value rides the initial replication; no MARK_PROPERTY_DIRTY is required.
+  FDoRepLifetimeParams Params;
+  Params.bIsPushBased = true;
+  DOREPLIFETIME_WITH_PARAMS_FAST(ARedwoodInteractable, bAutoInteract, Params);
 }
 
 void ARedwoodInteractable::BeginPlay() {

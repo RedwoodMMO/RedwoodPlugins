@@ -3,6 +3,8 @@
 #include "Interactables/RedwoodInteractableProxied.h"
 #include "RedwoodCharacterComponent.h"
 
+#include "Net/Core/PushModel/PushModel.h"
+
 void ARedwoodInteractableProxied::OnInteract_Implementation(
   APawn *Pawn, URedwoodCharacterComponent *CharacterComponent
 ) {
@@ -20,6 +22,7 @@ void ARedwoodInteractableProxied::OnInteract_Implementation(
       ARedwoodProxy *RedwoodProxy = Cast<ARedwoodProxy>(Proxy);
       if (IsValid(RedwoodProxy)) {
         RedwoodProxy->Interactable = this;
+        MARK_PROPERTY_DIRTY_FROM_NAME(ARedwoodProxy, Interactable, RedwoodProxy);
       }
     }
   }

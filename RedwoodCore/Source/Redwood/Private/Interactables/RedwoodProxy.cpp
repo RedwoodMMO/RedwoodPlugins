@@ -2,6 +2,7 @@
 
 #include "Interactables/RedwoodProxy.h"
 
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
 ARedwoodProxy::ARedwoodProxy() {
@@ -15,5 +16,7 @@ void ARedwoodProxy::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-  DOREPLIFETIME(ARedwoodProxy, Interactable);
+  FDoRepLifetimeParams Params;
+  Params.bIsPushBased = true;
+  DOREPLIFETIME_WITH_PARAMS_FAST(ARedwoodProxy, Interactable, Params);
 }

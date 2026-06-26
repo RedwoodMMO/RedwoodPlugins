@@ -3,6 +3,7 @@
 #include "RedwoodGameStateComponent.h"
 #include "RedwoodServerGameSubsystem.h"
 
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
 URedwoodGameStateComponent::URedwoodGameStateComponent(
@@ -17,7 +18,11 @@ void URedwoodGameStateComponent::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-  DOREPLIFETIME(URedwoodGameStateComponent, ServerDetails);
+  FDoRepLifetimeParams Params;
+  Params.bIsPushBased = true;
+  DOREPLIFETIME_WITH_PARAMS_FAST(
+    URedwoodGameStateComponent, ServerDetails, Params
+  );
 }
 
 void URedwoodGameStateComponent::BeginPlay() {
@@ -63,6 +68,9 @@ void URedwoodGameStateComponent::SetServerDetails(
   Details.ZoneName = ZoneName;
   Details.ShardName = ShardName;
   ServerDetails = Details;
+  MARK_PROPERTY_DIRTY_FROM_NAME(
+    URedwoodGameStateComponent, ServerDetails, this
+  );
 }
 
 void URedwoodGameStateComponent::OnRep_ServerDetails() {
