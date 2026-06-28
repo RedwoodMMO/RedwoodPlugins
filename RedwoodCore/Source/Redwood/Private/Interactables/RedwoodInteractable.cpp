@@ -6,7 +6,6 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
-#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
 // add a sphere collision component to the interactable
@@ -28,11 +27,10 @@ void ARedwoodInteractable::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-  // bAutoInteract is an editor-set default that never mutates at runtime, so its
-  // value rides the initial replication; no MARK_PROPERTY_DIRTY is required.
-  FDoRepLifetimeParams Params;
-  Params.bIsPushBased = true;
-  DOREPLIFETIME_WITH_PARAMS_FAST(ARedwoodInteractable, bAutoInteract, Params);
+  // bAutoInteract is EditAnywhere/BlueprintReadWrite with no setter to funnel
+  // runtime mutations through, so it stays polling-based to keep BP-driven
+  // toggles replicating without a dirty-mark path.
+  DOREPLIFETIME(ARedwoodInteractable, bAutoInteract);
 }
 
 void ARedwoodInteractable::BeginPlay() {

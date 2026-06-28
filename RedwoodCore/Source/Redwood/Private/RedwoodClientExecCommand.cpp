@@ -22,7 +22,14 @@ void ARedwoodClientExecCommand::GetLifetimeReplicatedProps(
   // Command is set once at deferred spawn (before FinishSpawningActor), so its
   // value rides the initial replication; no MARK_PROPERTY_DIRTY is needed because
   // it never mutates after the actor begins replicating.
-  FDoRepLifetimeParams Params;
-  Params.bIsPushBased = true;
-  DOREPLIFETIME_WITH_PARAMS_FAST(ARedwoodClientExecCommand, Command, Params);
+#if WITH_PUSH_MODEL
+  if (IS_PUSH_MODEL_ENABLED()) {
+    FDoRepLifetimeParams Params;
+    Params.bIsPushBased = true;
+    DOREPLIFETIME_WITH_PARAMS_FAST(ARedwoodClientExecCommand, Command, Params);
+  } else
+#endif
+  {
+    DOREPLIFETIME(ARedwoodClientExecCommand, Command);
+  }
 }

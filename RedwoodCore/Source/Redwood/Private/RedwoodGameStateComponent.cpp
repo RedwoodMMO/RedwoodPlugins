@@ -18,11 +18,18 @@ void URedwoodGameStateComponent::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-  FDoRepLifetimeParams Params;
-  Params.bIsPushBased = true;
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodGameStateComponent, ServerDetails, Params
-  );
+#if WITH_PUSH_MODEL
+  if (IS_PUSH_MODEL_ENABLED()) {
+    FDoRepLifetimeParams Params;
+    Params.bIsPushBased = true;
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodGameStateComponent, ServerDetails, Params
+    );
+  } else
+#endif
+  {
+    DOREPLIFETIME(URedwoodGameStateComponent, ServerDetails);
+  }
 }
 
 void URedwoodGameStateComponent::BeginPlay() {

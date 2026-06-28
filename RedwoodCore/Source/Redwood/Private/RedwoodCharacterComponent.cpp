@@ -26,41 +26,60 @@ void URedwoodCharacterComponent::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-  FDoRepLifetimeParams Params;
-  Params.bIsPushBased = true;
+#if WITH_PUSH_MODEL
+  if (IS_PUSH_MODEL_ENABLED()) {
+    FDoRepLifetimeParams Params;
+    Params.bIsPushBased = true;
 
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, RedwoodPlayerId, Params
-  );
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, RedwoodPlayerNickname, Params
-  );
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, RedwoodNameTag, Params
-  );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodPlayerId, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodPlayerNickname, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodNameTag, Params
+    );
 
-  FDoRepLifetimeParams OwnerOnlyParams;
-  OwnerOnlyParams.bIsPushBased = true;
-  OwnerOnlyParams.Condition = COND_OwnerOnly;
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, bSelectedGuildValid, OwnerOnlyParams
-  );
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, SelectedGuild, OwnerOnlyParams
-  );
+    FDoRepLifetimeParams OwnerOnlyParams;
+    OwnerOnlyParams.bIsPushBased = true;
+    OwnerOnlyParams.Condition = COND_OwnerOnly;
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, bSelectedGuildValid, OwnerOnlyParams
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, SelectedGuild, OwnerOnlyParams
+    );
 
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, RedwoodCharacterId, Params
-  );
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, RedwoodCharacterName, Params
-  );
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, RedwoodPlayerUpdateCount, Params
-  );
-  DOREPLIFETIME_WITH_PARAMS_FAST(
-    URedwoodCharacterComponent, RedwoodCharacterUpdateCount, Params
-  );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodCharacterId, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodCharacterName, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodPlayerUpdateCount, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodCharacterUpdateCount, Params
+    );
+  } else
+#endif
+  {
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerId);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerNickname);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodNameTag);
+    DOREPLIFETIME_CONDITION(
+      URedwoodCharacterComponent, bSelectedGuildValid, COND_OwnerOnly
+    );
+    DOREPLIFETIME_CONDITION(
+      URedwoodCharacterComponent, SelectedGuild, COND_OwnerOnly
+    );
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterId);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterName);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerUpdateCount);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterUpdateCount);
+  }
 }
 
 void URedwoodCharacterComponent::BeginPlay() {
