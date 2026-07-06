@@ -34,6 +34,8 @@ public class Redwood : ModuleRules {
         "CoreUObject",
         "CoreOnline",
         "Engine",
+        // Push-model replication (MARK_PROPERTY_DIRTY) lives in NetCore.
+        "NetCore",
         "LatencyChecker",
         "JsonUtilities",
         "Slate",

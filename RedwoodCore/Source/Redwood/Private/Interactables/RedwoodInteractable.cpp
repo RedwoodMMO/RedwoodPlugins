@@ -27,6 +27,9 @@ void ARedwoodInteractable::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+  // bAutoInteract is EditAnywhere/BlueprintReadWrite with no setter to funnel
+  // runtime mutations through, so it stays polling-based to keep BP-driven
+  // toggles replicating without a dirty-mark path.
   DOREPLIFETIME(ARedwoodInteractable, bAutoInteract);
 }
 

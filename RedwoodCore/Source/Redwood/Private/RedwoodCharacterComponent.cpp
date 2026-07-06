@@ -9,6 +9,7 @@
 #include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "SIOJConvert.h"
 #include "SIOJsonObject.h"
@@ -25,19 +26,60 @@ void URedwoodCharacterComponent::GetLifetimeReplicatedProps(
 ) const {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerId);
-  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerNickname);
-  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodNameTag);
-  DOREPLIFETIME_CONDITION(
-    URedwoodCharacterComponent, bSelectedGuildValid, COND_OwnerOnly
-  );
-  DOREPLIFETIME_CONDITION(
-    URedwoodCharacterComponent, SelectedGuild, COND_OwnerOnly
-  );
-  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterId);
-  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterName);
-  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerUpdateCount);
-  DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterUpdateCount);
+#if WITH_PUSH_MODEL
+  if (IS_PUSH_MODEL_ENABLED()) {
+    FDoRepLifetimeParams Params;
+    Params.bIsPushBased = true;
+
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodPlayerId, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodPlayerNickname, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodNameTag, Params
+    );
+
+    FDoRepLifetimeParams OwnerOnlyParams;
+    OwnerOnlyParams.bIsPushBased = true;
+    OwnerOnlyParams.Condition = COND_OwnerOnly;
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, bSelectedGuildValid, OwnerOnlyParams
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, SelectedGuild, OwnerOnlyParams
+    );
+
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodCharacterId, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodCharacterName, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodPlayerUpdateCount, Params
+    );
+    DOREPLIFETIME_WITH_PARAMS_FAST(
+      URedwoodCharacterComponent, RedwoodCharacterUpdateCount, Params
+    );
+  } else
+#endif
+  {
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerId);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerNickname);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodNameTag);
+    DOREPLIFETIME_CONDITION(
+      URedwoodCharacterComponent, bSelectedGuildValid, COND_OwnerOnly
+    );
+    DOREPLIFETIME_CONDITION(
+      URedwoodCharacterComponent, SelectedGuild, COND_OwnerOnly
+    );
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterId);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterName);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodPlayerUpdateCount);
+    DOREPLIFETIME(URedwoodCharacterComponent, RedwoodCharacterUpdateCount);
+  }
 }
 
 void URedwoodCharacterComponent::BeginPlay() {
@@ -143,6 +185,19 @@ void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
     bSelectedGuildValid = PlayerData.bSelectedGuildValid;
     SelectedGuild = PlayerData.SelectedGuild;
 
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, RedwoodPlayerNickname, this
+    );
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, RedwoodNameTag, this
+    );
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, bSelectedGuildValid, this
+    );
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, SelectedGuild, this
+    );
+
     if (bUsePlayerData) {
       bool bErrored = false;
       bool bDirty = URedwoodCommonGameSubsystem::DeserializeBackendData(
@@ -231,6 +286,9 @@ void URedwoodCharacterComponent::RedwoodPlayerStatePlayerUpdated() {
     // notify fires on clients once the updated fields have been applied.
     OnRedwoodPlayerUpdated.Broadcast();
     RedwoodPlayerUpdateCount++;
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, RedwoodPlayerUpdateCount, this
+    );
   }
 }
 
@@ -266,6 +324,16 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     RedwoodPlayerId = RedwoodCharacterBackend.PlayerId;
     RedwoodCharacterId = RedwoodCharacterBackend.Id;
     RedwoodCharacterName = RedwoodCharacterBackend.Name;
+
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, RedwoodPlayerId, this
+    );
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, RedwoodCharacterId, this
+    );
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, RedwoodCharacterName, this
+    );
 
     if (bUseCharacterCreatorData) {
       bool bErrored = false;
@@ -488,6 +556,9 @@ void URedwoodCharacterComponent::RedwoodPlayerStateCharacterUpdated() {
     // notify fires on clients once the updated fields have been applied.
     OnRedwoodCharacterUpdated.Broadcast();
     RedwoodCharacterUpdateCount++;
+    MARK_PROPERTY_DIRTY_FROM_NAME(
+      URedwoodCharacterComponent, RedwoodCharacterUpdateCount, this
+    );
   }
 }
 
