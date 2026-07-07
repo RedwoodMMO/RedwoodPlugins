@@ -45,6 +45,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
   FRedwoodErrorOutputDynamicDelegate, FString, Error
 );
 
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+  FRedwoodConnectionAuthFailedDynamicDelegate, FString, Message
+);
+
 typedef TDelegate<void()> FRedwoodDelegate;
 
 UDELEGATE()

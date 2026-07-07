@@ -56,8 +56,10 @@ public:
 
   FRedwoodDynamicDelegate OnDirectorConnectionLost;
   FRedwoodDynamicDelegate OnDirectorConnectionReestablished;
+  FRedwoodConnectionAuthFailedDynamicDelegate OnDirectorAuthFailed;
   FRedwoodDynamicDelegate OnRealmConnectionLost;
   FRedwoodDynamicDelegate OnRealmConnectionReestablished;
+  FRedwoodConnectionAuthFailedDynamicDelegate OnRealmAuthFailed;
 
   void Register(
     const FString &Username,

@@ -42,10 +42,16 @@ public:
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodDynamicDelegate OnDirectorConnectionReestablished;
 
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodConnectionAuthFailedDynamicDelegate OnDirectorAuthFailed;
+
   // There is no realm established delegate; you'll have to reinitialize
   // the realm connection from the director to restart the handshake.
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodDynamicDelegate OnRealmConnectionLost;
+
+  UPROPERTY(BlueprintAssignable, Category = "Redwood")
+  FRedwoodConnectionAuthFailedDynamicDelegate OnRealmAuthFailed;
 
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodPartyInvitedDynamicDelegate OnPartyInvited;
@@ -409,7 +415,13 @@ private:
   void HandleOnDirectorConnectionReestablished();
 
   UFUNCTION()
+  void HandleOnDirectorAuthFailed(FString Message);
+
+  UFUNCTION()
   void HandleOnRealmConnectionLost();
+
+  UFUNCTION()
+  void HandleOnRealmAuthFailed(FString Message);
 
   UFUNCTION()
   void HandleRequestToJoinServer(FString ConsoleCommand);

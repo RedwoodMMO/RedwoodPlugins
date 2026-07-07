@@ -168,6 +168,7 @@ void URedwoodClientInterface::InitializeDirectorConnection(
               TEXT("Could not reauthenticate connection with Director: %s"),
               *Update.Message
             );
+            OnDirectorAuthFailed.Broadcast(Update.Message);
           }
         }),
         true
@@ -2324,6 +2325,7 @@ void URedwoodClientInterface::BeginRealmReauthentication() {
           TEXT("Could not reauthenticate connection with Realm: %s"),
           *Error
         );
+        OnRealmAuthFailed.Broadcast(Error);
         return;
       }
 
@@ -2347,6 +2349,7 @@ void URedwoodClientInterface::BeginRealmReauthentication() {
                 TEXT("Could not reauthenticate connection with Realm: %s"),
                 *Output.Error
               );
+              OnRealmAuthFailed.Broadcast(Output.Error);
             }
           }
         )

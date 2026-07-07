@@ -39,8 +39,14 @@ void URedwoodClientGameSubsystem::Initialize(
       this,
       &URedwoodClientGameSubsystem::HandleOnDirectorConnectionReestablished
     );
+    ClientInterface->OnDirectorAuthFailed.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnDirectorAuthFailed
+    );
     ClientInterface->OnRealmConnectionLost.AddDynamic(
       this, &URedwoodClientGameSubsystem::HandleOnRealmConnectionLost
+    );
+    ClientInterface->OnRealmAuthFailed.AddDynamic(
+      this, &URedwoodClientGameSubsystem::HandleOnRealmAuthFailed
     );
     ClientInterface->OnPartyInvited.AddDynamic(
       this, &URedwoodClientGameSubsystem::HandleOnPartyInvited
@@ -1246,8 +1252,16 @@ void URedwoodClientGameSubsystem::HandleOnDirectorConnectionReestablished() {
   OnDirectorConnectionReestablished.Broadcast();
 }
 
+void URedwoodClientGameSubsystem::HandleOnDirectorAuthFailed(FString Message) {
+  OnDirectorAuthFailed.Broadcast(Message);
+}
+
 void URedwoodClientGameSubsystem::HandleOnRealmConnectionLost() {
   OnRealmConnectionLost.Broadcast();
+}
+
+void URedwoodClientGameSubsystem::HandleOnRealmAuthFailed(FString Message) {
+  OnRealmAuthFailed.Broadcast(Message);
 }
 
 void URedwoodClientGameSubsystem::HandleOnPartyInvited(
