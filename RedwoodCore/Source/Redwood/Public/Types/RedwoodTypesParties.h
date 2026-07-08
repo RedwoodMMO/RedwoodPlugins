@@ -68,6 +68,17 @@ struct FRedwoodPartyMember {
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FString InstanceId;
 
+  // Whether the member is currently connected to the realm. An offline
+  // member remains in the party (shown as away) until they reconnect, an
+  // explicit leave, a leader kick, or the realm's disconnect TTL expires.
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  bool bIsOnline = true;
+
+  // ISO 8601 timestamp of when the member went offline; empty while the
+  // member is online (bIsOnline == true).
+  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
+  FString OfflineAt;
+
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   FRedwoodPartyMemberCharacter Character;
 };

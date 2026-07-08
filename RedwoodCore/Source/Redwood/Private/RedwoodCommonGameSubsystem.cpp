@@ -1102,6 +1102,17 @@ FRedwoodParty URedwoodCommonGameSubsystem::ParseParty(
       Member.bInstanceIdValid =
         MemberObject->TryGetStringField(TEXT("instanceId"), Member.InstanceId);
 
+      // offlineAt is null (or absent) for online members and an ISO 8601
+      // string once they disconnect. TryGetStringField fails on a null
+      // value, so a missing/null field correctly reads as online.
+      const bool bHasOfflineAt =
+        MemberObject->TryGetStringField(TEXT("offlineAt"), Member.OfflineAt) &&
+        !Member.OfflineAt.IsEmpty();
+      Member.bIsOnline = !bHasOfflineAt;
+      if (!bHasOfflineAt) {
+        Member.OfflineAt.Empty();
+      }
+
       TSharedPtr<FJsonObject> CharacterObj =
         MemberObject->GetObjectField(TEXT("character"));
 
