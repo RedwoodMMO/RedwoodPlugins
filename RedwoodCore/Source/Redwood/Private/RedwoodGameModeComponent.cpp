@@ -564,7 +564,7 @@ void URedwoodGameModeComponent::RunSidecarPlayerAuth(
   Sidecar->Emit(
     TEXT("realm:servers:player-auth:game-server-to-sidecar"),
     JsonObject,
-    [PlayerId, WeakPlayerController, WeakGameMode](auto Response) {
+    [PlayerId, WeakPlayerController, WeakGameMode, this](auto Response) {
       APlayerController *PlayerController = WeakPlayerController.Get();
       AGameModeBase *GameMode = WeakGameMode.Get();
       if (!IsValid(PlayerController) || !IsValid(GameMode)) {
@@ -606,9 +606,6 @@ void URedwoodGameModeComponent::RunSidecarPlayerAuth(
           // player authenticates, but that push races with this auth
           // response; now that RedwoodPlayer.Id is set, reapply the
           // already-tracked parties so this player's PartyId is synced.
-          URedwoodServerGameSubsystem *ServerSubsystem =
-            GameMode->GetGameInstance()
-              ->GetSubsystem<URedwoodServerGameSubsystem>();
           if (IsValid(ServerSubsystem)) {
             ServerSubsystem->UpdatePlayerStateComponentPartyIds();
           }

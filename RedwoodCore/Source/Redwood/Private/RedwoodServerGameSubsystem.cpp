@@ -349,7 +349,8 @@ void URedwoodServerGameSubsystem::InitializeSidecar() {
           const TSharedPtr<FJsonObject> *PartyObj;
           if (Pair.Value->TryGetObject(PartyObj) && PartyObj) {
             TrackedParties.Add(
-              Pair.Key, URedwoodCommonGameSubsystem::ParseParty(*PartyObj)
+              FString(*Pair.Key),
+              URedwoodCommonGameSubsystem::ParseParty(*PartyObj)
             );
           }
         }
