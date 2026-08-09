@@ -1909,31 +1909,12 @@ void URedwoodServerGameSubsystem::FlushZoneData() {
           SyncItemComponent->ShouldDoInitialSave()) {
         bItemShouldBeSaved = true;
 
-        FTransform Transform = SyncItemComponent->GetOwner()->GetTransform();
-        FVector Location = Transform.GetLocation();
-        FVector Rotation = Transform.GetRotation().Euler();
-        FVector Scale = Transform.GetScale3D();
-
-        TSharedPtr<FJsonObject> TransformObject =
-          MakeShareable(new FJsonObject());
-        TSharedPtr<FJsonObject> LocationObject =
-          MakeShareable(new FJsonObject());
-        TSharedPtr<FJsonObject> RotationObject =
-          MakeShareable(new FJsonObject());
-        TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
-        LocationObject->SetNumberField(TEXT("x"), Location.X);
-        LocationObject->SetNumberField(TEXT("y"), Location.Y);
-        LocationObject->SetNumberField(TEXT("z"), Location.Z);
-        RotationObject->SetNumberField(TEXT("x"), Rotation.X);
-        RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
-        RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
-        ScaleObject->SetNumberField(TEXT("x"), Scale.X);
-        ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
-        ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
-        TransformObject->SetObjectField(TEXT("location"), LocationObject);
-        TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
-        TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
-        ItemObject->SetObjectField(TEXT("transform"), TransformObject);
+        ItemObject->SetObjectField(
+          TEXT("transform"),
+          URedwoodCommonGameSubsystem::SerializeWorldTransform(
+            SyncItemComponent->GetOwner()->GetTransform()
+          )
+        );
       }
 
       if (!URedwoodCommonGameSubsystem::ShouldUseBackend(GetWorld()) ||
@@ -2081,29 +2062,12 @@ void URedwoodServerGameSubsystem::SendNewSyncItemToSidecar(
     Payload->SetObjectField(TEXT("state"), StateObject);
 
     TSharedPtr<FJsonObject> MovementObject = MakeShareable(new FJsonObject);
-
-    FTransform Transform = InComponent->GetOwner()->GetTransform();
-    FVector Location = Transform.GetLocation();
-    FVector Rotation = Transform.GetRotation().Euler();
-    FVector Scale = Transform.GetScale3D();
-
-    TSharedPtr<FJsonObject> TransformObject = MakeShareable(new FJsonObject());
-    TSharedPtr<FJsonObject> LocationObject = MakeShareable(new FJsonObject());
-    TSharedPtr<FJsonObject> RotationObject = MakeShareable(new FJsonObject());
-    TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
-    LocationObject->SetNumberField(TEXT("x"), Location.X);
-    LocationObject->SetNumberField(TEXT("y"), Location.Y);
-    LocationObject->SetNumberField(TEXT("z"), Location.Z);
-    RotationObject->SetNumberField(TEXT("x"), Rotation.X);
-    RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
-    RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
-    ScaleObject->SetNumberField(TEXT("x"), Scale.X);
-    ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
-    ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
-    TransformObject->SetObjectField(TEXT("location"), LocationObject);
-    TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
-    TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
-    MovementObject->SetObjectField(TEXT("transform"), TransformObject);
+    MovementObject->SetObjectField(
+      TEXT("transform"),
+      URedwoodCommonGameSubsystem::SerializeWorldTransform(
+        InComponent->GetOwner()->GetTransform()
+      )
+    );
 
     Payload->SetObjectField(TEXT("movement"), MovementObject);
 
@@ -2229,6 +2193,252 @@ void URedwoodServerGameSubsystem::GetSaveGame(
         OnComplete.ExecuteIfBound(Output);
       }
     )
+  );
+}
+
+static TArray<TSharedPtr<FJsonValue>> RedwoodMakeJsonStringArray(
+  const TArray<FString> &Values
+) {
+  TArray<TSharedPtr<FJsonValue>> JsonValues;
+  for (const FString &Value : Values) {
+    JsonValues.Add(MakeShareable(new FJsonValueString(Value)));
+  }
+  return JsonValues;
+}
+
+void URedwoodServerGameSubsystem::EmitPersistentItemsRequest(
+  const FString &EventName,
+  TSharedPtr<FJsonObject> Payload,
+  FRedwoodPersistentItemsOutputDelegate OnOutput
+) {
+  if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    FRedwoodPersistentItemsOutput Output;
+    Output.Error = TEXT("Sidecar is not connected");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  Sidecar->Emit(EventName, Payload, [OnOutput](auto Response) {
+    OnOutput.ExecuteIfBound(
+      URedwoodCommonGameSubsystem::ParsePersistentItemsOutput(
+        Response[0]->AsObject()
+      )
+    );
+  });
+}
+
+void URedwoodServerGameSubsystem::EmitPersistentItemsTreeRequest(
+  const FString &EventName,
+  TSharedPtr<FJsonObject> Payload,
+  FRedwoodPersistentItemsTreeOutputDelegate OnOutput
+) {
+  if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    FRedwoodPersistentItemsTreeOutput Output;
+    Output.Error = TEXT("Sidecar is not connected");
+    OnOutput.ExecuteIfBound(Output);
+    return;
+  }
+
+  // The parsed nodes are UObjects, so they need an owner that outlives
+  // the parse; the subsystem is the longest-lived thing in reach here.
+  // Callers that hold onto the result past the callback should keep it
+  // in a UPROPERTY, as the async Blueprint nodes do.
+  TWeakObjectPtr<URedwoodServerGameSubsystem> WeakThis(this);
+
+  Sidecar->Emit(EventName, Payload, [OnOutput, WeakThis](auto Response) {
+    OnOutput.ExecuteIfBound(
+      URedwoodCommonGameSubsystem::ParsePersistentItemsTreeOutput(
+        Response[0]->AsObject(), WeakThis.Get()
+      )
+    );
+  });
+}
+
+void URedwoodServerGameSubsystem::FetchPersistentItems(
+  const FRedwoodPersistentItemsFilter &Filter,
+  FRedwoodPersistentItemsTreeOutputDelegate OnOutput
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+  if (Filter.ItemIds.Num() > 0) {
+    Payload->SetArrayField(
+      TEXT("itemIds"), RedwoodMakeJsonStringArray(Filter.ItemIds)
+    );
+  }
+  if (Filter.OwnerCharacterIds.Num() > 0) {
+    Payload->SetArrayField(
+      TEXT("ownerCharacterIds"),
+      RedwoodMakeJsonStringArray(Filter.OwnerCharacterIds)
+    );
+  }
+  if (Filter.ParentIds.Num() > 0) {
+    Payload->SetArrayField(
+      TEXT("parentIds"), RedwoodMakeJsonStringArray(Filter.ParentIds)
+    );
+  }
+
+  Payload->SetBoolField(
+    TEXT("includeDescendants"), Filter.bIncludeDescendants
+  );
+
+  if (Filter.MaxDepth > 0) {
+    Payload->SetNumberField(TEXT("maxDepth"), Filter.MaxDepth);
+  }
+
+  EmitPersistentItemsTreeRequest(
+    TEXT("realm:servers:session:items:fetch"), Payload, OnOutput
+  );
+}
+
+void URedwoodServerGameSubsystem::FetchCharacterPersistentItems(
+  const FString &CharacterId, FRedwoodPersistentItemsTreeOutputDelegate OnOutput
+) {
+  FRedwoodPersistentItemsFilter Filter;
+  Filter.OwnerCharacterIds.Add(CharacterId);
+  Filter.bIncludeDescendants = true;
+
+  FetchPersistentItems(Filter, OnOutput);
+}
+
+void URedwoodServerGameSubsystem::SavePersistentItems(
+  const TArray<FRedwoodSavePersistentItem> &Items,
+  FRedwoodPersistentItemsOutputDelegate OnOutput
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+
+  TArray<TSharedPtr<FJsonValue>> ItemsArray;
+  for (const FRedwoodSavePersistentItem &Item : Items) {
+    TSharedPtr<FJsonObject> ItemObj = MakeShareable(new FJsonObject);
+
+    ItemObj->SetStringField(TEXT("typeId"), Item.TypeId);
+
+    if (!Item.Id.IsEmpty()) {
+      ItemObj->SetStringField(TEXT("id"), Item.Id);
+    }
+    if (!Item.ParentId.IsEmpty()) {
+      ItemObj->SetStringField(TEXT("parentId"), Item.ParentId);
+    }
+    if (!Item.OwnerCharacterId.IsEmpty()) {
+      ItemObj->SetStringField(
+        TEXT("ownerCharacterId"), Item.OwnerCharacterId
+      );
+    }
+    if (Item.bOwnedByProxy) {
+      ItemObj->SetBoolField(TEXT("ownedByProxy"), true);
+
+      if (!Item.ProxyZoneName.IsEmpty()) {
+        ItemObj->SetStringField(TEXT("proxyZoneName"), Item.ProxyZoneName);
+      }
+      if (Item.bHasProxyTransform) {
+        ItemObj->SetObjectField(
+          TEXT("proxyTransform"),
+          URedwoodCommonGameSubsystem::SerializeWorldTransform(
+            Item.ProxyTransform
+          )
+        );
+      }
+    }
+    if (IsValid(Item.Data)) {
+      ItemObj->SetObjectField(TEXT("data"), Item.Data->GetRootObject());
+    }
+
+    ItemsArray.Add(MakeShareable(new FJsonValueObject(ItemObj)));
+  }
+
+  Payload->SetArrayField(TEXT("items"), ItemsArray);
+
+  EmitPersistentItemsRequest(
+    TEXT("realm:servers:session:items:save"), Payload, OnOutput
+  );
+}
+
+void URedwoodServerGameSubsystem::MovePersistentItemsToParent(
+  const TArray<FString> &ItemIds,
+  const FString &NewParentId,
+  FRedwoodPersistentItemsOutputDelegate OnOutput
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetArrayField(
+    TEXT("itemIds"), RedwoodMakeJsonStringArray(ItemIds)
+  );
+  Payload->SetStringField(TEXT("newParentId"), NewParentId);
+
+  EmitPersistentItemsRequest(
+    TEXT("realm:servers:session:items:move"), Payload, OnOutput
+  );
+}
+
+void URedwoodServerGameSubsystem::MovePersistentItemsToCharacter(
+  const TArray<FString> &ItemIds,
+  const FString &NewOwnerCharacterId,
+  FRedwoodPersistentItemsOutputDelegate OnOutput
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetArrayField(
+    TEXT("itemIds"), RedwoodMakeJsonStringArray(ItemIds)
+  );
+  Payload->SetStringField(
+    TEXT("newOwnerCharacterId"), NewOwnerCharacterId
+  );
+
+  EmitPersistentItemsRequest(
+    TEXT("realm:servers:session:items:move"), Payload, OnOutput
+  );
+}
+
+void URedwoodServerGameSubsystem::MovePersistentItemsToWorld(
+  const TArray<FString> &ItemIds,
+  const FTransform &Transform,
+  FRedwoodPersistentItemsOutputDelegate OnOutput,
+  const FString &InZoneName
+) {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetArrayField(
+    TEXT("itemIds"), RedwoodMakeJsonStringArray(ItemIds)
+  );
+
+  TSharedPtr<FJsonObject> NewOwnerProxy = MakeShareable(new FJsonObject);
+  if (!InZoneName.IsEmpty()) {
+    NewOwnerProxy->SetStringField(TEXT("zoneName"), InZoneName);
+  }
+  NewOwnerProxy->SetObjectField(
+    TEXT("transform"),
+    URedwoodCommonGameSubsystem::SerializeWorldTransform(Transform)
+  );
+  Payload->SetObjectField(TEXT("newOwnerProxy"), NewOwnerProxy);
+
+  EmitPersistentItemsRequest(
+    TEXT("realm:servers:session:items:move"), Payload, OnOutput
+  );
+}
+
+void URedwoodServerGameSubsystem::DeletePersistentItems(
+  const TArray<FString> &ItemIds, FRedwoodErrorOutputDelegate OnOutput
+) {
+  if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    OnOutput.ExecuteIfBound(TEXT("Sidecar is not connected"));
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetArrayField(
+    TEXT("itemIds"), RedwoodMakeJsonStringArray(ItemIds)
+  );
+
+  Sidecar->Emit(
+    TEXT("realm:servers:session:items:delete"),
+    Payload,
+    [OnOutput](auto Response) {
+      TSharedPtr<FJsonObject> MessageStruct = Response[0]->AsObject();
+      FString Error;
+      if (MessageStruct.IsValid()) {
+        MessageStruct->TryGetStringField(TEXT("error"), Error);
+      } else {
+        Error = TEXT("Invalid response from backend");
+      }
+
+      OnOutput.ExecuteIfBound(Error);
+    }
   );
 }
 

@@ -55,6 +55,29 @@ public:
   static USIOJsonObject *ParseSyncItemData(TSharedPtr<FJsonObject> SyncItemData
   );
 
+  static FTransform ParseWorldTransform(TSharedPtr<FJsonObject> TransformObj);
+  static TSharedPtr<FJsonObject> SerializeWorldTransform(
+    const FTransform &Transform
+  );
+
+  static FRedwoodPersistentItem ParsePersistentItem(
+    TSharedPtr<FJsonObject> ItemObj
+  );
+  static FRedwoodPersistentItemsOutput ParsePersistentItemsOutput(
+    TSharedPtr<FJsonObject> OutputObj
+  );
+
+  // Builds the containment tree a fetch answers with, recursing into
+  // each item's `children`. Outer owns the created nodes; pass the
+  // object that will hold onto the result so they aren't collected out
+  // from under it.
+  static URedwoodPersistentItemNode *ParsePersistentItemNode(
+    TSharedPtr<FJsonObject> ItemObj, UObject *Outer
+  );
+  static FRedwoodPersistentItemsTreeOutput ParsePersistentItemsTreeOutput(
+    TSharedPtr<FJsonObject> OutputObj, UObject *Outer
+  );
+
   static USIOJsonObject *SerializeBackendData(
     UObject *TargetObject, FString VariableName
   );

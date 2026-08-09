@@ -466,40 +466,191 @@ FRedwoodSyncItemMovement URedwoodCommonGameSubsystem::ParseSyncItemMovement(
     TSharedPtr<FJsonObject> TransformObj =
       SyncItemMovement->GetObjectField(TEXT("transform"));
     if (TransformObj.IsValid()) {
-      FVector Location;
-      FRotator Rotation;
-      FVector Scale;
-
-      TSharedPtr<FJsonObject> LocationObj =
-        TransformObj->GetObjectField(TEXT("location"));
-      if (LocationObj.IsValid()) {
-        Location.X = LocationObj->GetNumberField(TEXT("x"));
-        Location.Y = LocationObj->GetNumberField(TEXT("y"));
-        Location.Z = LocationObj->GetNumberField(TEXT("z"));
-      }
-
-      TSharedPtr<FJsonObject> RotationObj =
-        TransformObj->GetObjectField(TEXT("rotation"));
-      if (RotationObj.IsValid()) {
-        float Roll = RotationObj->GetNumberField(TEXT("x"));
-        float Pitch = RotationObj->GetNumberField(TEXT("y"));
-        float Yaw = RotationObj->GetNumberField(TEXT("z"));
-        Rotation = FRotator(Pitch, Yaw, Roll);
-      }
-
-      TSharedPtr<FJsonObject> ScaleObj =
-        TransformObj->GetObjectField(TEXT("scale"));
-      if (ScaleObj.IsValid()) {
-        Scale.X = ScaleObj->GetNumberField(TEXT("x"));
-        Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
-        Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
-      }
-
-      Movement.Transform = FTransform(Rotation, Location, Scale);
+      Movement.Transform = ParseWorldTransform(TransformObj);
     }
   }
 
   return Movement;
+}
+
+FTransform URedwoodCommonGameSubsystem::ParseWorldTransform(
+  TSharedPtr<FJsonObject> TransformObj
+) {
+  FVector Location;
+  FRotator Rotation;
+  FVector Scale;
+
+  if (TransformObj.IsValid()) {
+    TSharedPtr<FJsonObject> LocationObj =
+      TransformObj->GetObjectField(TEXT("location"));
+    if (LocationObj.IsValid()) {
+      Location.X = LocationObj->GetNumberField(TEXT("x"));
+      Location.Y = LocationObj->GetNumberField(TEXT("y"));
+      Location.Z = LocationObj->GetNumberField(TEXT("z"));
+    }
+
+    TSharedPtr<FJsonObject> RotationObj =
+      TransformObj->GetObjectField(TEXT("rotation"));
+    if (RotationObj.IsValid()) {
+      float Roll = RotationObj->GetNumberField(TEXT("x"));
+      float Pitch = RotationObj->GetNumberField(TEXT("y"));
+      float Yaw = RotationObj->GetNumberField(TEXT("z"));
+      Rotation = FRotator(Pitch, Yaw, Roll);
+    }
+
+    TSharedPtr<FJsonObject> ScaleObj =
+      TransformObj->GetObjectField(TEXT("scale"));
+    if (ScaleObj.IsValid()) {
+      Scale.X = ScaleObj->GetNumberField(TEXT("x"));
+      Scale.Y = ScaleObj->GetNumberField(TEXT("y"));
+      Scale.Z = ScaleObj->GetNumberField(TEXT("z"));
+    }
+  }
+
+  return FTransform(Rotation, Location, Scale);
+}
+
+TSharedPtr<FJsonObject> URedwoodCommonGameSubsystem::SerializeWorldTransform(
+  const FTransform &Transform
+) {
+  FVector Location = Transform.GetLocation();
+  FVector Rotation = Transform.GetRotation().Euler();
+  FVector Scale = Transform.GetScale3D();
+
+  TSharedPtr<FJsonObject> TransformObject = MakeShareable(new FJsonObject());
+  TSharedPtr<FJsonObject> LocationObject = MakeShareable(new FJsonObject());
+  TSharedPtr<FJsonObject> RotationObject = MakeShareable(new FJsonObject());
+  TSharedPtr<FJsonObject> ScaleObject = MakeShareable(new FJsonObject());
+  LocationObject->SetNumberField(TEXT("x"), Location.X);
+  LocationObject->SetNumberField(TEXT("y"), Location.Y);
+  LocationObject->SetNumberField(TEXT("z"), Location.Z);
+  RotationObject->SetNumberField(TEXT("x"), Rotation.X);
+  RotationObject->SetNumberField(TEXT("y"), Rotation.Y);
+  RotationObject->SetNumberField(TEXT("z"), Rotation.Z);
+  ScaleObject->SetNumberField(TEXT("x"), Scale.X);
+  ScaleObject->SetNumberField(TEXT("y"), Scale.Y);
+  ScaleObject->SetNumberField(TEXT("z"), Scale.Z);
+  TransformObject->SetObjectField(TEXT("location"), LocationObject);
+  TransformObject->SetObjectField(TEXT("rotation"), RotationObject);
+  TransformObject->SetObjectField(TEXT("scale"), ScaleObject);
+
+  return TransformObject;
+}
+
+FRedwoodPersistentItem URedwoodCommonGameSubsystem::ParsePersistentItem(
+  TSharedPtr<FJsonObject> ItemObj
+) {
+  FRedwoodPersistentItem Item;
+
+  if (ItemObj.IsValid()) {
+    Item.Id = ItemObj->GetStringField(TEXT("id"));
+    Item.TypeId = ItemObj->GetStringField(TEXT("typeId"));
+
+    // the ownership fields are null (not just missing) for all but one
+    // of parentId/ownerCharacterId/ownerProxyId; TryGetStringField
+    // leaves the member empty for both null and missing
+    ItemObj->TryGetStringField(TEXT("parentId"), Item.ParentId);
+    ItemObj->TryGetStringField(TEXT("ownerCharacterId"), Item.OwnerCharacterId);
+    ItemObj->TryGetStringField(TEXT("ownerProxyId"), Item.OwnerProxyId);
+    ItemObj->TryGetStringField(TEXT("proxyZoneName"), Item.ProxyZoneName);
+
+    const TSharedPtr<FJsonObject> *TransformObj;
+    if (ItemObj->TryGetObjectField(TEXT("proxyTransform"), TransformObj)) {
+      Item.bHasProxyTransform = true;
+      Item.ProxyTransform = ParseWorldTransform(*TransformObj);
+    }
+
+    const TSharedPtr<FJsonObject> *DataObj;
+    if (ItemObj->TryGetObjectField(TEXT("data"), DataObj)) {
+      Item.Data = NewObject<USIOJsonObject>();
+      Item.Data->SetRootObject(*DataObj);
+    }
+
+  }
+
+  return Item;
+}
+
+URedwoodPersistentItemNode *URedwoodCommonGameSubsystem::
+  ParsePersistentItemNode(TSharedPtr<FJsonObject> ItemObj, UObject *Outer) {
+  if (!ItemObj.IsValid()) {
+    return nullptr;
+  }
+
+  URedwoodPersistentItemNode *Node = NewObject<URedwoodPersistentItemNode>(
+    Outer ? Outer : (UObject *)GetTransientPackage()
+  );
+  Node->Item = ParsePersistentItem(ItemObj);
+  ItemObj->TryGetBoolField(
+    TEXT("childrenTruncated"), Node->bChildrenTruncated
+  );
+
+  const TArray<TSharedPtr<FJsonValue>> *ChildrenArray;
+  if (ItemObj->TryGetArrayField(TEXT("children"), ChildrenArray)) {
+    for (const TSharedPtr<FJsonValue> &ChildValue : *ChildrenArray) {
+      if (ChildValue->Type == EJson::Object) {
+        URedwoodPersistentItemNode *Child =
+          ParsePersistentItemNode(ChildValue->AsObject(), Outer);
+        if (Child) {
+          Node->Children.Add(Child);
+        }
+      }
+    }
+  }
+
+  return Node;
+}
+
+FRedwoodPersistentItemsTreeOutput
+URedwoodCommonGameSubsystem::ParsePersistentItemsTreeOutput(
+  TSharedPtr<FJsonObject> OutputObj, UObject *Outer
+) {
+  FRedwoodPersistentItemsTreeOutput Output;
+
+  if (OutputObj.IsValid()) {
+    OutputObj->TryGetStringField(TEXT("error"), Output.Error);
+
+    const TArray<TSharedPtr<FJsonValue>> *ItemsArray;
+    if (OutputObj->TryGetArrayField(TEXT("items"), ItemsArray)) {
+      for (const TSharedPtr<FJsonValue> &ItemValue : *ItemsArray) {
+        if (ItemValue->Type == EJson::Object) {
+          URedwoodPersistentItemNode *Node =
+            ParsePersistentItemNode(ItemValue->AsObject(), Outer);
+          if (Node) {
+            Output.Items.Add(Node);
+          }
+        }
+      }
+    }
+  } else {
+    Output.Error = TEXT("Invalid response from backend");
+  }
+
+  return Output;
+}
+
+FRedwoodPersistentItemsOutput
+URedwoodCommonGameSubsystem::ParsePersistentItemsOutput(
+  TSharedPtr<FJsonObject> OutputObj
+) {
+  FRedwoodPersistentItemsOutput Output;
+
+  if (OutputObj.IsValid()) {
+    OutputObj->TryGetStringField(TEXT("error"), Output.Error);
+
+    const TArray<TSharedPtr<FJsonValue>> *ItemsArray;
+    if (OutputObj->TryGetArrayField(TEXT("items"), ItemsArray)) {
+      for (const TSharedPtr<FJsonValue> &ItemValue : *ItemsArray) {
+        if (ItemValue->Type == EJson::Object) {
+          Output.Items.Add(ParsePersistentItem(ItemValue->AsObject()));
+        }
+      }
+    }
+  } else {
+    Output.Error = TEXT("Invalid response from backend");
+  }
+
+  return Output;
 }
 
 USIOJsonObject *URedwoodCommonGameSubsystem::ParseSyncItemData(

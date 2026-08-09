@@ -138,6 +138,65 @@ public:
     const FString &Key, FRedwoodGetSaveGameOutputDelegate OnComplete
   );
 
+  // Persistent item row operations (the opt-in inventory workflow).
+  // These act on individual PersistentItem rows in the realm database:
+  // items owned by characters (ownerCharacterId), items contained in
+  // other items (parentId; e.g. a `character-equipped-inventory` item
+  // whose children are the actual pieces of gear), or items owned by
+  // this server's proxy (ownerProxyId; i.e. spawned in the world).
+  // World items are still primarily written through the
+  // URedwoodSyncComponent persistence flow; use these functions to
+  // build inventory trees and to move items between the world and
+  // inventories. They require the backend/sidecar connection.
+  // Answers with the matched items as containment trees; see
+  // FRedwoodPersistentItemsTreeOutput for how roots are chosen
+  void FetchPersistentItems(
+    const FRedwoodPersistentItemsFilter &Filter,
+    FRedwoodPersistentItemsTreeOutputDelegate OnOutput
+  );
+
+  // Convenience wrapper: fetches every item owned by the character
+  // along with all descendant items (the full inventory tree)
+  void FetchCharacterPersistentItems(
+    const FString &CharacterId,
+    FRedwoodPersistentItemsTreeOutputDelegate OnOutput
+  );
+
+  void SavePersistentItems(
+    const TArray<FRedwoodSavePersistentItem> &Items,
+    FRedwoodPersistentItemsOutputDelegate OnOutput
+  );
+
+  void MovePersistentItemsToParent(
+    const TArray<FString> &ItemIds,
+    const FString &NewParentId,
+    FRedwoodPersistentItemsOutputDelegate OnOutput
+  );
+
+  void MovePersistentItemsToCharacter(
+    const TArray<FString> &ItemIds,
+    const FString &NewOwnerCharacterId,
+    FRedwoodPersistentItemsOutputDelegate OnOutput
+  );
+
+  // Moves the items into the world of this server's proxy (e.g. a
+  // character dropping an item on the ground). The caller is
+  // responsible for spawning the actor afterwards; set the
+  // URedwoodSyncComponent's RedwoodId to the item's id so the sync
+  // flow updates the same row. InZoneName defaults to this server's
+  // zone when empty.
+  void MovePersistentItemsToWorld(
+    const TArray<FString> &ItemIds,
+    const FTransform &Transform,
+    FRedwoodPersistentItemsOutputDelegate OnOutput,
+    const FString &InZoneName = TEXT("")
+  );
+
+  // Soft-deletes the items and their entire containment trees
+  void DeletePersistentItems(
+    const TArray<FString> &ItemIds, FRedwoodErrorOutputDelegate OnOutput
+  );
+
   void GetPartyById(
     const FString &PartyId, FRedwoodGetPartyOutputDelegate OnOutput
   );
@@ -192,6 +251,18 @@ private:
 
   void InitializeSidecar();
   void SendUpdateToSidecar();
+
+  void EmitPersistentItemsRequest(
+    const FString &EventName,
+    TSharedPtr<FJsonObject> Payload,
+    FRedwoodPersistentItemsOutputDelegate OnOutput
+  );
+
+  void EmitPersistentItemsTreeRequest(
+    const FString &EventName,
+    TSharedPtr<FJsonObject> Payload,
+    FRedwoodPersistentItemsTreeOutputDelegate OnOutput
+  );
 
   void GetParty(
     const FString &PartyId,

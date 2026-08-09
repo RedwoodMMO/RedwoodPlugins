@@ -12,6 +12,7 @@
 #include "RedwoodTypesGlobalData.h"
 #include "RedwoodTypesGuilds.h"
 #include "RedwoodTypesParties.h"
+#include "RedwoodTypesPersistentItems.h"
 #include "RedwoodTypesPlayers.h"
 #include "RedwoodTypesPlayersGuilds.h"
 #include "RedwoodTypesRealms.h"
