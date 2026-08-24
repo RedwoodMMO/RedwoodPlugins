@@ -30,7 +30,6 @@ public class RedwoodChat : ModuleRules {
       new string[] {
         "CoreUObject",
         "Engine",
-        "RedwoodXMPP",
         "Json",
       }
     );
