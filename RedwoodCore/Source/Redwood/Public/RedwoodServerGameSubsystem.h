@@ -162,6 +162,27 @@ public:
     FRedwoodPersistentItemsTreeOutputDelegate OnOutput
   );
 
+  /**
+   * Send a nearby chat message on behalf of a character on this server.
+   *
+   * Nearby chat is the one channel a client cannot send: it needs a position
+   * the server vouches for and an audience worked out from the world, and a
+   * client can supply neither honestly. Call this from your Server RPC once
+   * the player has typed something.
+   *
+   * `Location` is where they are, and `RecipientCharacterIds` is who is close
+   * enough to hear it. You decide who that is, because you know what "close
+   * enough" means in your game and the engine already tracks who can see whom.
+   * The realm records the message and delivers it to those characters, minus
+   * anyone who has turned nearby chat off.
+   */
+  void SendNearbyChatMessage(
+    const FString &SenderCharacterId,
+    const FString &Message,
+    const FVector &Location,
+    const TArray<FString> &RecipientCharacterIds
+  );
+
   void SavePersistentItems(
     const TArray<FRedwoodSavePersistentItem> &Items,
     FRedwoodPersistentItemsOutputDelegate OnOutput

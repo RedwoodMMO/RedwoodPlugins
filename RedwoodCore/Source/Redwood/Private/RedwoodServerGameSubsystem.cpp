@@ -2300,6 +2300,54 @@ void URedwoodServerGameSubsystem::FetchCharacterPersistentItems(
   FetchPersistentItems(Filter, OnOutput);
 }
 
+void URedwoodServerGameSubsystem::SendNearbyChatMessage(
+  const FString &SenderCharacterId,
+  const FString &Message,
+  const FVector &Location,
+  const TArray<FString> &RecipientCharacterIds
+) {
+  if (!Sidecar.IsValid() || !Sidecar->bIsConnected) {
+    UE_LOG(
+      LogRedwood,
+      Error,
+      TEXT("Can't send a nearby chat message without a sidecar connection")
+    );
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("id"), InstanceId);
+  Payload->SetStringField(TEXT("senderCharacterId"), SenderCharacterId);
+  Payload->SetStringField(TEXT("body"), Message);
+  Payload->SetNumberField(TEXT("x"), Location.X);
+  Payload->SetNumberField(TEXT("y"), Location.Y);
+  Payload->SetNumberField(TEXT("z"), Location.Z);
+
+  TArray<TSharedPtr<FJsonValue>> Recipients;
+  for (const FString &RecipientId : RecipientCharacterIds) {
+    Recipients.Add(MakeShareable(new FJsonValueString(RecipientId)));
+  }
+  Payload->SetArrayField(TEXT("recipientCharacterIds"), Recipients);
+
+  Sidecar->Emit(
+    TEXT("realm:chat:nearby:send"),
+    Payload,
+    [](auto Response) {
+      TSharedPtr<FJsonObject> Object = Response[0]->AsObject();
+      FString Error;
+      Object->TryGetStringField(TEXT("error"), Error);
+      if (!Error.IsEmpty()) {
+        UE_LOG(
+          LogRedwood,
+          Error,
+          TEXT("Failed to send nearby chat message: %s"),
+          *Error
+        );
+      }
+    }
+  );
+}
+
 void URedwoodServerGameSubsystem::SavePersistentItems(
   const TArray<FRedwoodSavePersistentItem> &Items,
   FRedwoodPersistentItemsOutputDelegate OnOutput

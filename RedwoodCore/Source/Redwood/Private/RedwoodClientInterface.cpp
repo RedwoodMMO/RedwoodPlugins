@@ -2757,19 +2757,30 @@ void URedwoodClientInterface::SetCharacterData(
 void URedwoodClientInterface::SetSelectedCharacter(FString CharacterId) {
   SelectedCharacterId = CharacterId;
 
-  if (!CurrentParty.bValid || !Realm.IsValid() || !Realm->bIsConnected) {
-    return;
+  // Both notifications used to sit behind a `CurrentParty.bValid` check, so the
+  // servers only heard about a character selection when the player happened to
+  // be in a party. The realm binds the connection to this character and
+  // character-scoped features depend on that binding, so it has to be told
+  // every time. Each connection is now guarded independently.
+  if (Realm.IsValid() && Realm->bIsConnected) {
+    TSharedPtr<FJsonObject> RealmPayload = MakeShareable(new FJsonObject);
+    RealmPayload->SetStringField(TEXT("playerId"), PlayerId);
+    RealmPayload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+
+    Realm->Emit(TEXT("realm:characters:select"), RealmPayload);
   }
 
-  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-  Payload->SetStringField(TEXT("playerId"), PlayerId);
-  Payload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+  if (Director.IsValid() && Director->bIsConnected &&
+      !CurrentRealmId.IsEmpty()) {
+    TSharedPtr<FJsonObject> DirectorPayload = MakeShareable(new FJsonObject);
+    DirectorPayload->SetStringField(TEXT("playerId"), PlayerId);
+    DirectorPayload->SetStringField(TEXT("characterId"), SelectedCharacterId);
+    DirectorPayload->SetStringField(TEXT("realmId"), CurrentRealmId);
 
-  Realm->Emit(TEXT("realm:parties:select-character"), Payload);
-
-  Payload->SetStringField(TEXT("realmId"), CurrentRealmId);
-
-  Director->Emit(TEXT("director:players:online-state:set-character"), Payload);
+    Director->Emit(
+      TEXT("director:players:online-state:set-character"), DirectorPayload
+    );
+  }
 }
 
 void URedwoodClientInterface::JoinMatchmaking(

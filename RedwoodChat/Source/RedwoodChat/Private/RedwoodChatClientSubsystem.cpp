@@ -1,10 +1,71 @@
 // Copyright Incanta Games. All Rights Reserved.
 
 #include "RedwoodChatClientSubsystem.h"
-#include "RedwoodChatSettings.h"
 #include "RedwoodClientGameSubsystem.h"
 #include "RedwoodClientInterface.h"
-#include "XmppModule.h"
+
+namespace {
+
+/** Pull an ISO timestamp out of a payload, falling back to now. */
+FDateTime ParseTimestamp(const TSharedPtr<FJsonObject> &Object) {
+  FString Raw;
+  FDateTime Parsed;
+  if (Object->TryGetStringField(TEXT("createdAt"), Raw) &&
+      FDateTime::ParseIso8601(*Raw, Parsed)) {
+    return Parsed;
+  }
+  return FDateTime::UtcNow();
+}
+
+FString ErrorOf(const TSharedPtr<FJsonObject> &Object) {
+  FString Error;
+  Object->TryGetStringField(TEXT("error"), Error);
+  return Error;
+}
+
+ERedwoodChatRoomJoinPolicy ParseJoinPolicy(const FString &Raw) {
+  if (Raw == TEXT("code")) {
+    return ERedwoodChatRoomJoinPolicy::Code;
+  }
+  if (Raw == TEXT("open")) {
+    return ERedwoodChatRoomJoinPolicy::Open;
+  }
+  return ERedwoodChatRoomJoinPolicy::Invite;
+}
+
+/** Rooms come back the same shape from both the list and the invite list. */
+TArray<FRedwoodChatRoom> ParseRooms(const TSharedPtr<FJsonObject> &Object) {
+  TArray<FRedwoodChatRoom> Rooms;
+
+  const TArray<TSharedPtr<FJsonValue>> *Values;
+  if (!Object->TryGetArrayField(TEXT("rooms"), Values)) {
+    return Rooms;
+  }
+
+  for (const TSharedPtr<FJsonValue> &Value : *Values) {
+    const TSharedPtr<FJsonObject> Entry = Value->AsObject();
+    if (!Entry.IsValid()) {
+      continue;
+    }
+
+    FRedwoodChatRoom Room;
+    Entry->TryGetStringField(TEXT("channelKey"), Room.RoomId);
+    Entry->TryGetStringField(TEXT("name"), Room.Name);
+    Entry->TryGetNumberField(TEXT("memberCount"), Room.MemberCount);
+    Entry->TryGetNumberField(TEXT("role"), Room.Role);
+    Entry->TryGetStringField(TEXT("joinCode"), Room.JoinCode);
+
+    FString Policy;
+    Entry->TryGetStringField(TEXT("joinPolicy"), Policy);
+    Room.JoinPolicy = ParseJoinPolicy(Policy);
+
+    Rooms.Add(Room);
+  }
+
+  return Rooms;
+}
+
+} // namespace
 
 void URedwoodClientChatSubsystem::Initialize(
   FSubsystemCollectionBase &Collection
@@ -13,12 +74,11 @@ void URedwoodClientChatSubsystem::Initialize(
 }
 
 void URedwoodClientChatSubsystem::Deinitialize() {
+  Director.Reset();
+  Realm.Reset();
+  bInitialized = false;
+
   Super::Deinitialize();
-
-  FRedwoodXmppModule &Module =
-    FModuleManager::GetModuleChecked<FRedwoodXmppModule>("RedwoodXMPP");
-
-  Module.Deinit();
 }
 
 void URedwoodClientChatSubsystem::InitializeChatConnection(
@@ -31,548 +91,627 @@ void URedwoodClientChatSubsystem::InitializeChatConnection(
 
   URedwoodClientGameSubsystem *GameSubsystem =
     GetGameInstance()->GetSubsystem<URedwoodClientGameSubsystem>();
-
-  if (GameSubsystem) {
-    URedwoodClientInterface *ClientInterface =
-      GameSubsystem->GetClientInterface();
-
-    if (ClientInterface) {
-      if (!ClientInterface->IsDirectorConnected()) {
-        OnOutput.ExecuteIfBound(TEXT("Not connected to the Director."));
-        return;
-      }
-
-      Director = ClientInterface->GetDirectorConnection();
-      PlayerId = ClientInterface->GetPlayerId();
-      RealmId = ClientInterface->GetRealmId();
-      CharacterId = ClientInterface->GetCharacterId();
-      Nickname = ClientInterface->GetNickname();
-      CharacterName = ClientInterface->GetCharacterName();
-
-      TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-      Payload->SetStringField(TEXT("playerId"), PlayerId);
-
-      Director->Emit(
-        TEXT("player:get-text-chat-credentials"),
-        Payload,
-        [this, OnOutput](auto Response) {
-          TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
-
-          FString Error = MessageObject->GetStringField(TEXT("error"));
-
-          if (!Error.IsEmpty()) {
-            OnOutput.ExecuteIfBound(Error);
-            return;
-          }
-
-          XmppPassword = MessageObject->GetStringField(TEXT("xmppPassword"));
-
-          bGuildsScopedToRealm =
-            MessageObject->GetBoolField(TEXT("guildsScopedToRealm"));
-
-          FXmppServer XmppServer;
-          XmppServer.ServerAddr = URedwoodChatSettings::GetXmppServerUri();
-          XmppServer.Domain = XmppServer.ServerAddr;
-
-          FRedwoodXmppModule &Module =
-            FModuleManager::GetModuleChecked<FRedwoodXmppModule>("RedwoodXMPP");
-
-          if (!Module.IsXmppEnabled()) {
-            OnOutput.ExecuteIfBound(
-              TEXT("XMPP is not enabled in the UE XMPP module.")
-            );
-            return;
-          }
-
-          Module.Init();
-
-          XmppPlayerConnection =
-            Module.CreateConnection(PlayerId).ToSharedPtr();
-          XmppCharacterConnection =
-            Module.CreateConnection(CharacterId).ToSharedPtr();
-
-          XmppPlayerConnection->OnLoginComplete().AddLambda(
-            [this, XmppServer, OnOutput](
-              const FXmppUserJid &InUserJid,
-              bool bWasSuccess,
-              const FString &Error
-            ) {
-              if (bWasSuccess) {
-                XmppPlayerConnection->OnLoginComplete().AddLambda(
-                  [this, OnOutput](
-                    const FXmppUserJid &InUserJidCharacter,
-                    bool bWasSuccessCharacter,
-                    const FString &ErrorCharacter
-                  ) {
-                    if (bWasSuccessCharacter) {
-                      bInitialized = true;
-                      OnOutput.ExecuteIfBound(TEXT(""));
-                      InitHandlers();
-
-                      FXmppUserPresence Presence;
-                      Presence.bIsAvailable = true;
-                      Presence.Status = EXmppPresenceStatus::Online;
-                      XmppPlayerConnection->Presence()->UpdatePresence(Presence
-                      );
-                      XmppCharacterConnection->Presence()->UpdatePresence(
-                        Presence
-                      );
-                    } else {
-                      OnOutput.ExecuteIfBound(ErrorCharacter);
-                    }
-
-                    XmppCharacterConnection->OnLoginComplete().Clear();
-                  }
-                );
-
-                XmppCharacterConnection->SetServer(XmppServer);
-                XmppCharacterConnection->Login(CharacterId, XmppPassword);
-              } else {
-                OnOutput.ExecuteIfBound(Error);
-              }
-
-              XmppPlayerConnection->OnLoginComplete().Clear();
-            }
-          );
-
-          XmppPlayerConnection->SetServer(XmppServer);
-          XmppPlayerConnection->Login(PlayerId, XmppPassword);
-        }
-      );
-    } else {
-      OnOutput.ExecuteIfBound(TEXT("Redwood Client Interface not found."));
-    }
-  } else {
+  if (!GameSubsystem) {
     OnOutput.ExecuteIfBound(TEXT("Redwood Client Game Subsystem not found."));
+    return;
   }
+
+  URedwoodClientInterface *ClientInterface =
+    GameSubsystem->GetClientInterface();
+  if (!ClientInterface) {
+    OnOutput.ExecuteIfBound(TEXT("Redwood Client Interface not found."));
+    return;
+  }
+
+  if (!ClientInterface->IsDirectorConnected()) {
+    OnOutput.ExecuteIfBound(TEXT("Not connected to the Director."));
+    return;
+  }
+
+  // No credentials to fetch and no second server to log into: chat listens on
+  // the connections the player already has.
+  PlayerId = ClientInterface->GetPlayerId();
+  Director = ClientInterface->GetDirectorConnection();
+  Realm = ClientInterface->GetRealmConnection();
+
+  BindReceive(Director, false);
+
+  // The realm connection is optional here. A player sitting in the main menu
+  // has no realm and no character, and correctly belongs to no character-space
+  // channel; realm chat starts working once they are in one.
+  if (Realm.IsValid()) {
+    BindReceive(Realm, true);
+  }
+
+  bInitialized = true;
+  OnOutput.ExecuteIfBound(TEXT(""));
 }
 
 bool URedwoodClientChatSubsystem::IsConnected() {
-  return XmppPlayerConnection.IsValid() && XmppCharacterConnection.IsValid() &&
-    XmppPlayerConnection->GetLoginStatus() == EXmppLoginStatus::LoggedIn &&
-    XmppCharacterConnection->GetLoginStatus() == EXmppLoginStatus::LoggedIn;
+  return bInitialized && Director.IsValid() && Director->bIsConnected;
 }
 
-void URedwoodClientChatSubsystem::InitHandlers() {
-  if (XmppPlayerConnection->PrivateChat().IsValid()) {
-    XmppPlayerConnection->PrivateChat()->OnReceiveChat().AddUObject(
-      this, &URedwoodClientChatSubsystem::HandlePlayerPrivateChatReceiveMessage
-    );
-  }
-
-  if (XmppPlayerConnection->MultiUserChat().IsValid()) {
-    XmppPlayerConnection->MultiUserChat()->OnRoomChatReceived().AddUObject(
-      this, &URedwoodClientChatSubsystem::HandleRoomChatReceived
-    );
-    XmppPlayerConnection->MultiUserChat()->OnJoinPrivateRoom().AddUObject(
-      this, &URedwoodClientChatSubsystem::HandleJoinPrivateRoom
-    );
-  }
-
-  if (XmppCharacterConnection->PrivateChat().IsValid()) {
-    XmppCharacterConnection->PrivateChat()->OnReceiveChat().AddUObject(
-      this,
-      &URedwoodClientChatSubsystem::HandleCharacterPrivateChatReceiveMessage
-    );
-  }
-
-  if (XmppCharacterConnection->MultiUserChat().IsValid()) {
-    XmppCharacterConnection->MultiUserChat()->OnRoomChatReceived().AddUObject(
-      this, &URedwoodClientChatSubsystem::HandleRoomChatReceived
-    );
-    XmppCharacterConnection->MultiUserChat()->OnJoinPrivateRoom().AddUObject(
-      this, &URedwoodClientChatSubsystem::HandleJoinPrivateRoom
-    );
+bool URedwoodClientChatSubsystem::IsCharacterSpace(ERedwoodChatRoomType Type) {
+  switch (Type) {
+    case ERedwoodChatRoomType::Realm:
+    case ERedwoodChatRoomType::Party:
+    case ERedwoodChatRoomType::Proxy:
+    case ERedwoodChatRoomType::Shard:
+    case ERedwoodChatRoomType::Nearby:
+    case ERedwoodChatRoomType::Team:
+      return true;
+    default:
+      // Guild and account rooms are account space; Custom and Direct exist in
+      // both and are decided by the caller.
+      return false;
   }
 }
 
-void URedwoodClientChatSubsystem::HandlePlayerPrivateChatReceiveMessage(
-  const TSharedRef<IXmppConnection> &Connection,
-  const FXmppUserJid &InUserJid,
-  const TSharedRef<FXmppChatMessage> &Message
+TSharedPtr<FSocketIONative> URedwoodClientChatSubsystem::ConnectionFor(
+  ERedwoodChatRoomType Type, bool bCharacterSpace
+) const {
+  const bool bUseRealm = IsCharacterSpace(Type) || bCharacterSpace;
+  return bUseRealm ? Realm : Director;
+}
+
+TSharedPtr<FJsonObject> URedwoodClientChatSubsystem::MakeRequest(
+  bool bCharacterSpace
+) const {
+  TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
+  Payload->SetStringField(TEXT("playerId"), PlayerId);
+  return Payload;
+}
+
+void URedwoodClientChatSubsystem::BindReceive(
+  TSharedPtr<FSocketIONative> Connection, bool bCharacterSpace
 ) {
-  FRedwoodChatIdentity SenderIdentity;
-  SenderIdentity.PlayerId = InUserJid.Id;
-
-  FString Body = Message->Body;
-  if (Body.IsEmpty()) {
+  if (!Connection.IsValid()) {
     return;
   }
 
-  TSharedPtr<FJsonObject> MessageObject;
-  TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
-  if (!FJsonSerializer::Deserialize(Reader, MessageObject)) {
-    return;
-  }
-
-  if (!MessageObject->TryGetStringField(TEXT("nickname"), SenderIdentity.Nickname) || SenderIdentity.Nickname.IsEmpty()) {
-    return;
-  }
-
-  FString MessageText;
-  if (!MessageObject->TryGetStringField(TEXT("message"), MessageText) || MessageText.IsEmpty()) {
-    return;
-  }
-
-  OnPlayerPrivateChatReceived.Broadcast(
-    SenderIdentity, Message->Timestamp, MessageText
-  );
-}
-
-void URedwoodClientChatSubsystem::HandleCharacterPrivateChatReceiveMessage(
-  const TSharedRef<IXmppConnection> &Connection,
-  const FXmppUserJid &InUserJid,
-  const TSharedRef<FXmppChatMessage> &Message
-) {
-  FRedwoodChatIdentity SenderIdentity;
-  SenderIdentity.PlayerId = InUserJid.Id;
-
-  FString Body = Message->Body;
-  if (Body.IsEmpty()) {
-    return;
-  }
-
-  TSharedPtr<FJsonObject> MessageObject;
-  TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
-  if (!FJsonSerializer::Deserialize(Reader, MessageObject)) {
-    return;
-  }
-
-  if (!MessageObject->TryGetStringField(TEXT("nickname"), SenderIdentity.Nickname) || SenderIdentity.Nickname.IsEmpty()) {
-    return;
-  }
-
-  FString MessageText;
-  if (!MessageObject->TryGetStringField(TEXT("message"), MessageText) || MessageText.IsEmpty()) {
-    return;
-  }
-
-  OnCharacterPrivateChatReceived.Broadcast(
-    SenderIdentity, Message->Timestamp, MessageText
-  );
-}
-
-void URedwoodClientChatSubsystem::HandleJoinPrivateRoom(
-  const TSharedRef<IXmppConnection> &Connection,
-  bool bSuccess,
-  const FString &RoomId,
-  const FString &Error
-) {
-  if (bSuccess) {
-    FString RoomTypeString;
-    FString RoomIdString;
-    RoomId.Split(TEXT("|"), &RoomTypeString, &RoomIdString);
-
-    FRedwoodChatRoomIdentity RoomIdentity;
-    RoomIdentity.CompleteRoomId = RoomId;
-    RoomIdentity.Type =
-      URedwoodClientChatSubsystem::ParseRoomType(RoomTypeString);
-    RoomIdentity.RedwoodId = RoomIdString;
-    // TODO: RoomIdentity.Name
-
-    OnJoinPrivateRoom.Broadcast(RoomIdentity);
-  } else {
-    UE_LOG(
-      LogRedwoodChat, Error, TEXT("Failed to join private room: %s"), *Error
-    );
-  }
-}
-
-void URedwoodClientChatSubsystem::HandleRoomChatReceived(
-  const TSharedRef<IXmppConnection> &Connection,
-  const FString &RoomId,
-  const FXmppUserJid &InUserJid,
-  const TSharedRef<FXmppChatMessage> &ChatMsg
-) {
-  FString RoomTypeString;
-  FString RoomIdString;
-  RoomId.Split(TEXT("|"), &RoomTypeString, &RoomIdString);
-
-  FString Body = ChatMsg->Body;
-  if (Body.IsEmpty()) {
-    return;
-  }
-
-  TSharedPtr<FJsonObject> MessageObject;
-  TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
-  if (!FJsonSerializer::Deserialize(Reader, MessageObject)) {
-    return;
-  }
-
-  FString SenderPlayerId;
-  if (!MessageObject->TryGetStringField(TEXT("playerId"), SenderPlayerId) || SenderPlayerId.IsEmpty()) {
-    return;
-  }
-
-  FString MessageText;
-  if (!MessageObject->TryGetStringField(TEXT("message"), MessageText) || MessageText.IsEmpty()) {
-    return;
-  }
-
-  bool bHasLocation = false;
-  FVector Location;
-  FString LocationString;
-  if (MessageObject->TryGetStringField(TEXT("location"), LocationString) && !LocationString.IsEmpty()) {
-    if (Location.InitFromString(LocationString)) {
-      bHasLocation = true;
+  Connection->OnEvent(
+    TEXT("chat:received"),
+    [this, bCharacterSpace](
+      const FString &Event, const TSharedPtr<FJsonValue> &Message
+    ) {
+      const TSharedPtr<FJsonObject> Object = Message->AsObject();
+      if (Object.IsValid()) {
+        HandleReceived(Object, bCharacterSpace);
+      }
     }
+  );
+}
+
+void URedwoodClientChatSubsystem::HandleReceived(
+  const TSharedPtr<FJsonObject> &Message, bool bCharacterSpace
+) {
+  FString ChannelTypeString;
+  Message->TryGetStringField(TEXT("channelType"), ChannelTypeString);
+  const ERedwoodChatRoomType Type = ParseRoomType(ChannelTypeString);
+
+  FRedwoodChatIdentity Sender;
+  Message->TryGetStringField(TEXT("senderId"), Sender.PlayerId);
+  Message->TryGetStringField(TEXT("senderName"), Sender.Nickname);
+
+  FString Body;
+  Message->TryGetStringField(TEXT("body"), Body);
+
+  const FDateTime Timestamp = ParseTimestamp(Message);
+
+  // A one-to-one message is reported by the space it arrived in, which is what
+  // tells the game whether it came from an account or a character.
+  if (Type == ERedwoodChatRoomType::Direct) {
+    if (bCharacterSpace) {
+      OnCharacterPrivateChatReceived.Broadcast(Sender, Timestamp, Body);
+    } else {
+      OnPlayerPrivateChatReceived.Broadcast(Sender, Timestamp, Body);
+    }
+    return;
   }
 
-  FRedwoodChatRoomIdentity RoomIdentity;
-  RoomIdentity.CompleteRoomId = bHasLocation ? TEXT("Nearby") : RoomId;
-  RoomIdentity.Type = bHasLocation
-    ? ERedwoodChatRoomType::Nearby
-    : URedwoodClientChatSubsystem::ParseRoomType(RoomTypeString);
-  RoomIdentity.RedwoodId = RoomIdString;
-  // TODO: RoomIdentity.Name
+  FRedwoodChatRoomIdentity Room;
+  Message->TryGetStringField(TEXT("channelKey"), Room.RedwoodId);
+  Room.Type = Type;
+  Room.CompleteRoomId =
+    FString::Printf(TEXT("%s|%s"), *ChannelTypeString, *Room.RedwoodId);
 
-  FRedwoodChatIdentity SenderIdentity;
-  SenderIdentity.PlayerId = SenderPlayerId;
-  SenderIdentity.Nickname = InUserJid.Resource;
+  // Nearby carries where the sender was standing, stamped by the game server
+  // rather than claimed by their client.
+  FVector Location = FVector::ZeroVector;
+  const TSharedPtr<FJsonObject> *Position;
+  if (Message->TryGetObjectField(TEXT("position"), Position)) {
+    (*Position)->TryGetNumberField(TEXT("x"), Location.X);
+    (*Position)->TryGetNumberField(TEXT("y"), Location.Y);
+    (*Position)->TryGetNumberField(TEXT("z"), Location.Z);
+  }
 
-  OnRoomChatReceived.Broadcast(
-    RoomIdentity, SenderIdentity, ChatMsg->Timestamp, MessageText, Location
-  );
+  OnRoomChatReceived.Broadcast(Room, Sender, Timestamp, Body, Location);
 }
 
 void URedwoodClientChatSubsystem::JoinRoom(
   ERedwoodChatRoomType Type, FString Id
 ) {
-  if (!IsConnected()) {
-    // TODO log error
-    return;
-  }
-
   if (Type == ERedwoodChatRoomType::Custom) {
     UE_LOG(
       LogRedwoodChat,
       Error,
-      TEXT("Use URedwoodClientChatSubsystem::JoinCustomRoom when Type == Custom"
-      )
+      TEXT("Use JoinCustomRoom for custom rooms; they are joined by name.")
     );
     return;
   }
 
-  bool bCharacterRoom =
-    (bGuildsScopedToRealm && Type == ERedwoodChatRoomType::Guild) ||
-    Type == ERedwoodChatRoomType::Party ||
-    Type == ERedwoodChatRoomType::Realm ||
-    Type == ERedwoodChatRoomType::Proxy ||
-    Type == ERedwoodChatRoomType::Shard || Type == ERedwoodChatRoomType::Team ||
-    Type == ERedwoodChatRoomType::Nearby;
+  TSharedPtr<FSocketIONative> Connection = ConnectionFor(Type, false);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    UE_LOG(LogRedwoodChat, Error, TEXT("Not connected for that channel."));
+    return;
+  }
 
-  FString RoomTypeString = URedwoodClientChatSubsystem::SerializeRoomType(Type);
-  FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
-  (bCharacterRoom ? XmppCharacterConnection : XmppPlayerConnection)
-    ->MultiUserChat()
-    ->JoinPrivateRoom(RoomId, Nickname, FString());
+  TSharedPtr<FJsonObject> Payload = MakeRequest(IsCharacterSpace(Type));
+  Payload->SetStringField(TEXT("channelType"), SerializeRoomType(Type));
+  Payload->SetStringField(TEXT("channelKey"), Id);
+
+  // Subscribing is a no-op that succeeds on channels that are always
+  // delivered, so a caller does not have to know which kind this is.
+  Connection->Emit(
+    TEXT("chat:subscribe"),
+    Payload,
+    [this, Type, Id](auto Response) {
+      const FString Error = ErrorOf(Response[0]->AsObject());
+      if (!Error.IsEmpty()) {
+        UE_LOG(LogRedwoodChat, Error, TEXT("Failed to join: %s"), *Error);
+        return;
+      }
+
+      FRedwoodChatRoomIdentity Room;
+      Room.Type = Type;
+      Room.RedwoodId = Id;
+      Room.CompleteRoomId =
+        FString::Printf(TEXT("%s|%s"), *SerializeRoomType(Type), *Id);
+
+      OnJoinPrivateRoom.Broadcast(Room);
+    }
+  );
 }
 
 void URedwoodClientChatSubsystem::JoinCustomRoom(
   FString Id, FString Password, bool bJoinAsCharacter
 ) {
-  if (!IsConnected()) {
-    // TODO log error
+  TSharedPtr<FSocketIONative> Connection =
+    ConnectionFor(ERedwoodChatRoomType::Custom, bJoinAsCharacter);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    UE_LOG(LogRedwoodChat, Error, TEXT("Not connected for that channel."));
     return;
   }
 
-  CustomRoomUsesCharacter.Add(Id, bJoinAsCharacter);
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bJoinAsCharacter);
+  Payload->SetStringField(TEXT("name"), Id);
+  Payload->SetStringField(TEXT("joinCode"), Password);
 
-  FString RoomTypeString =
-    URedwoodClientChatSubsystem::SerializeRoomType(ERedwoodChatRoomType::Custom
-    );
-  FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
-  (bJoinAsCharacter ? XmppCharacterConnection : XmppPlayerConnection)
-    ->MultiUserChat()
-    ->JoinPrivateRoom(
-      RoomId, bJoinAsCharacter ? CharacterName : Nickname, Password
-    );
+  Connection->Emit(
+    TEXT("chat:room:join"),
+    Payload,
+    [this, Id, bJoinAsCharacter](auto Response) {
+      const TSharedPtr<FJsonObject> Object = Response[0]->AsObject();
+      const FString Error = ErrorOf(Object);
+      if (!Error.IsEmpty()) {
+        UE_LOG(LogRedwoodChat, Error, TEXT("Failed to join room: %s"), *Error);
+        return;
+      }
+
+      FString RoomId;
+      Object->TryGetStringField(TEXT("channelKey"), RoomId);
+
+      // Remembered so later sends and leaves go back to the same space; the
+      // same name can exist as both an account room and a realm room.
+      CustomRoomUsesCharacter.Add(RoomId, bJoinAsCharacter);
+
+      FRedwoodChatRoomIdentity Room;
+      Room.Type = ERedwoodChatRoomType::Custom;
+      Room.RedwoodId = RoomId;
+      Room.Name = Id;
+      Room.CompleteRoomId = FString::Printf(TEXT("custom|%s"), *RoomId);
+
+      OnJoinPrivateRoom.Broadcast(Room);
+    }
+  );
 }
 
 void URedwoodClientChatSubsystem::LeaveRoom(
   ERedwoodChatRoomType Type, FString Id
 ) {
-  if (!IsConnected()) {
-    // TODO log error
+  const bool bCharacterSpace = Type == ERedwoodChatRoomType::Custom
+    ? CustomRoomUsesCharacter.FindRef(Id)
+    : IsCharacterSpace(Type);
+
+  TSharedPtr<FSocketIONative> Connection = ConnectionFor(Type, bCharacterSpace);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
     return;
   }
 
-  bool bCharacterRoom =
-    (bGuildsScopedToRealm && Type == ERedwoodChatRoomType::Guild) ||
-    Type == ERedwoodChatRoomType::Party ||
-    Type == ERedwoodChatRoomType::Realm ||
-    Type == ERedwoodChatRoomType::Proxy ||
-    Type == ERedwoodChatRoomType::Shard || Type == ERedwoodChatRoomType::Team ||
-    Type == ERedwoodChatRoomType::Nearby;
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bCharacterSpace);
 
   if (Type == ERedwoodChatRoomType::Custom) {
-    bool *bCustomRoomUsesCharacter = CustomRoomUsesCharacter.Find(Id);
-    if (bCustomRoomUsesCharacter != nullptr) {
-      bCharacterRoom = *bCustomRoomUsesCharacter;
-    }
+    // Leaving a room is a membership change, not merely tuning out.
+    Payload->SetStringField(TEXT("channelKey"), Id);
+    Connection->Emit(TEXT("chat:room:leave"), Payload);
+    CustomRoomUsesCharacter.Remove(Id);
+    return;
   }
 
-  FString RoomTypeString = URedwoodClientChatSubsystem::SerializeRoomType(Type);
-  FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
-  (bCharacterRoom ? XmppCharacterConnection : XmppPlayerConnection)
-    ->MultiUserChat()
-    ->ExitRoom(RoomId);
+  Payload->SetStringField(TEXT("channelType"), SerializeRoomType(Type));
+  Payload->SetStringField(TEXT("channelKey"), Id);
+  Connection->Emit(TEXT("chat:unsubscribe"), Payload);
 }
 
 void URedwoodClientChatSubsystem::SendMessageToRoom(
   ERedwoodChatRoomType Type, FString Id, const FString &Message
 ) {
-  if (!IsConnected()) {
-    // TODO log error
+  if (Type == ERedwoodChatRoomType::Nearby) {
+    UE_LOG(
+      LogRedwoodChat,
+      Error,
+      TEXT("Nearby messages are sent by the game server, not the client. See "
+           "URedwoodServerGameSubsystem::SendNearbyChatMessage.")
+    );
     return;
   }
 
-  bool bCharacterRoom =
-    (bGuildsScopedToRealm && Type == ERedwoodChatRoomType::Guild) ||
-    Type == ERedwoodChatRoomType::Party ||
-    Type == ERedwoodChatRoomType::Realm ||
-    Type == ERedwoodChatRoomType::Proxy ||
-    Type == ERedwoodChatRoomType::Shard || Type == ERedwoodChatRoomType::Team ||
-    Type == ERedwoodChatRoomType::Nearby;
+  const bool bCharacterSpace = Type == ERedwoodChatRoomType::Custom
+    ? CustomRoomUsesCharacter.FindRef(Id)
+    : IsCharacterSpace(Type);
 
-  if (Type == ERedwoodChatRoomType::Custom) {
-    bool *bCustomRoomUsesCharacter = CustomRoomUsesCharacter.Find(Id);
-    if (bCustomRoomUsesCharacter != nullptr) {
-      bCharacterRoom = *bCustomRoomUsesCharacter;
+  TSharedPtr<FSocketIONative> Connection = ConnectionFor(Type, bCharacterSpace);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    UE_LOG(LogRedwoodChat, Error, TEXT("Not connected for that channel."));
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bCharacterSpace);
+  Payload->SetStringField(TEXT("channelType"), SerializeRoomType(Type));
+  Payload->SetStringField(TEXT("channelKey"), Id);
+  Payload->SetStringField(TEXT("body"), Message);
+
+  Connection->Emit(TEXT("chat:send"), Payload, [](auto Response) {
+    const FString Error = ErrorOf(Response[0]->AsObject());
+    if (!Error.IsEmpty()) {
+      UE_LOG(LogRedwoodChat, Error, TEXT("Failed to send: %s"), *Error);
     }
-  }
-
-  TSharedPtr<FJsonObject> MessagePayload = MakeShareable(new FJsonObject);
-  MessagePayload->SetStringField(
-    TEXT("playerId"), bCharacterRoom ? CharacterId : PlayerId
-  );
-  MessagePayload->SetStringField(TEXT("message"), Message);
-
-  FString JsonString;
-  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
-  FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
-  Writer->Close();
-
-  FString RoomTypeString = URedwoodClientChatSubsystem::SerializeRoomType(Type);
-  FString RoomId = FString::Printf(TEXT("%s|%s"), *RoomTypeString, *Id);
-  (bCharacterRoom ? XmppCharacterConnection : XmppPlayerConnection)
-    ->MultiUserChat()
-    ->SendChat(RoomId, JsonString, FString());
-}
-
-void URedwoodClientChatSubsystem::SendNearbyMessage(
-  const FString &ShardId, const FString &Message, const FVector &Location
-) {
-  if (!IsConnected()) {
-    // TODO log error
-    return;
-  }
-
-  TSharedPtr<FJsonObject> MessagePayload = MakeShareable(new FJsonObject);
-  MessagePayload->SetStringField(TEXT("playerId"), CharacterId);
-  MessagePayload->SetStringField(TEXT("message"), Message);
-  MessagePayload->SetStringField(TEXT("location"), Location.ToString());
-
-  FString JsonString;
-  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
-  FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
-  Writer->Close();
-
-  FString RoomId = FString::Printf(TEXT("shard|%s"), *ShardId);
-  XmppCharacterConnection->MultiUserChat()->SendChat(
-    RoomId, JsonString, FString()
-  );
+  });
 }
 
 void URedwoodClientChatSubsystem::SendMessageToPlayer(
   const FString &TargetPlayerId, const FString &Message
 ) {
-  if (!IsConnected()) {
-    // TODO log error
+  if (!Director.IsValid() || !Director->bIsConnected) {
     return;
   }
 
-  FXmppUserJid RecipientJid;
-  RecipientJid.Id = TargetPlayerId;
-  RecipientJid.Domain = XmppPlayerConnection->GetServer().Domain;
+  TSharedPtr<FJsonObject> Payload = MakeRequest(false);
+  Payload->SetStringField(TEXT("channelType"), TEXT("direct"));
+  Payload->SetStringField(TEXT("recipientId"), TargetPlayerId);
+  Payload->SetStringField(TEXT("body"), Message);
 
-  TSharedPtr<FJsonObject> MessagePayload = MakeShareable(new FJsonObject);
-  MessagePayload->SetStringField(TEXT("nickname"), Nickname);
-  MessagePayload->SetStringField(TEXT("message"), Message);
-
-  FString JsonString;
-  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
-  FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
-  Writer->Close();
-
-  XmppPlayerConnection->PrivateChat()->SendChat(RecipientJid, JsonString);
+  Director->Emit(TEXT("chat:send"), Payload, [](auto Response) {
+    const FString Error = ErrorOf(Response[0]->AsObject());
+    if (!Error.IsEmpty()) {
+      UE_LOG(LogRedwoodChat, Error, TEXT("Failed to send: %s"), *Error);
+    }
+  });
 }
 
 void URedwoodClientChatSubsystem::SendMessageToCharacter(
   const FString &TargetCharacterId, const FString &Message
 ) {
-  if (!IsConnected()) {
-    // TODO log error
+  if (!Realm.IsValid() || !Realm->bIsConnected) {
+    UE_LOG(LogRedwoodChat, Error, TEXT("Not connected to a realm."));
     return;
   }
 
-  FXmppUserJid RecipientJid;
-  RecipientJid.Id = TargetCharacterId;
-  RecipientJid.Domain = XmppCharacterConnection->GetServer().Domain;
+  TSharedPtr<FJsonObject> Payload = MakeRequest(true);
+  Payload->SetStringField(TEXT("channelType"), TEXT("direct"));
+  Payload->SetStringField(TEXT("recipientId"), TargetCharacterId);
+  Payload->SetStringField(TEXT("body"), Message);
 
-  TSharedPtr<FJsonObject> MessagePayload = MakeShareable(new FJsonObject);
-  MessagePayload->SetStringField(TEXT("nickname"), CharacterName);
-  MessagePayload->SetStringField(TEXT("message"), Message);
-
-  FString JsonString;
-  TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
-  FJsonSerializer::Serialize(MessagePayload.ToSharedRef(), Writer);
-  Writer->Close();
-
-  XmppCharacterConnection->PrivateChat()->SendChat(RecipientJid, JsonString);
+  Realm->Emit(TEXT("chat:send"), Payload, [](auto Response) {
+    const FString Error = ErrorOf(Response[0]->AsObject());
+    if (!Error.IsEmpty()) {
+      UE_LOG(LogRedwoodChat, Error, TEXT("Failed to send: %s"), *Error);
+    }
+  });
 }
 
 void URedwoodClientChatSubsystem::CreateCustomRoom(
-  FString Id, FString Password, FRedwoodErrorOutputDelegate OnOutput
+  FString Id,
+  FString Password,
+  bool bCreateAsCharacter,
+  FRedwoodChatRoomCreatedOutputDelegate OnOutput
 ) {
-  URedwoodClientGameSubsystem *GameSubsystem =
-    GetGameInstance()->GetSubsystem<URedwoodClientGameSubsystem>();
+  TSharedPtr<FSocketIONative> Connection =
+    ConnectionFor(ERedwoodChatRoomType::Custom, bCreateAsCharacter);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    OnOutput.ExecuteIfBound(TEXT("Not connected for that channel."), TEXT(""));
+    return;
+  }
 
-  if (GameSubsystem) {
-    URedwoodClientInterface *ClientInterface =
-      GameSubsystem->GetClientInterface();
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bCreateAsCharacter);
+  Payload->SetStringField(TEXT("name"), Id);
 
-    if (ClientInterface) {
-      if (!ClientInterface->IsDirectorConnected()) {
-        OnOutput.ExecuteIfBound(TEXT("Not connected to the Director."));
+  // A password means "anyone with the name and this code"; no password means
+  // "anyone with the name", which is what the old system did.
+  Payload->SetStringField(
+    TEXT("joinPolicy"), Password.IsEmpty() ? TEXT("open") : TEXT("code")
+  );
+  if (!Password.IsEmpty()) {
+    Payload->SetStringField(TEXT("joinCode"), Password);
+  }
+
+  Connection->Emit(
+    TEXT("chat:room:create"),
+    Payload,
+    [this, bCreateAsCharacter, OnOutput](auto Response) {
+      const TSharedPtr<FJsonObject> Object = Response[0]->AsObject();
+      const FString Error = ErrorOf(Object);
+
+      FString JoinCode;
+      Object->TryGetStringField(TEXT("joinCode"), JoinCode);
+
+      if (Error.IsEmpty()) {
+        FString RoomId;
+        Object->TryGetStringField(TEXT("channelKey"), RoomId);
+        CustomRoomUsesCharacter.Add(RoomId, bCreateAsCharacter);
+      }
+
+      OnOutput.ExecuteIfBound(Error, JoinCode);
+    }
+  );
+}
+
+void URedwoodClientChatSubsystem::ListRooms(
+  bool bAsCharacter, FRedwoodChatRoomListOutputDelegate OnOutput
+) {
+  TSharedPtr<FSocketIONative> Connection =
+    ConnectionFor(ERedwoodChatRoomType::Custom, bAsCharacter);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    OnOutput.ExecuteIfBound(TEXT("Not connected for that channel."), {});
+    return;
+  }
+
+  Connection->Emit(
+    TEXT("chat:room:list"),
+    MakeRequest(bAsCharacter),
+    [this, bAsCharacter, OnOutput](auto Response) {
+      const TSharedPtr<FJsonObject> Object = Response[0]->AsObject();
+      const TArray<FRedwoodChatRoom> Rooms = ParseRooms(Object);
+
+      for (const FRedwoodChatRoom &Room : Rooms) {
+        CustomRoomUsesCharacter.Add(Room.RoomId, bAsCharacter);
+      }
+
+      OnOutput.ExecuteIfBound(ErrorOf(Object), Rooms);
+    }
+  );
+}
+
+void URedwoodClientChatSubsystem::ListRoomInvites(
+  bool bAsCharacter, FRedwoodChatRoomListOutputDelegate OnOutput
+) {
+  TSharedPtr<FSocketIONative> Connection =
+    ConnectionFor(ERedwoodChatRoomType::Custom, bAsCharacter);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    OnOutput.ExecuteIfBound(TEXT("Not connected for that channel."), {});
+    return;
+  }
+
+  Connection->Emit(
+    TEXT("chat:room:list-invites"),
+    MakeRequest(bAsCharacter),
+    [OnOutput](auto Response) {
+      const TSharedPtr<FJsonObject> Object = Response[0]->AsObject();
+      OnOutput.ExecuteIfBound(ErrorOf(Object), ParseRooms(Object));
+    }
+  );
+}
+
+void URedwoodClientChatSubsystem::RespondToRoomInvite(
+  FString RoomId, bool bAsCharacter, bool bAccept
+) {
+  TSharedPtr<FSocketIONative> Connection =
+    ConnectionFor(ERedwoodChatRoomType::Custom, bAsCharacter);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bAsCharacter);
+  Payload->SetStringField(TEXT("channelKey"), RoomId);
+  Payload->SetBoolField(TEXT("accept"), bAccept);
+
+  Connection->Emit(
+    TEXT("chat:room:respond-to-invite"),
+    Payload,
+    [this, RoomId, bAsCharacter, bAccept](auto Response) {
+      if (bAccept && ErrorOf(Response[0]->AsObject()).IsEmpty()) {
+        CustomRoomUsesCharacter.Add(RoomId, bAsCharacter);
+      }
+    }
+  );
+}
+
+void URedwoodClientChatSubsystem::InviteToRoom(
+  FString RoomId, bool bAsCharacter, FString MemberId
+) {
+  TSharedPtr<FSocketIONative> Connection =
+    ConnectionFor(ERedwoodChatRoomType::Custom, bAsCharacter);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bAsCharacter);
+  Payload->SetStringField(TEXT("channelKey"), RoomId);
+  Payload->SetStringField(TEXT("memberId"), MemberId);
+
+  Connection->Emit(TEXT("chat:room:invite"), Payload, [](auto Response) {
+    const FString Error = ErrorOf(Response[0]->AsObject());
+    if (!Error.IsEmpty()) {
+      UE_LOG(LogRedwoodChat, Error, TEXT("Failed to invite: %s"), *Error);
+    }
+  });
+}
+
+void URedwoodClientChatSubsystem::GetHistory(
+  ERedwoodChatRoomType Type,
+  FString Id,
+  FString Before,
+  FRedwoodChatHistoryOutputDelegate OnOutput
+) {
+  const bool bCharacterSpace = Type == ERedwoodChatRoomType::Custom
+    ? CustomRoomUsesCharacter.FindRef(Id)
+    : IsCharacterSpace(Type);
+
+  TSharedPtr<FSocketIONative> Connection = ConnectionFor(Type, bCharacterSpace);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    OnOutput.ExecuteIfBound(TEXT("Not connected for that channel."), {});
+    return;
+  }
+
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bCharacterSpace);
+  Payload->SetStringField(TEXT("channelType"), SerializeRoomType(Type));
+  Payload->SetStringField(TEXT("channelKey"), Id);
+  if (!Before.IsEmpty()) {
+    Payload->SetStringField(TEXT("before"), Before);
+  }
+
+  Connection->Emit(TEXT("chat:history"), Payload, [OnOutput](auto Response) {
+    const TSharedPtr<FJsonObject> Object = Response[0]->AsObject();
+
+    TArray<FRedwoodChatMessage> Messages;
+    const TArray<TSharedPtr<FJsonValue>> *Values;
+    if (Object->TryGetArrayField(TEXT("messages"), Values)) {
+      for (const TSharedPtr<FJsonValue> &Value : *Values) {
+        const TSharedPtr<FJsonObject> Entry = Value->AsObject();
+        if (!Entry.IsValid()) {
+          continue;
+        }
+
+        FRedwoodChatMessage Message;
+        Entry->TryGetStringField(TEXT("messageId"), Message.MessageId);
+        Entry->TryGetStringField(TEXT("senderId"), Message.Sender.PlayerId);
+        Entry->TryGetStringField(TEXT("senderName"), Message.Sender.Nickname);
+        Entry->TryGetStringField(TEXT("body"), Message.Message);
+        Message.Timestamp = ParseTimestamp(Entry);
+
+        FString ChannelTypeString;
+        Entry->TryGetStringField(TEXT("channelType"), ChannelTypeString);
+        Entry->TryGetStringField(TEXT("channelKey"), Message.Room.RedwoodId);
+        Message.Room.Type = ParseRoomType(ChannelTypeString);
+        Message.Room.CompleteRoomId = FString::Printf(
+          TEXT("%s|%s"), *ChannelTypeString, *Message.Room.RedwoodId
+        );
+
+        Messages.Add(Message);
+      }
+    }
+
+    OnOutput.ExecuteIfBound(ErrorOf(Object), Messages);
+  });
+}
+
+void URedwoodClientChatSubsystem::GetUnreadSummary(
+  FRedwoodChatUnreadOutputDelegate OnOutput
+) {
+  if (!Director.IsValid() || !Director->bIsConnected) {
+    OnOutput.ExecuteIfBound(TEXT("Not connected to the Director."), {});
+    return;
+  }
+
+  // Unread state lives on whichever connection owns the channel, so a full
+  // picture means asking both and merging. The realm half is skipped when the
+  // player is not in one, which is correct rather than an error: they have no
+  // character, so nothing there is addressed to them.
+  TSharedPtr<TArray<FRedwoodChatUnreadChannel>> Merged =
+    MakeShared<TArray<FRedwoodChatUnreadChannel>>();
+
+  const bool bAskRealm = Realm.IsValid() && Realm->bIsConnected;
+
+  auto Collect = [](const TSharedPtr<FJsonObject> &Object,
+                    TArray<FRedwoodChatUnreadChannel> &Out) {
+    const TArray<TSharedPtr<FJsonValue>> *Values;
+    if (!Object->TryGetArrayField(TEXT("channels"), Values)) {
+      return;
+    }
+
+    for (const TSharedPtr<FJsonValue> &Value : *Values) {
+      const TSharedPtr<FJsonObject> Entry = Value->AsObject();
+      if (!Entry.IsValid()) {
+        continue;
+      }
+
+      FRedwoodChatUnreadChannel Channel;
+      FString ChannelTypeString;
+      Entry->TryGetStringField(TEXT("channelType"), ChannelTypeString);
+      Entry->TryGetStringField(TEXT("channelKey"), Channel.Room.RedwoodId);
+      Channel.Room.Type = ParseRoomType(ChannelTypeString);
+      Channel.Room.CompleteRoomId = FString::Printf(
+        TEXT("%s|%s"), *ChannelTypeString, *Channel.Room.RedwoodId
+      );
+
+      Entry->TryGetStringField(TEXT("displayName"), Channel.DisplayName);
+      Entry->TryGetNumberField(TEXT("unreadCount"), Channel.UnreadCount);
+
+      const TSharedPtr<FJsonObject> *Oldest;
+      if (Entry->TryGetObjectField(TEXT("oldestUnread"), Oldest)) {
+        (*Oldest)->TryGetStringField(
+          TEXT("messageId"), Channel.OldestUnreadMessageId
+        );
+        (*Oldest)->TryGetStringField(TEXT("body"), Channel.OldestUnreadBody);
+      }
+
+      Out.Add(Channel);
+    }
+  };
+
+  Director->Emit(
+    TEXT("chat:unread-summary"),
+    MakeRequest(false),
+    [this, Merged, bAskRealm, Collect, OnOutput](auto Response) {
+      const TSharedPtr<FJsonObject> Object = Response[0]->AsObject();
+      const FString Error = ErrorOf(Object);
+      Collect(Object, *Merged);
+
+      if (!bAskRealm) {
+        OnOutput.ExecuteIfBound(Error, *Merged);
         return;
       }
 
-      TSharedPtr<FJsonObject> Payload = MakeShareable(new FJsonObject);
-      Payload->SetStringField(TEXT("playerId"), ClientInterface->GetPlayerId());
-      Payload->SetStringField(TEXT("name"), Id);
-
-      if (Password.IsEmpty()) {
-        TSharedPtr<FJsonValue> NullValue = MakeShareable(new FJsonValueNull());
-        Payload->SetField(TEXT("password"), NullValue);
-      } else {
-        Payload->SetStringField(TEXT("password"), Password);
-      }
-
-      Director->Emit(
-        TEXT("director:text-chat:create-room"),
-        Payload,
-        [this, OnOutput](auto Response) {
-          TSharedPtr<FJsonObject> MessageObject = Response[0]->AsObject();
-
-          FString Error = MessageObject->GetStringField(TEXT("error"));
-          OnOutput.ExecuteIfBound(Error);
+      Realm->Emit(
+        TEXT("chat:unread-summary"),
+        MakeRequest(true),
+        [Merged, Collect, OnOutput](auto RealmResponse) {
+          const TSharedPtr<FJsonObject> RealmObject =
+            RealmResponse[0]->AsObject();
+          Collect(RealmObject, *Merged);
+          OnOutput.ExecuteIfBound(ErrorOf(RealmObject), *Merged);
         }
       );
-    } else {
-      OnOutput.ExecuteIfBound(TEXT("Redwood Client Interface not found."));
     }
-  } else {
-    OnOutput.ExecuteIfBound(TEXT("Redwood Client Game Subsystem not found."));
+  );
+}
+
+void URedwoodClientChatSubsystem::MarkRead(
+  ERedwoodChatRoomType Type, FString Id, FString UpToMessageId
+) {
+  const bool bCharacterSpace = Type == ERedwoodChatRoomType::Custom
+    ? CustomRoomUsesCharacter.FindRef(Id)
+    : IsCharacterSpace(Type);
+
+  TSharedPtr<FSocketIONative> Connection = ConnectionFor(Type, bCharacterSpace);
+  if (!Connection.IsValid() || !Connection->bIsConnected) {
+    return;
   }
+
+  TSharedPtr<FJsonObject> Payload = MakeRequest(bCharacterSpace);
+  Payload->SetStringField(TEXT("channelType"), SerializeRoomType(Type));
+  Payload->SetStringField(TEXT("channelKey"), Id);
+  Payload->SetStringField(TEXT("upToMessageId"), UpToMessageId);
+
+  Connection->Emit(TEXT("chat:mark-read"), Payload);
 }

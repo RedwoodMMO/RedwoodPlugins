@@ -9,11 +9,34 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Types/RedwoodTypes.h"
 #include "Types/RedwoodTypesChat.h"
-#include "XmppChat.h"
-#include "XmppConnection.h"
 
 #include "RedwoodChatClientSubsystem.generated.h"
 
+/**
+ * Player-facing chat.
+ *
+ * Chat rides the two Redwood connections the player already has rather than a
+ * server of its own. Which connection carries a channel is what decides whether
+ * it is account space or character space:
+ *
+ *   Director  accounts    direct-to-player, guild, account rooms
+ *   Realm     characters  direct-to-character, realm, party, proxy, shard,
+ *                         nearby, realm rooms
+ *
+ * Two behaviours worth knowing:
+ *
+ * - Ambient channels (realm, proxy, shard, nearby) only arrive while you have
+ *   joined them. Joining is a subscription rather than a presence: nobody is
+ *   told you are there, and nothing is waiting for you when you return.
+ *   Joining a durable channel succeeds and does nothing, so a caller need not
+ *   know which kind a channel is.
+ *
+ * - Nearby messages are NOT sent from here. They need a position the server
+ *   trusts and an audience worked out from the world, so they originate on the
+ *   game server; see URedwoodServerGameSubsystem::SendNearbyChatMessage. Your
+ *   game supplies the one hop this subsystem cannot: a Server RPC from the
+ *   player to their game server.
+ */
 UCLASS(BlueprintType)
 class REDWOODCHAT_API URedwoodClientChatSubsystem
   : public UGameInstanceSubsystem {
@@ -25,17 +48,33 @@ public:
   virtual void Deinitialize() override;
   // End USubsystem
 
+  /** True once chat is listening on the Director connection at least. */
   UFUNCTION(BlueprintPure, Category = "Redwood Chat")
   bool IsConnected();
 
+  /**
+   * Start listening. The player must already be logged into the Director;
+   * realm channels start working once they are connected to a realm and have
+   * selected a character.
+   */
   void InitializeChatConnection(FRedwoodErrorOutputDelegate OnOutput);
 
+  /**
+   * Ask to start receiving a channel. Required for realm, proxy, shard, and
+   * nearby; harmless on the rest, which are always delivered.
+   */
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
   void JoinRoom(ERedwoodChatRoomType Type, FString Id);
 
+  /**
+   * Join a custom room by name. `Password` is the room's join code, empty if it
+   * has none. `bJoinAsCharacter` chooses between a room local to your realm and
+   * one that follows your account.
+   */
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
   void JoinCustomRoom(FString Id, FString Password, bool bJoinAsCharacter);
 
+  /** Stop receiving a channel. On a custom room this leaves it for good. */
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
   void LeaveRoom(ERedwoodChatRoomType Type, FString Id);
 
@@ -44,24 +83,66 @@ public:
     ERedwoodChatRoomType Type, FString Id, const FString &Message
   );
 
-  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
-  void SendNearbyMessage(
-    const FString &ShardId, const FString &Message, const FVector &Location
-  );
-
+  /** Message another account. They receive it wherever they are. */
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
   void SendMessageToPlayer(
     const FString &TargetPlayerId, const FString &Message
   );
 
+  /** Message another character in your realm, without naming their account. */
   UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
   void SendMessageToCharacter(
     const FString &TargetCharacterId, const FString &Message
   );
 
+  /**
+   * Create a custom room. Supplying a password makes it joinable by anyone with
+   * the name and that code; leaving it empty makes it joinable by name alone.
+   * The code actually in force comes back through the delegate, since the
+   * server generates one if you do not supply it.
+   */
   void CreateCustomRoom(
-    FString Id, FString Password, FRedwoodErrorOutputDelegate OnOutput
+    FString Id,
+    FString Password,
+    bool bCreateAsCharacter,
+    FRedwoodChatRoomCreatedOutputDelegate OnOutput
   );
+
+  /** Rooms you belong to. */
+  void ListRooms(bool bAsCharacter, FRedwoodChatRoomListOutputDelegate OnOutput);
+
+  /** Invitations awaiting an answer. */
+  void ListRoomInvites(
+    bool bAsCharacter, FRedwoodChatRoomListOutputDelegate OnOutput
+  );
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
+  void RespondToRoomInvite(FString RoomId, bool bAsCharacter, bool bAccept);
+
+  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
+  void InviteToRoom(FString RoomId, bool bAsCharacter, FString MemberId);
+
+  /**
+   * Earlier messages in a channel, newest first. Pass the id of the oldest
+   * message you already have as `Before` to page further back, or leave it
+   * empty for the most recent page.
+   */
+  void GetHistory(
+    ERedwoodChatRoomType Type,
+    FString Id,
+    FString Before,
+    FRedwoodChatHistoryOutputDelegate OnOutput
+  );
+
+  /**
+   * Channels with messages you have not seen, on both connections. Ambient
+   * channels never appear: nothing there was addressed to you.
+   */
+  void GetUnreadSummary(FRedwoodChatUnreadOutputDelegate OnOutput);
+
+  /** Mark a channel read up to and including a message you have seen. */
+  UFUNCTION(BlueprintCallable, Category = "Redwood Chat")
+  void MarkRead(ERedwoodChatRoomType Type, FString Id, FString UpToMessageId);
 
   UPROPERTY(BlueprintAssignable, Category = "Redwood")
   FRedwoodChatJoinPrivateRoomDynamicDelegate OnJoinPrivateRoom;
@@ -126,42 +207,32 @@ public:
 private:
   bool bInitialized = false;
 
-  void InitHandlers();
+  /**
+   * Which connection owns a channel type. Custom rooms exist on both, so the
+   * caller says which one it means; everything else is decided by the channel.
+   */
+  TSharedPtr<FSocketIONative> ConnectionFor(
+    ERedwoodChatRoomType Type, bool bCharacterSpace
+  ) const;
 
-  void HandlePlayerPrivateChatReceiveMessage(
-    const TSharedRef<IXmppConnection> &Connection,
-    const FXmppUserJid &InUserJid,
-    const TSharedRef<FXmppChatMessage> &Message
+  /** True when this channel type lives on the realm connection. */
+  static bool IsCharacterSpace(ERedwoodChatRoomType Type);
+
+  void BindReceive(TSharedPtr<FSocketIONative> Connection, bool bCharacterSpace);
+
+  void HandleReceived(
+    const TSharedPtr<FJsonObject> &Message, bool bCharacterSpace
   );
-  void HandleCharacterPrivateChatReceiveMessage(
-    const TSharedRef<IXmppConnection> &Connection,
-    const FXmppUserJid &InUserJid,
-    const TSharedRef<FXmppChatMessage> &Message
-  );
-  void HandleJoinPrivateRoom(
-    const TSharedRef<IXmppConnection> &Connection,
-    bool bSuccess,
-    const FString &RoomId,
-    const FString &Error
-  );
-  void HandleRoomChatReceived(
-    const TSharedRef<IXmppConnection> &Connection,
-    const FString &RoomId,
-    const FXmppUserJid &InUserJid,
-    const TSharedRef<FXmppChatMessage> &ChatMsg
-  );
+
+  TSharedPtr<FJsonObject> MakeRequest(bool bCharacterSpace) const;
 
   TSharedPtr<FSocketIONative> Director;
+  TSharedPtr<FSocketIONative> Realm;
   FString PlayerId;
-  FString RealmId;
-  FString CharacterId;
-  FString Nickname;
-  FString CharacterName;
-  FString XmppPassword;
 
-  TSharedPtr<class IXmppConnection> XmppPlayerConnection;
-  TSharedPtr<class IXmppConnection> XmppCharacterConnection;
-
-  bool bGuildsScopedToRealm = false;
+  /**
+   * Which space each custom room was joined in, so later sends and leaves go
+   * back to the same place. A room name can exist on both.
+   */
   TMap<FString, bool> CustomRoomUsesCharacter;
 };
