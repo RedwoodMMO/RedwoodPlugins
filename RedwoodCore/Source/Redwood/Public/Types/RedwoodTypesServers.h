@@ -46,9 +46,6 @@ struct FRedwoodGameServerProxy {
   FString ShortCode;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 MaxPlayersPerShard = 0;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   USIOJsonObject *Data = nullptr;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
@@ -66,19 +63,10 @@ struct FRedwoodGameServerProxy {
   TArray<FString> Zones;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 NumPlayersToAddShard = -1;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  int32 NumMinutesToDestroyEmptyShard = -1;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bPublic = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bProxyEndsWhenCollectionEnds = false;
-
-  UPROPERTY(BlueprintReadWrite, Category = "Redwood")
-  bool bCollectionEndsWhenAnyShardEnds = false;
 
   UPROPERTY(BlueprintReadWrite, Category = "Redwood")
   bool bHasPassword = false;

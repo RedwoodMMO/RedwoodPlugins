@@ -292,9 +292,6 @@ FRedwoodGameServerProxy URedwoodCommonGameSubsystem::ParseServerProxy(
 
   ServerProxy->TryGetStringField(TEXT("shortCode"), Server.ShortCode);
 
-  Server.MaxPlayersPerShard =
-    ServerProxy->GetIntegerField(TEXT("maxPlayersPerShard"));
-
   const TSharedPtr<FJsonObject> *Data;
   if (ServerProxy->TryGetObjectField(TEXT("data"), Data)) {
     USIOJsonObject *DataObject = NewObject<USIOJsonObject>();
@@ -314,14 +311,6 @@ FRedwoodGameServerProxy URedwoodCommonGameSubsystem::ParseServerProxy(
   if (ServerProxy->TryGetStringField(TEXT("zones"), ZonesCSV)) {
     ZonesCSV.ParseIntoArray(Server.Zones, TEXT(","), true);
   }
-
-  ServerProxy->TryGetNumberField(
-    TEXT("numPlayersToAddShard"), Server.NumPlayersToAddShard
-  );
-
-  ServerProxy->TryGetNumberField(
-    TEXT("numMinutesToDestroyEmptyShard"), Server.NumMinutesToDestroyEmptyShard
-  );
 
   Server.bPublic = ServerProxy->GetBoolField(TEXT("public"));
 

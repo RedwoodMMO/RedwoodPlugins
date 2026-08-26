@@ -141,12 +141,6 @@ void FMockRealmsServersListProxiesRun::Initialize() {
 
         CurrentTest->TestEqual(
           TEXT("returns correct server max players"),
-          Output.Proxies[0].MaxPlayersPerShard,
-          100
-        );
-
-        CurrentTest->TestEqual(
-          TEXT("returns correct server max players"),
           Output.Proxies[0].Data->GetStringField(TEXT("mock")),
           TEXT("data")
         );
@@ -179,12 +173,6 @@ void FMockRealmsServersListProxiesRun::Initialize() {
           TEXT("returns correct server zone name"),
           Output.Proxies[0].Zones[1],
           TEXT("mock-zone-2")
-        );
-
-        CurrentTest->TestEqual(
-          TEXT("returns correct server numPlayersToAddInstance"),
-          Output.Proxies[0].NumPlayersToAddShard,
-          10
         );
 
         Context->bIsCurrentTestComplete = true;
