@@ -1,0 +1,125 @@
+name: Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or SHA to package (defaults to the ref this run was dispatched on)"
+        required: false
+        type: string
+      retention-days:
+        description: "Days to keep the artifact before GitHub expires it"
+        required: false
+        default: 7
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          lfs: true
+          submodules: recursive
+          set-safe-directory: false
+          # Falls back to the run's own token when no PAT is configured; the
+          # PAT is what lets us reach private submodules (same as test.yaml).
+          token: ${{ secrets.PAT || github.token }}
+
+      - name: Hydrate LFS in submodules
+        # actions/checkout pulls LFS for the top-level repo, but submodule LFS
+        # objects are left as pointers, so pull them explicitly.
+        run: |
+          set -euo pipefail
+          git lfs pull
+          git submodule foreach --recursive 'git lfs pull'
+
+      - name: Verify submodules are populated
+        run: |
+          set -euo pipefail
+          # `git submodule status` prefixes a line with '-' when the submodule
+          # was never initialized, i.e. the directory is empty.
+          if git submodule status --recursive | grep '^-'; then
+            echo "::error::One or more submodules are not checked out (see above)."
+            exit 1
+          fi
+          git submodule status --recursive
+
+      - name: Stage package contents
+        id: stage
+        env:
+          REF_INPUT: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+
+          REF_NAME="${REF_INPUT:-${GITHUB_REF_NAME}}"
+          SLUG="$(printf '%s' "$REF_NAME" | tr '/' '-' | tr -cd '[:alnum:]._-')"
+          NAME="RedwoodPlugins-${SLUG}-$(git rev-parse --short HEAD)"
+
+          STAGE="${RUNNER_TEMP}/stage/${NAME}"
+          mkdir -p "$STAGE"
+
+          # Keep this list in sync with release.js.
+          for item in \
+            RedwoodChat RedwoodCore RedwoodEOS RedwoodGAS RedwoodSteam \
+            ThirdParty \
+            .clang-format .gitattributes .gitignore .gitmodules \
+            LICENSE.md README.md
+          do
+            cp -R "$item" "$STAGE/"
+          done
+
+          # `.git` is a directory in the top-level checkout and a gitdir-pointer
+          # file inside each submodule; -prune handles both.
+          find "$STAGE" -name .git -prune -exec rm -rf {} +
+          find "$STAGE" \( -name Binaries -o -name Intermediate -o -name Saved \) \
+            -type d -prune -exec rm -rf {} +
+          find "$STAGE" -name '*.zip' -type f -delete
+
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "path=${STAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify no LFS pointers survived
+        env:
+          STAGE: ${{ steps.stage.outputs.path }}
+        run: |
+          set -euo pipefail
+          # A pointer file is ~130 bytes and starts with the spec URL. Bounding
+          # the search by size keeps us from grepping real .uasset binaries.
+          POINTERS="$(find "$STAGE" -type f -size -1025c \
+            -exec grep -l '^version https://git-lfs\.github\.com/spec/v1' {} + 2>/dev/null || true)"
+          if [ -n "$POINTERS" ]; then
+            echo "::error::LFS pointer files were not hydrated:"
+            printf '%s\n' "$POINTERS"
+            exit 1
+          fi
+          echo "No LFS pointers found."
+
+      - name: Report package contents
+        env:
+          STAGE: ${{ steps.stage.outputs.path }}
+          NAME: ${{ steps.stage.outputs.name }}
+          REF_INPUT: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### ${NAME}"
+            echo
+            echo "- Ref: \`${REF_INPUT:-${GITHUB_REF_NAME}}\` (\`$(git rev-parse HEAD)\`)"
+            echo "- Files: $(find "$STAGE" -type f | wc -l)"
+            echo "- Size: $(du -sh "$STAGE" | cut -f1)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.stage.outputs.name }}
+          path: ${{ steps.stage.outputs.path }}
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error
