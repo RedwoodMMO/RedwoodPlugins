@@ -35,7 +35,7 @@ THIRD_PARTY_INCLUDES_END
 // that a signature computed offline can be verified at runtime. Sorted
 // object keys, no whitespace, escaped strings, lowercase keywords.
 //
-// Intentionally minimal — covers what `redwood.json` and similar
+// Intentionally minimal; covers what `redwood.json` and similar
 // signed-payload features need (strings, numbers, booleans, null,
 // objects, arrays). Numbers are emitted via FString::SanitizeFloat
 // stripping trailing zeros, which matches the canonical form most
@@ -112,18 +112,28 @@ FString SerializeCanonicalObject(const TSharedPtr<FJsonObject> &Object) {
   if (!Object.IsValid()) {
     return TEXT("{}");
   }
-  TArray<FString> Keys;
-  Object->Values.GetKeys(Keys);
-  Keys.Sort();
+  // Iterate the JSON object directly; deref of the key works whether it
+  // is stored as FString or UE::FSharedString (5.8 FStringView keys).
+  TArray<TPair<FString, TSharedPtr<FJsonValue>>> Pairs;
+  Pairs.Reserve(Object->Values.Num());
+  for (const auto &Pair : Object->Values) {
+    Pairs.Emplace(FString(*Pair.Key), Pair.Value);
+  }
+  Pairs.Sort(
+    [](const TPair<FString, TSharedPtr<FJsonValue>> &A,
+       const TPair<FString, TSharedPtr<FJsonValue>> &B) {
+      return A.Key < B.Key;
+    }
+  );
 
   FString Out = TEXT("{");
-  for (int32 i = 0; i < Keys.Num(); ++i) {
+  for (int32 i = 0; i < Pairs.Num(); ++i) {
     if (i > 0) {
       Out.AppendChar(TEXT(','));
     }
-    Out += RwEscapeJsonString(Keys[i]);
+    Out += RwEscapeJsonString(Pairs[i].Key);
     Out.AppendChar(TEXT(':'));
-    Out += SerializeCanonicalJson(Object->Values[Keys[i]]);
+    Out += SerializeCanonicalJson(Pairs[i].Value);
   }
   Out.AppendChar(TEXT('}'));
   return Out;
@@ -231,7 +241,7 @@ bool VerifyEd25519(
 // redwood.json loader.
 //
 // Returns null when no override should be applied (file missing, file
-// unreadable, JSON malformed, or — critically — PublicSigningKey is set
+// unreadable, JSON malformed, or (critically) PublicSigningKey is set
 // and the signature is missing or invalid).
 // -----------------------------------------------------------------------
 
@@ -293,10 +303,11 @@ TSharedPtr<FJsonObject> LoadSignedRedwoodConfig(
   // string/number formatting).
   TSharedPtr<FJsonObject> Unsigned = MakeShared<FJsonObject>();
   for (const auto &Pair : JsonObject->Values) {
-    if (Pair.Key.Equals(TEXT("signature"), ESearchCase::CaseSensitive)) {
+    const FString Key = *Pair.Key;
+    if (Key.Equals(TEXT("signature"), ESearchCase::CaseSensitive)) {
       continue;
     }
-    Unsigned->SetField(Pair.Key, Pair.Value);
+    Unsigned->SetField(Key, Pair.Value);
   }
   const FString CanonicalJson = SerializeCanonicalObject(Unsigned);
 
@@ -358,7 +369,7 @@ FString URedwoodSettings::GetDirectorUri() {
 
   // Operator kill switch: don't even look for the file if the override
   // is globally disabled. Skips the file existence check, signature
-  // verification, and any logging — also the lowest-overhead path for
+  // verification, and any logging; also the lowest-overhead path for
   // shipped builds that don't want to honor any local config override.
   if (!Settings->bRedwoodJsonEnabled) {
     return Uri;
