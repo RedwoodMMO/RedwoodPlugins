@@ -1,0 +1,34 @@
+{
+	"FileVersion": 1,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Redwood support for Angelscript",
+	"Description": "ScriptMixin bindings that expose RedwoodCore's C++ delegate-callback API to Angelscript. Optional; enable it only in projects that use Angelscript. Chat bindings live in the separate RedwoodChatAngelscript plugin so that enabling these does not pull in RedwoodChat.",
+	"Category": "Scripting",
+	"CreatedBy": "Incanta Games",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+
+	"Modules": [
+		{
+			"Name": "RedwoodAngelscript",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "RedwoodCore",
+			"Enabled": true
+		},
+		{
+			"Name": "Angelscript",
+			"Enabled": true
+		}
+	]
+}

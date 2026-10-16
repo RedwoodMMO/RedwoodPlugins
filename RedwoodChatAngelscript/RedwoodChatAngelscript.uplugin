@@ -1,0 +1,38 @@
+{
+	"FileVersion": 1,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Redwood Chat support for Angelscript",
+	"Description": "ScriptMixin bindings for RedwoodChat's callback-taking methods. Separate from RedwoodAngelscript on purpose: a .uplugin dependency with \"Enabled\": true force-enables the referenced plugin even when the consuming project disabled it, and \"Optional\" only suppresses the error when the plugin is absent from disk. Keeping these bindings in their own plugin is the only way a project can take the core Redwood bindings without also taking RedwoodChat.",
+	"Category": "Scripting",
+	"CreatedBy": "Incanta Games",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+
+	"Modules": [
+		{
+			"Name": "RedwoodChatAngelscript",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "RedwoodChat",
+			"Enabled": true
+		},
+		{
+			"Name": "RedwoodAngelscript",
+			"Enabled": true
+		},
+		{
+			"Name": "Angelscript",
+			"Enabled": true
+		}
+	]
+}
