@@ -70,7 +70,9 @@ TStatId URedwoodClientInterface::GetStatId() const {
 void URedwoodClientInterface::InitializeDirectorConnection(
   FRedwoodSocketConnectedDelegate OnDirectorConnected
 ) {
-  Director = ISocketIOClientModule::Get().NewValidNativePointer();
+  Director = ISocketIOClientModule::Get().NewValidNativePointer(
+    false, GetDefault<URedwoodSettings>()->bVerifyTLSCertificate
+  );
   bSentDirectorConnected = false;
 
   Director->OnEvent(
@@ -2231,7 +2233,9 @@ void URedwoodClientInterface::InitiateRealmHandshake(
 
       CurrentRealmId = InRealm.Id;
       CurrentRealm = InRealm;
-      Realm = ISocketIOClientModule::Get().NewValidNativePointer();
+      Realm = ISocketIOClientModule::Get().NewValidNativePointer(
+        false, GetDefault<URedwoodSettings>()->bVerifyTLSCertificate
+      );
       bSentRealmConnected = false;
 
       Realm->OnReconnectionCallback = [InRealm, this](

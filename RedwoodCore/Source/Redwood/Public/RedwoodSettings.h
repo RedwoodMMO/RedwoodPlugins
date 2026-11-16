@@ -63,6 +63,22 @@ public:
   static FString GetDirectorUri();
 
   /**
+   * When true, clients verify the TLS certificate of the Director and Realm
+   * when connecting over `wss://`. The certificate chain is checked against
+   * the engine's CA bundle (`Engine/Content/Certificates`, which a project can
+   * override), the certificate must match the URI's host, and the engine's
+   * certificate pinning rules apply. A failed check is logged as a connection
+   * error and retried like any other failed connection attempt.
+   *
+   * Off by default so self-signed development and staging certificates keep
+   * working. Turn this on for production builds. To verify against a test CA,
+   * set `DebuggingCertificatePath` under `[SSL]` in your Engine.ini to its PEM
+   * file. Has no effect on `ws://` connections.
+   */
+  UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "General")
+  bool bVerifyTLSCertificate = false;
+
+  /**
    * If set to true, Redwood will automatically connect clients to servers
    * when they receive a request from the Realm service. This will happen
    * when the client A) requests to join a lobby session, B) requests to join
